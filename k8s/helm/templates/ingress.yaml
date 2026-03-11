@@ -1,9 +1,48 @@
 # Ingress resources for platform entry points
 # Hosts:
-#   - control.devops.local -> Control Panel Frontend/Backend
+#   - control.devops.local -> Control Panel Frontend (port 80) + Backend API (/api/*)
 #   - gitea.devops.local   -> Gitea Web UI
 #   - app.devops.local     -> app-staging deployed applications
-# Filled in: as each Phase completes its component
 {{- if .Values.ingress.enabled }}
-# Ingress definitions will be added here as components are deployed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  rules:
+  - host: {{ .Values.ingress.hosts.control }}
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+  - host: {{ .Values.ingress.hosts.gitea }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gitea-http
+            port:
+              number: 3000
 {{- end }}
