@@ -33,7 +33,7 @@ export default function Dashboard() {
   useEffect(() => { if (agents.length > 0) setDisplay(agents) }, [agents])
 
   const running = display.filter((a) => a.status.phase === 'Running').length
-  const todayTokens = display.reduce((s, a) => s + a.status.tokenUsage.today, 0)
+  const todayTokens = display.reduce((s, a) => s + a.status.tokenUsage?.today ?? 0, 0)
   const chartData = genHourlyData()
 
   const chartOption = {
@@ -80,7 +80,7 @@ export default function Dashboard() {
                   <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{agent.spec.role}</td>
                   <td style={{ padding: '12px' }}><AgentPhaseTag phase={agent.status.phase} /></td>
                   <td style={{ padding: '12px', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.status.lastAction?.description ?? '—'}</td>
-                  <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{agent.status.tokenUsage.today.toLocaleString()}</td>
+                  <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>

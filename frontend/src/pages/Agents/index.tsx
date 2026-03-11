@@ -93,7 +93,7 @@ export default function AgentList() {
                 <td style={{ padding: '12px' }}><AgentPhaseTag phase={agent.status.phase} /></td>
                 <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{agent.spec.llm.model}</td>
                 <td style={{ padding: '12px', color: 'var(--text-muted)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.status.lastAction?.description ?? '—'}</td>
-                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums' }}>{agent.status.tokenUsage.today.toLocaleString()}</td>
+                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums' }}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</td>
                 <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{getAge(agent.status.createdAt)}</td>
                 <td style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', gap: '6px' }}>

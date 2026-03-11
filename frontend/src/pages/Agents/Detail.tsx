@@ -79,7 +79,7 @@ export default function AgentDetail() {
                 </div>
                 <div style={labelStyle}>Conditions</div>
                 <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {agent.status.conditions.map((c, i) => (
+                  {(agent.status.conditions ?? []).map((c, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px', fontSize: '0.85rem', padding: '8px 12px', borderRadius: '8px', backgroundColor: c.status === 'True' ? '#dce5dc' : '#e5dcdc' }}>
                       <span>{c.status === 'True' ? '✓' : '✗'}</span>
                       <span style={{ fontWeight: 600 }}>{c.type}</span>
@@ -94,7 +94,7 @@ export default function AgentDetail() {
                 <button onClick={() => agentsApi.resetMemory(agent.name).catch(() => {})} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>重置记忆</button>
                 <div style={{ marginTop: '8px', borderTop: '1px solid var(--line-subtle)', paddingTop: '16px' }}>
                   <div style={labelStyle}>今日 Token</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', marginTop: '4px' }}>{agent.status.tokenUsage.today.toLocaleString()}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', marginTop: '4px' }}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</div>
                 </div>
               </div>
             </div>
