@@ -51,23 +51,25 @@ concepts:
     tasks: []
 
   control-panel:
-    description: "管控面（Frontend + Backend），提供 Agent 管理、LLM 配置、审计查询和实时监控"
+    description: "管控面（Frontend + Backend），提供 Agent 管理、LLM 配置、审计查询、实时监控和 Gitea 任务指派"
     design: "designs/control-panel-backend.md"
     related_concepts:
       - system-overview
       - event-bus
       - operator
+      - gitea-integration
     plans:
       - "plans/2026-03-11-phase1-infra.md"
       - "plans/2026-03-11-phase5-backend.md"
     tasks: []
 
   control-panel-frontend:
-    description: "Control Panel 前端，基于 Semi Design 构建的管理界面"
+    description: "Control Panel 前端，观测优先的管理界面，包含仪表盘、Agent 活动时间线、Gitea 链接集成和实时告警"
     design: "designs/control-panel-frontend.md"
     related_concepts:
       - control-panel
       - system-overview
+      - gitea-integration
     plans:
       - "plans/2026-03-11-phase6-frontend.md"
     tasks: []

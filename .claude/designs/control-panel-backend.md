@@ -1,7 +1,7 @@
 # Control Panel Backend 设计文档
 
 > 关联总览：[系统设计总览](system-design-overview.md)
-> 关联：[Control Panel Frontend 设计](control-panel-frontend.md) | [Event Bus 设计](event-bus.md)
+> 关联：[Control Panel Frontend 设计](control-panel-frontend.md) | [Event Bus 设计](event-bus.md) | [Gitea 集成设计](gitea-integration.md)
 
 ## 一、职责
 
@@ -37,10 +37,36 @@ Control Panel Backend 是管控面的 Go HTTP 服务，提供以下能力：
 | `POST` | `/api/agents/:name/pause` | 暂停 Agent（设置 spec.paused=true） |
 | `POST` | `/api/agents/:name/resume` | 恢复 Agent（设置 spec.paused=false） |
 | `GET` | `/api/agents/:name/logs` | 获取 Agent Pod 最近日志（kubectl logs） |
+| `POST` | `/api/agents/:name/assign-issue` | 在 Gitea 创建 Issue 并 assign 给该 Agent |
+| `POST` | `/api/agents/:name/reset-memory` | 清空 Agent 记忆 PVC 并触发 Pod 重启 |
 
-### 2.3 LLM 模型管理
+#### 指派任务请求体（`POST /api/agents/:name/assign-issue`）
 
-| Method | Path | LiteLLM 转发目标 | 说明 |
+```json
+{
+  "repo": "ai-team/webapp",
+  "title": "Fix login redirect bug",
+  "body": "描述问题...",
+  "labels": ["bug", "priority/medium"],
+  "priority": "medium"
+}
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "issue_number": 17,
+    "issue_url": "http://gitea.devops.local/ai-team/webapp/issues/17"
+  }
+}
+```
+
+Backend 处理流程：调用 Gitea API 创建 Issue → 自动 assign 给该 Agent 的 Gitea 用户 → 向 `events:gitea` Stream 写入一条 `issue.assigned_by_admin` 事件（供前端活动时间线展示）。
+
+### 2.3 LLM 模型管理| Method | Path | LiteLLM 转发目标 | 说明 |
 |--------|------|----------------|------|
 | `GET` | `/api/llm/models` | `GET /model/info` | 列出所有已配置模型 |
 | `POST` | `/api/llm/models` | `POST /model/new` | 新增模型配置 |
