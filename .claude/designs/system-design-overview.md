@@ -738,15 +738,21 @@ FROM audit.token_usage_daily
 WHERE day >= today() - 7
 ORDER BY day, agent_id;
 
--- 导出训练数据（JSONL 格式）
+-- 导出训练数据 Trajectory（JSONL 格式）
 SELECT concat(
-    '{"messages":', JSONExtractRaw(request_body, 'messages'),
-    ',"response":', JSONExtractRaw(response_body, 'choices'),
-    ',"tools":', tool_calls, '}')
+    '{"messages":', request_body_messages,
+    ',"response":', response_body_choice, '}')
 AS jsonl_line
-FROM audit.traces
-WHERE request_type = 'llm_inference'
-AND created_at >= '2026-03-01'
+FROM (
+    SELECT
+        JSONExtractRaw(request_body, 'messages') AS request_body_messages,
+        JSONExtractRaw(response_body, 'choices[0].message') AS response_body_choice
+    FROM audit.traces
+    WHERE request_type = 'llm_inference'
+      AND request_body != ''
+      AND created_at >= '2026-03-01'
+)
+WHERE request_body_messages != '' AND response_body_choice != ''
 FORMAT JSONEachRow;
 
 -- Agent 活跃度排行
@@ -774,7 +780,7 @@ HAVING last_heartbeat < now() - INTERVAL 15 MINUTE;
 | --- | --- | --- |
 | control-plane | Control Panel Frontend, Backend, Agent Gateway, Event Collector, Operator | 管控面所有组件 |
 | storage | Redis, ClickHouse | 数据存储层 |
-| devops-infra | Gitea, Gitea Runner, Registry | DevOps 基础设施 |
+| devops-infra | Gitea, Gitea Actions Runner (`act_runner`, limits: 8C/16G, capacity=4), Registry | DevOps 基础设施 |
 | llm-gateway | LiteLLM Proxy | LLM 统一入口 |
 | agents | Observer, Developer, Reviewer, SRE Agent Pods | AI Agent 运行空间 |
 | app-staging | Agent 部署的应用 | 验证 Agent 部署能力的目标环境 |

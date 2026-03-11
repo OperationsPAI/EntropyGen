@@ -133,7 +133,7 @@ Control Panel
 面向 AI 训练的数据导出功能：
 
 - 过滤条件：时间范围、Agent、Request Type
-- 导出格式：JSONL（每行一条 `{"messages":..., "response":..., "tools":...}`）
+- 导出格式：JSONL（每行一条 `{"messages":..., "response":...}`，messages 为 OpenAI 格式输入，response 为 completion 输出）
 - 导出方式：调用 `/api/audit/export` 流式下载
 - 预估数据量展示（导出前先 COUNT 查询）
 

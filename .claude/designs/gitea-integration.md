@@ -512,6 +512,79 @@ env:
 
 这解决了 `event-bus.md §八` 中提到的 "Event Collector 的 Gitea Webhook HMAC Secret 管理" 待细化项。
 
+### 5.6 Gitea Actions Runner 配置
+
+Runner 以 K8S Deployment 形式运行在 `devops-infra` namespace，使用 Gitea 官方的 `act_runner` 实现。
+
+**部署形态：**
+
+- Runner 作为 Deployment 部署在 `devops-infra` namespace（长驻运行，非一次性 Job）
+- 每个 Runner Pod 运行一个 `act_runner` 进程，CI Job 在 Runner 内部的独立容器中执行
+
+**资源配置（单个 Runner Pod）：**
+
+```yaml
+resources:
+  requests:
+    cpu: "2"
+    memory: "4Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+```
+
+**Runner 注册流程：**
+
+1. `gitea-init-job` 通过 Gitea Admin API 获取 Runner Registration Token：
+   ```
+   POST /api/v1/admin/runners/registration-token
+   response: { "token": "<registration-token>" }
+   ```
+2. Registration Token 写入 K8S Secret：
+   ```bash
+   kubectl create secret generic gitea-runner-token \
+     --from-literal=token=<registration-token> \
+     -n devops-infra
+   ```
+3. Runner Deployment 启动时，`act_runner` 使用 `--token` 参数完成注册：
+   ```bash
+   act_runner register \
+     --instance http://gitea.devops-infra.svc:3000 \
+     --token <registration-token> \
+     --no-interactive
+   act_runner daemon
+   ```
+
+**并发配置：**
+
+- `capacity = 4`：单个 Runner 实例同时最多执行 4 个 CI Job
+- 每个 Job 在独立容器中运行，共享 Runner Pod 的资源限制
+- 若需更高并发，可通过手动增加 Deployment replicas 扩展
+
+### 5.7 microservices-demo 仓库镜像
+
+平台使用 Google 的 [microservices-demo](https://github.com/GoogleCloudPlatform/microservices-demo) 作为目标仓库，为 Agent 提供真实的多语言微服务代码库。
+
+**仓库特点：**
+
+- 多语言微服务：Go、Python、Node.js、Java、C#、Rust 等
+- 约 10 个独立微服务（frontend、cartservice、productcatalogservice 等）
+- 包含完整的 K8S manifests（Deployment、Service、Ingress 等）
+- 具备单元测试和 CI 配置
+
+**初始化方式（管理员手动 mirror）：**
+
+```bash
+# 从 GitHub 克隆裸仓库
+git clone --mirror https://github.com/GoogleCloudPlatform/microservices-demo.git
+
+# 推送到 Gitea（仓库需先通过 gitea-init-job 创建）
+cd microservices-demo.git
+git push --mirror http://gitea.devops.local/platform/platform-demo.git
+```
+
+> 选择手动 mirror 而非在 `gitea-init-job` 中自动执行，原因：(1) 避免 Init Job 依赖外网访问 GitHub；(2) 管理员可选择特定版本/tag 进行 mirror；(3) Init Job 保持轻量和幂等。
+
 ## 六、安全边界
 
 - Agent 只能访问被授权的仓库（Operator 显式添加为 collaborator）
@@ -521,5 +594,4 @@ env:
 
 ## 七、待细化
 
-- [ ] 多仓库支持（当前假设单仓库，多仓库时的权限管理）
-- [ ] Gitea Actions Runner 的资源限制配置
+（所有待细化项已解决）

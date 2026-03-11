@@ -123,6 +123,8 @@ events:gateway payload → audit.traces
   tokens_in       → tokens_in
   tokens_out      → tokens_out
   latency_ms      → latency_ms
+  request_body    → request_body  （仅 llm_inference 有值，其余为空字符串）
+  response_body   → response_body （仅 llm_inference 有值，其余为空字符串）
   timestamp       → created_at
 ```
 
@@ -230,6 +232,18 @@ ADMIN_PASSWORD_HASH=bcrypt($password)
   └─ 流式 SELECT，每 100 行 flush 一次到客户端
      → 客户端中断时服务端检测到写错误，提前终止查询
 ```
+
+**训练数据 Trajectory 格式：**
+
+每行为一条 Agent 推理记录，格式：
+
+```json
+{"messages": [{"role": "user", "content": "..."}, ...], "response": {"role": "assistant", "content": "..."}}
+```
+
+- `messages`：LLM 请求的 `messages` 数组（OpenAI format），从 `request_body` 字段提取
+- `response`：LLM 返回的 `choices[0].message`，从 `response_body` 字段提取
+- 过滤条件：`request_type = 'llm_inference' AND request_body != ''`（跳过无 body 的历史记录）
 
 限流：同时最多允许 2 个并发导出请求（超出返回 `429`），防止大查询压垮 ClickHouse。
 

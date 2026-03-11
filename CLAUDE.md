@@ -89,6 +89,50 @@ When any design concept changes, execute the following workflow:
 5. **Update index.yaml** — If adding/removing concepts or relationships, update the index
 6. **Create new plan/task** — If changes need an implementation plan, append new files in `plans/` and `tasks/` (never modify existing files)
 
+## Smoke Testing
+
+After implementing any component, verify it actually runs before moving on. The goal is to catch integration failures early — wiring errors, missing env vars, misconfigured ports — not to achieve coverage.
+
+### What "smoke test" means here
+
+Run the binary or service with minimal config, exercise the primary happy path, confirm it doesn't crash and returns sensible output. This is not about correctness of edge cases; it's about "does this thing start and do the obvious thing."
+
+### When to smoke test
+
+- After a service compiles for the first time — start it, hit its health endpoint
+- After wiring two components together — send a real request through the integration point
+- After a config or env var change — confirm the service still starts with the new config
+- Before declaring a phase "done"
+
+### Script vs manual
+
+If the smoke test sequence is more than 3 commands or requires setup state (a running Redis, a seeded DB), write a script in `scripts/smoke/`. Name it after the component: `gateway.sh`, `backend.sh`, etc.
+
+Script quality rules:
+- One script per integration boundary, not one per function
+- The script must exit non-zero on failure — use `set -e` and explicit assertions (`curl ... | grep expected_value`)
+- No mocking inside smoke scripts — use real dependencies (Docker Compose or a local cluster)
+- Keep each script under 60 lines; if it grows larger, the component likely has too many external dependencies exposed at once
+
+### Examples of good smoke tests
+
+```bash
+# Gateway: start with test JWT secret, send a request, confirm proxying works
+JWT=$(generate_test_jwt agent-dev-1 developer)
+curl -sf -H "Authorization: Bearer $JWT" http://localhost:8080/healthz | grep ok
+
+# Backend: confirm ClickHouse Writer picked up an event
+redis-cli XADD events:gateway '*' event_type gateway.heartbeat agent_id test-1
+sleep 2
+clickhouse-client --query "SELECT count() FROM audit.traces WHERE agent_id='test-1'" | grep -v '^0$'
+```
+
+### Examples of bad smoke tests
+
+- Mocking the downstream service inside the smoke script (defeats the point)
+- Asserting on internal state (DB row counts that depend on timing)
+- Running 30 curl commands to cover every endpoint (that's an E2E suite, not a smoke test)
+
 ## Testing Philosophy
 
 Every test must be deliberate. Adding, modifying, or removing a test requires careful justification.
