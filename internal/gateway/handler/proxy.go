@@ -104,7 +104,6 @@ func (p *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	latencyMs := time.Since(start).Milliseconds()
 
-	_ = traceID // Used in full audit implementation
 	p.eventWriter.EnqueueRequest(audit.RequestRecord{
 		TraceID:   traceID,
 		EventType: eventType,

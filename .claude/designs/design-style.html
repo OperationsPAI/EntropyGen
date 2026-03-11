@@ -1,0 +1,742 @@
+<html lang="en" vid="0"><head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+    <title vid="4">AI Agent Ops</title>
+    <style vid="5">
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            
+            --bg-canvas: #dcd3ca; 
+            --bg-surface: #ffffff; 
+            --text-main: #111111;
+            --text-muted: #665f58;
+            --accent-orange: #e5502b; 
+            
+            
+            --line-strong: #111111;
+            --line-subtle: rgba(17, 17, 17, 0.15);
+            --line-decorative: rgba(17, 17, 17, 0.3);
+
+            
+            --status-green-bg: #dce5dc;
+            --status-green-txt: #2a402a;
+            --status-red-bg: #e5dcdc;
+            --status-red-txt: #402a2a;
+            --status-gray-bg: #e6e1dc;
+            --status-gray-txt: #5c5752;
+
+            
+            --radius-lg: 24px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --radius-pill: 999px;
+
+            
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            
+            
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            padding: var(--space-md);
+            gap: var(--space-md);
+        }
+
+        
+        h1, h2, h3 {
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+        }
+
+        .heading-card {
+            font-size: 1.25rem;
+            margin-bottom: var(--space-md);
+        }
+
+        .micro-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .tabular-number {
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+        }
+
+        
+        .decorative-dot-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .decorative-dot-line::before {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            border: 1px solid var(--line-strong);
+        }
+        .decorative-dot-line::after {
+            content: '';
+            display: block;
+            height: 1px;
+            flex-grow: 1;
+            background-color: var(--line-decorative);
+        }
+
+        
+        .sidebar {
+            width: 240px;
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xl);
+            flex-shrink: 0;
+            
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            min-width: 0; 
+        }
+
+        
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .logo-mark {
+            width: 24px;
+            height: 24px;
+            background-color: var(--text-main);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .logo-mark::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background-color: var(--bg-surface);
+            border-radius: 50%;
+            margin-left: -6px;
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.9rem;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            display: block;
+            transition: all 0.2s;
+        }
+
+        .nav-item a:hover {
+            color: var(--text-main);
+            background-color: rgba(0,0,0,0.03);
+        }
+
+        .nav-item.active a {
+            color: var(--text-main);
+            font-weight: 600;
+            background-color: rgba(0,0,0,0.03);
+            
+            position: relative;
+        }
+        .nav-item.active a::before {
+            content: '';
+            position: absolute;
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: var(--text-main);
+        }
+
+        
+        .surface {
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            position: relative;
+        }
+
+        
+        .alert-banner {
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-md);
+            padding: var(--space-md) var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            border: 1px solid var(--line-strong); 
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert-banner::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--line-strong);
+        }
+
+        .alert-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-orange);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .alert-content h4 {
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+        .alert-content p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-md);
+        }
+
+        .stat-card {
+            background-color: var(--bg-surface);
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+            margin-bottom: var(--space-sm);
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .stat-value span {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--space-md);
+            align-items: start;
+        }
+
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+        
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        
+        .table-container {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-container th {
+            text-align: left;
+            padding-bottom: var(--space-md);
+            border-bottom: 1px solid var(--line-strong);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .table-container td {
+            padding: var(--space-md) 0;
+            border-bottom: 1px solid var(--line-subtle);
+            font-size: 0.9rem;
+        }
+
+        .table-container tr:last-child td {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .agent-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .agent-role {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .badge::before {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .badge.running {
+            background-color: var(--status-green-bg);
+            color: var(--status-green-txt);
+        }
+        .badge.running::before { background-color: var(--status-green-txt); }
+
+        .badge.error {
+            background-color: var(--status-red-bg);
+            color: var(--status-red-txt);
+        }
+        .badge.error::before { background-color: var(--status-red-txt); }
+
+        .badge.paused {
+            background-color: var(--status-gray-bg);
+            color: var(--status-gray-txt);
+        }
+        .badge.paused::before { background-color: var(--status-gray-txt); }
+
+        
+        .chart-area {
+            height: 180px;
+            margin-top: var(--space-md);
+            border: 1px dashed var(--line-decorative);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            position: relative;
+        }
+        
+        .chart-area::before {
+            content: '';
+            position: absolute;
+            left: 10%; right: 10%; top: 40%;
+            height: 1px;
+            background-color: var(--line-strong);
+            transform: rotate(-5deg);
+        }
+        .chart-area::after {
+            content: '';
+            position: absolute;
+            right: 10%; top: 38%;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background-color: var(--text-main);
+            transform: translateY(-50%);
+        }
+
+        
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            position: relative;
+            padding-left: 20px;
+        }
+
+        
+        .event-list::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            bottom: 5px;
+            width: 1px;
+            background-color: var(--line-subtle);
+        }
+
+        .event-item {
+            position: relative;
+            display: flex;
+            gap: var(--space-md);
+        }
+
+        
+        .event-item::before {
+            content: '';
+            position: absolute;
+            left: -17px; 
+            top: 6px;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--line-strong);
+        }
+
+        .event-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid var(--line-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background-color: var(--bg-surface);
+        }
+        .event-icon svg {
+            width: 12px;
+            height: 12px;
+            stroke: var(--text-main);
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        .event-details {
+            flex-grow: 1;
+        }
+
+        .event-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .event-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--line-subtle);
+            background-color: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover {
+            border-color: var(--line-strong);
+            background-color: var(--bg-canvas);
+        }
+        .btn-icon svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--text-main);
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+    </style>
+</head>
+<body vid="6">
+
+    
+    <nav class="sidebar" vid="7">
+        <div class="logo-area" vid="8">
+            <div class="logo-mark" vid="9"></div>
+            AgentOps
+        </div>
+        
+        <ul class="nav-list" vid="10">
+            <li class="nav-item active" vid="11"><a href="#" vid="12">Dashboard</a></li>
+            <li class="nav-item" vid="13"><a href="#" vid="14">Agents</a></li>
+            <li class="nav-item" vid="15"><a href="#" vid="16">LLM Config</a></li>
+            <li class="nav-item" vid="17"><a href="#" vid="18">Audit</a></li>
+            <li class="nav-item" vid="19"><a href="#" vid="20">Monitor</a></li>
+        </ul>
+
+        
+        <div style="flex-grow: 1;" vid="21"></div>
+        <div style="border-top: 1px solid var(--line-subtle); padding-top: var(--space-md); font-size: 0.8rem; color: var(--text-muted);" vid="22">
+            v2.4.1 Production
+        </div>
+    </nav>
+
+    
+    <main class="main-content" vid="23">
+        
+        
+        <div class="alert-banner" vid="24">
+            <div class="alert-icon" vid="25">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="26"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" vid="27"></path><line x1="12" y1="9" x2="12" y2="13" vid="28"></line><line x1="12" y1="17" x2="12.01" y2="17" vid="29"></line></svg>
+            </div>
+            <div class="alert-content" vid="30">
+                <h4 vid="31">CrashLoop Error Detected</h4>
+                <p vid="32">Agent 'CodeReviewer_Alpha' failed to initialize memory pod. Retrying in 30s.</p>
+            </div>
+            <div style="margin-left: auto;" vid="33">
+                <button class="btn-icon" vid="34"><svg viewBox="0 0 24 24" vid="35"><path d="M5 12h14M12 5l7 7-7 7" vid="36"></path></svg></button>
+            </div>
+        </div>
+
+        
+        <div class="stats-grid" vid="37">
+            <div class="stat-card" vid="38">
+                <div class="micro-label" vid="39">Running Agents</div>
+                <div class="stat-value tabular-number" vid="40">4<span vid="41">/5</span></div>
+            </div>
+            <div class="stat-card" vid="42">
+                <div class="micro-label" vid="43">Daily Tokens</div>
+                <div class="stat-value tabular-number" vid="44">101k</div>
+            </div>
+            <div class="stat-card" vid="45">
+                <div class="micro-label" vid="46">Gitea Actions</div>
+                <div class="stat-value tabular-number" vid="47">47</div>
+            </div>
+            <div class="stat-card" vid="48">
+                <div class="micro-label" vid="49">Active Alerts</div>
+                <div class="stat-value tabular-number" vid="50">2</div>
+            </div>
+        </div>
+
+        
+        <div class="dashboard-layout" vid="51">
+            
+            
+            <div class="left-col" vid="52">
+                <section class="surface" vid="53">
+                    <div class="decorative-dot-line" vid="54"></div>
+                    <h2 class="heading-card" vid="55">Agent Status</h2>
+                    <table class="table-container" vid="56">
+                        <thead vid="57">
+                            <tr vid="58">
+                                <th vid="59">Agent / Role</th>
+                                <th vid="60">Phase</th>
+                                <th vid="61">Model</th>
+                                <th vid="62">Tokens</th>
+                                <th vid="63">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody vid="64">
+                            <tr vid="65">
+                                <td vid="66">
+                                    <div class="agent-name" vid="67">ScraperBot_01</div>
+                                    <div class="agent-role" vid="68">Data Ingestion</div>
+                                </td>
+                                <td class="tabular-number" vid="69">Data Extraction</td>
+                                <td vid="70">GPT-4o</td>
+                                <td class="tabular-number" vid="71">12.4k</td>
+                                <td vid="72"><span class="badge running" vid="73">Running</span></td>
+                            </tr>
+                            <tr vid="74">
+                                <td vid="75">
+                                    <div class="agent-name" vid="76">CodeReviewer_Alpha</div>
+                                    <div class="agent-role" vid="77">PR Analysis</div>
+                                </td>
+                                <td vid="78">Initialization</td>
+                                <td vid="79">Claude 3.5 Sonnet</td>
+                                <td class="tabular-number" vid="80">0</td>
+                                <td vid="81"><span class="badge error" vid="82">Error</span></td>
+                            </tr>
+                            <tr vid="83">
+                                <td vid="84">
+                                    <div class="agent-name" vid="85">IssueTriage_Main</div>
+                                    <div class="agent-role" vid="86">Routing</div>
+                                </td>
+                                <td vid="87">Awaiting Webhook</td>
+                                <td vid="88">GPT-4o-mini</td>
+                                <td class="tabular-number" vid="89">45.1k</td>
+                                <td vid="90"><span class="badge paused" vid="91">Paused</span></td>
+                            </tr>
+                            <tr vid="92">
+                                <td vid="93">
+                                    <div class="agent-name" vid="94">WeeklyReporter</div>
+                                    <div class="agent-role" vid="95">Summarization</div>
+                                </td>
+                                <td vid="96">Idle</td>
+                                <td vid="97">Claude 3 Haiku</td>
+                                <td class="tabular-number" vid="98">8.2k</td>
+                                <td vid="99"><span class="badge running" vid="100">Running</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <section class="surface" vid="101">
+                    <div class="decorative-dot-line" vid="102"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;" vid="103">
+                        <h2 class="heading-card" style="margin: 0;" vid="104">Token Usage (24h)</h2>
+                        <div class="micro-label" vid="105">Aggregated</div>
+                    </div>
+                    <div class="chart-area" vid="106">
+                        [Line Chart Visualization]
+                    </div>
+                </section>
+            </div>
+
+            
+            <div class="right-col" vid="107">
+                <section class="surface" style="height: 100%;" vid="108">
+                    <div class="decorative-dot-line" vid="109"></div>
+                    <h2 class="heading-card" vid="110">Event Stream</h2>
+                    
+                    <div class="event-list" vid="111">
+                        
+                        <div class="event-item" vid="112">
+                            <div class="event-icon" vid="113">
+                                <svg viewBox="0 0 24 24" vid="114"><circle cx="18" cy="18" r="3" vid="115"></circle><circle cx="6" cy="6" r="3" vid="116"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7" vid="117"></path><line x1="6" y1="9" x2="6" y2="21" vid="118"></line></svg>
+                            </div>
+                            <div class="event-details" vid="119">
+                                <div class="event-title" vid="120">PR #142 Analyzed</div>
+                                <div class="event-meta" vid="121">
+                                    <span vid="122">CodeReviewer_Alpha</span>
+                                    <span class="tabular-number" vid="123">Just now</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="event-item" vid="124">
+                            <div class="event-icon" vid="125">
+                                <svg viewBox="0 0 24 24" vid="126"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" vid="127"></path></svg>
+                            </div>
+                            <div class="event-details" vid="128">
+                                <div class="event-title" vid="129">LLM Inference Complete</div>
+                                <div class="event-meta" vid="130">
+                                    <span vid="131">GPT-4o • 1,240 tkns</span>
+                                    <span class="tabular-number" vid="132">2m ago</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="event-item" vid="133">
+                            <div class="event-icon" vid="134">
+                                <svg viewBox="0 0 24 24" vid="135"><circle cx="12" cy="12" r="10" vid="136"></circle><line x1="12" y1="8" x2="12" y2="12" vid="137"></line><line x1="12" y1="16" x2="12.01" y2="16" vid="138"></line></svg>
+                            </div>
+                            <div class="event-details" vid="139">
+                                <div class="event-title" vid="140">Issue #89 Triaged</div>
+                                <div class="event-meta" vid="141">
+                                    <span vid="142">IssueTriage_Main</span>
+                                    <span class="tabular-number" vid="143">15m ago</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="event-item" vid="144">
+                            <div class="event-icon" vid="145">
+                                <svg viewBox="0 0 24 24" vid="146"><path d="M4 19V5a2 2 0 0 1 2-2h13.4a1 1 0 0 1 .7 1.7L15 10" vid="147"></path><path d="M15 10v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" vid="148"></path></svg>
+                            </div>
+                            <div class="event-details" vid="149">
+                                <div class="event-title" vid="150">Webhook: git push</div>
+                                <div class="event-meta" vid="151">
+                                    <span vid="152">repo/core-backend</span>
+                                    <span class="tabular-number" vid="153">1h ago</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        
+                        <div class="event-item" vid="154">
+                            <div class="event-icon" vid="155">
+                                <svg viewBox="0 0 24 24" vid="156"><circle cx="12" cy="12" r="10" vid="157"></circle><polyline points="12 6 12 12 16 14" vid="158"></polyline></svg>
+                            </div>
+                            <div class="event-details" vid="159">
+                                <div class="event-title" vid="160">Cron Triggered</div>
+                                <div class="event-meta" vid="161">
+                                    <span vid="162">WeeklyReporter</span>
+                                    <span class="tabular-number" vid="163">2h ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+
+</body></html>

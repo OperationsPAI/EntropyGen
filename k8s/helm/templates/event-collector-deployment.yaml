@@ -1,4 +1,120 @@
-# Event Collector Deployment
-# Receives Gitea Webhooks and watches K8S Events
-# Writes formatted events to Redis Stream Event Bus
-# Filled in: Phase 4 (event-collector implementation)
+{{- /*
+  Event Collector Deployment, ServiceAccount, and RBAC.
+  Phase: 4 (Event Collector implementation)
+  Responsibilities:
+    - Gitea webhook receiver (POST /webhook/gitea)
+    - K8S Pod event watcher → events:k8s Redis Stream
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: event-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: event-collector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: event-collector-watcher
+  namespace: {{ .Values.agentNamespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["events", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: event-collector-watcher
+  namespace: {{ .Values.agentNamespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: event-collector-watcher
+subjects:
+- kind: ServiceAccount
+  name: event-collector
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: event-collector
+spec:
+  replicas: {{ .Values.eventCollector.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: event-collector
+      {{- include "aidevops-platform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: event-collector
+        {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: event-collector
+      containers:
+      - name: event-collector
+        image: {{ include "aidevops-platform.image" (dict "registry" .Values.global.registry "name" .Values.eventCollector.image "tag" .Values.global.tag) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.eventCollector.port }}
+          name: http
+          protocol: TCP
+        env:
+        - name: LISTEN_ADDR
+          value: ":{{ .Values.eventCollector.port }}"
+        - name: REDIS_ADDR
+          value: {{ .Values.redis.addr }}
+        - name: GITEA_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gitea-webhook-secret
+              key: secret
+        - name: AGENT_NAMESPACE
+          value: {{ .Values.agentNamespace }}
+        resources:
+          {{- toYaml .Values.eventCollector.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.eventCollector.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: {{ .Values.eventCollector.port }}
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          failureThreshold: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: event-collector
+spec:
+  selector:
+    app.kubernetes.io/component: event-collector
+    {{- include "aidevops-platform.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: http
+    port: 80
+    targetPort: {{ .Values.eventCollector.port }}
+    protocol: TCP
+  type: ClusterIP
