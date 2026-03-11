@@ -1,0 +1,97 @@
+concepts:
+  system-overview:
+    description: "AI DevOps 模拟平台整体架构总览（V5）"
+    design: "designs/system-design-overview.md"
+    related_concepts:
+      - operator
+      - agent-runtime
+      - agent-gateway
+      - control-panel
+      - gitea-integration
+      - event-bus
+    plans: []
+    tasks: []
+
+  operator:
+    description: "K8S Operator，负责 agent CR Reconcile，管理 Agent 生命周期及 Gitea 用户"
+    design: "designs/operator.md"
+    related_concepts:
+      - system-overview
+      - agent-runtime
+      - gitea-integration
+      - event-bus
+    plans: []
+    tasks: []
+
+  agent-runtime:
+    description: "Agent Pod 内运行的核心进程，实现感知-推理-行动循环和长期记忆管理"
+    design: "designs/agent-runtime.md"
+    related_concepts:
+      - system-overview
+      - operator
+      - agent-gateway
+      - gitea-integration
+    plans: []
+    tasks: []
+
+  agent-gateway:
+    description: "Agent 对外请求的唯一出口，提供透明代理、JWT 身份认证和异步审计写入"
+    design: "designs/agent-gateway.md"
+    related_concepts:
+      - system-overview
+      - agent-runtime
+      - event-bus
+      - operator
+    plans: []
+    tasks: []
+
+  control-panel:
+    description: "管控面（Frontend + Backend），提供 Agent 管理、LLM 配置、审计查询和实时监控"
+    design: "designs/control-panel-backend.md"
+    related_concepts:
+      - system-overview
+      - event-bus
+      - operator
+    plans: []
+    tasks: []
+
+  control-panel-frontend:
+    description: "Control Panel 前端，基于 Semi Design 构建的管理界面"
+    design: "designs/control-panel-frontend.md"
+    related_concepts:
+      - control-panel
+      - system-overview
+    plans: []
+    tasks: []
+
+  gitea-integration:
+    description: "Gitea 用户/权限管理、Issue Board 任务协作流程和 Webhook 事件收集"
+    design: "designs/gitea-integration.md"
+    related_concepts:
+      - system-overview
+      - operator
+      - agent-runtime
+      - event-bus
+      - gitea-cli
+    plans: []
+    tasks: []
+
+  gitea-cli:
+    description: "打包进 Agent 镜像的 Gitea 命令行工具，封装高频 Issue/PR/通知操作"
+    design: "designs/gitea-cli.md"
+    related_concepts:
+      - agent-runtime
+      - gitea-integration
+    plans: []
+    tasks: []
+
+  event-bus:
+    description: "基于 Redis Stream 的统一事件总线，连接 Gateway/Event Collector 与 ClickHouse Writer/WebSocket"
+    design: "designs/event-bus.md"
+    related_concepts:
+      - system-overview
+      - agent-gateway
+      - control-panel
+      - gitea-integration
+    plans: []
+    tasks: []
