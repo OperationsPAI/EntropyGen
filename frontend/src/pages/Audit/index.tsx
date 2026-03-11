@@ -30,36 +30,36 @@ export default function AuditPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>审计日志</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Audit Log</h2>
 
       <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '16px', padding: '16px 20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <select onChange={(e) => update({ request_type: (e.target.value as RequestType) || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit', backgroundColor: 'white' }}>
-          <option value="">全部类型</option>
+          <option value="">All Types</option>
           {REQUEST_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <select onChange={(e) => update({ status: (e.target.value as 'success' | 'error') || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit', backgroundColor: 'white' }}>
-          <option value="">全部状态</option>
-          <option value="success">成功</option>
-          <option value="error">错误</option>
+          <option value="">All Status</option>
+          <option value="success">Success</option>
+          <option value="error">Error</option>
         </select>
         <input type="date" onChange={(e) => update({ start_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
         <input type="date" onChange={(e) => update({ end_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
-        {loading && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>加载中…</span>}
-        <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>共 {total} 条</span>
+        {loading && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Loading...</span>}
+        <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{total} records total</span>
       </div>
 
       <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-              {['Trace ID', 'Agent', '类型', '方法 + 路径', '状态', '模型', 'Token In/Out', '延迟', '时间'].map((h) => (
+              {['Trace ID', 'Agent', 'Type', 'Method + Path', 'Status', 'Model', 'Token In/Out', 'Latency', 'Time'].map((h) => (
                 <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {traces.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: '32px', color: 'var(--text-muted)', textAlign: 'center' }}>暂无数据</td></tr>
+              <tr><td colSpan={9} style={{ padding: '32px', color: 'var(--text-muted)', textAlign: 'center' }}>No data</td></tr>
             ) : traces.map((t) => (
               <tr key={t.trace_id} onClick={() => setSelected(t)} style={{ borderBottom: '1px solid var(--line-subtle)', cursor: 'pointer' }}>
                 <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t.trace_id.slice(0, 8)}…</td>
@@ -78,9 +78,9 @@ export default function AuditPage() {
           </tbody>
         </table>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
-          <button disabled={page === 1} onClick={() => { const p = page - 1; setPage(p); setFilter((f) => ({ ...f, page: p })) }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontFamily: 'inherit' }}>上一页</button>
-          <span style={{ padding: '6px 14px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>第 {page} / {totalPages} 页</span>
-          <button disabled={page >= totalPages} onClick={() => { const p = page + 1; setPage(p); setFilter((f) => ({ ...f, page: p })) }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.4 : 1, fontFamily: 'inherit' }}>下一页</button>
+          <button disabled={page === 1} onClick={() => { const p = page - 1; setPage(p); setFilter((f) => ({ ...f, page: p })) }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontFamily: 'inherit' }}>Previous</button>
+          <span style={{ padding: '6px 14px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {page} of {totalPages}</span>
+          <button disabled={page >= totalPages} onClick={() => { const p = page + 1; setPage(p); setFilter((f) => ({ ...f, page: p })) }} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.4 : 1, fontFamily: 'inherit' }}>Next</button>
         </div>
       </div>
       <TraceDetailPanel trace={selected} onClose={() => setSelected(null)} />

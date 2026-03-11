@@ -2,12 +2,12 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { authApi } from '../../api/auth'
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: '仪表盘', icon: '◉' },
-  { path: '/agents', label: 'Agent 管理', icon: '◈' },
-  { path: '/llm', label: 'LLM 配置', icon: '◇' },
-  { path: '/audit', label: '审计日志', icon: '◫' },
-  { path: '/monitor', label: '监控图表', icon: '◎' },
-  { path: '/export', label: '数据导出', icon: '◱' },
+  { path: '/dashboard', label: 'Dashboard', icon: '◉' },
+  { path: '/agents', label: 'Agents', icon: '◈' },
+  { path: '/llm', label: 'LLM Models', icon: '◇' },
+  { path: '/audit', label: 'Audit Log', icon: '◫' },
+  { path: '/monitor', label: 'Monitoring', icon: '◎' },
+  { path: '/export', label: 'Export', icon: '◱' },
 ]
 
 export default function Sidebar() {
@@ -94,7 +94,7 @@ export default function Sidebar() {
           color: 'var(--text-muted)', fontWeight: 500,
         }}
       >
-        退出登录
+        Sign Out
       </button>
     </aside>
   )

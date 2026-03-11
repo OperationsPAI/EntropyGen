@@ -37,15 +37,15 @@ export default function LLMPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>LLM 模型配置</h2>
-        <button onClick={() => setModalOpen(true)} style={{ padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}>+ 新增模型</button>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>LLM Models</h2>
+        <button onClick={() => setModalOpen(true)} style={{ padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Model</button>
       </div>
 
       <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-              {['模型名称', 'Provider', 'RPM', 'TPM', '状态', '操作'].map((h) => (
+              {['Model Name', 'Provider', 'RPM', 'TPM', 'Status', 'Actions'].map((h) => (
                 <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
               ))}
             </tr>
@@ -60,8 +60,8 @@ export default function LLMPage() {
                 <td style={{ padding: '12px' }}>{statusBadge(healthStatus[m.id] ?? m.status)}</td>
                 <td style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleHealth(m.id)} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>测试连通性</button>
-                    <button onClick={() => llmApi.deleteModel(m.id).then(() => setModels((p) => p.filter((x) => x.id !== m.id))).catch(() => {})} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#e5502b', fontFamily: 'inherit' }}>删除</button>
+                    <button onClick={() => handleHealth(m.id)} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>Test Connection</button>
+                    <button onClick={() => llmApi.deleteModel(m.id).then(() => setModels((p) => p.filter((x) => x.id !== m.id))).catch(() => {})} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#e5502b', fontFamily: 'inherit' }}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -73,7 +73,7 @@ export default function LLMPage() {
       {modalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', width: '440px' }}>
-            <h3 style={{ marginBottom: '20px' }}>新增模型</h3>
+            <h3 style={{ marginBottom: '20px' }}>Add Model</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {(['name', 'provider', 'apiKey', 'baseUrl'] as const).map((k) => (
                 <label key={k}>
@@ -91,12 +91,12 @@ export default function LLMPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={() => setModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
+              <button onClick={() => setModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               <button onClick={async () => {
                 const m = await llmApi.createModel(form as CreateModelDto).catch(() => null)
                 if (m) setModels((p) => [...p, m])
                 setModalOpen(false)
-              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>创建</button>
+              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Create</button>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ export default function Login() {
       localStorage.setItem('jwt_token', res.token)
       navigate('/dashboard')
     } catch {
-      setError('用户名或密码错误')
+      setError('Invalid username or password')
     } finally {
       setLoading(false)
     }
@@ -53,16 +53,16 @@ export default function Login() {
         </div>
 
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: '8px' }}>
-          登录
+          Sign In
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '32px' }}>
-          控制台管理入口
+          Control Panel
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              用户名
+              Username
             </label>
             <input
               type="text"
@@ -79,7 +79,7 @@ export default function Login() {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              密码
+              Password
             </label>
             <input
               type="password"
@@ -110,7 +110,7 @@ export default function Login() {
               marginTop: '8px',
             }}
           >
-            {loading ? '登录中...' : '登录'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

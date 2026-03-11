@@ -8,7 +8,7 @@ import TraceDetailPanel from '../../components/trace/TraceDetailPanel'
 import type { Agent } from '../../types/agent'
 import type { AuditTrace } from '../../types/trace'
 
-const TABS = ['概览', '活动时间线', '配置', '日志', '审计']
+const TABS = ['Overview', 'Activity Timeline', 'Config', 'Logs', 'Audit']
 
 const MOCK_AGENT: Agent = {
   name: 'developer-1',
@@ -17,11 +17,11 @@ const MOCK_AGENT: Agent = {
 }
 
 const MOCK_TIMELINE = [
-  { type: 'llm', time: '13:05', title: 'LLM 推理', detail: '1200 → 350 tokens · gpt-4o · 2.1s' },
+  { type: 'llm', time: '13:05', title: 'LLM Inference', detail: '1200 → 350 tokens · gpt-4o · 2.1s' },
   { type: 'git_push', time: '13:04', title: 'Git Push', detail: 'feat/auth · 3 commits' },
-  { type: 'pr', time: '13:03', title: 'PR #8 创建', detail: 'Add authentication · feat/auth → main' },
-  { type: 'issue_comment', time: '13:01', title: 'Issue #15 评论', detail: '"I\'m working on this"' },
-  { type: 'cron', time: '12:50', title: 'Cron 触发', detail: '检查 open issues' },
+  { type: 'pr', time: '13:03', title: 'PR #8 Created', detail: 'Add authentication · feat/auth → main' },
+  { type: 'issue_comment', time: '13:01', title: 'Issue #15 Comment', detail: '"I\'m working on this"' },
+  { type: 'cron', time: '12:50', title: 'Cron Triggered', detail: 'Check open issues' },
 ]
 
 const ICON_MAP: Record<string, string> = { llm: '🧠', git_push: '📤', git_clone: '📥', pr: '🔀', issue_comment: '💬', issue: '📋', cron: '⏰', alert: '⚠️' }
@@ -52,7 +52,7 @@ export default function AgentDetail() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <button onClick={() => navigate('/agents')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', fontFamily: 'inherit' }}>← Agent 管理</button>
+        <button onClick={() => navigate('/agents')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', fontFamily: 'inherit' }}>← Agents</button>
         <span style={{ color: 'var(--line-subtle)' }}>|</span>
         <span style={{ fontWeight: 600 }}>{name}</span>
         <AgentPhaseTag phase={agent.status.phase} />
@@ -70,7 +70,7 @@ export default function AgentDetail() {
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
               <div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  {[['角色', agent.spec.role], ['模型', agent.spec.llm.model], ['Cron', agent.spec.cron.schedule], ['Gitea 用户', agent.status.giteaUsername ?? '—'], ['Phase', agent.status.phase], ['Pod', agent.status.podName ?? '—']].map(([k, v]) => (
+                  {[['Role', agent.spec.role], ['Model', agent.spec.llm.model], ['Cron', agent.spec.cron.schedule], ['Gitea User', agent.status.giteaUsername ?? '—'], ['Phase', agent.status.phase], ['Pod', agent.status.podName ?? '—']].map(([k, v]) => (
                     <div key={k}>
                       <div style={labelStyle}>{k}</div>
                       <div style={{ fontWeight: 500, marginTop: '2px' }}>{v}</div>
@@ -89,11 +89,11 @@ export default function AgentDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <button onClick={() => setAssignModal(true)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>指派任务</button>
-                <button onClick={() => agentsApi.pauseAgent(agent.name).catch(() => {})} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{agent.status.phase === 'Paused' ? '恢复' : '暂停'}</button>
-                <button onClick={() => agentsApi.resetMemory(agent.name).catch(() => {})} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>重置记忆</button>
+                <button onClick={() => setAssignModal(true)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Assign Task</button>
+                <button onClick={() => agentsApi.pauseAgent(agent.name).catch(() => {})} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{agent.status.phase === 'Paused' ? 'Resume' : 'Pause'}</button>
+                <button onClick={() => agentsApi.resetMemory(agent.name).catch(() => {})} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Reset Memory</button>
                 <div style={{ marginTop: '8px', borderTop: '1px solid var(--line-subtle)', paddingTop: '16px' }}>
-                  <div style={labelStyle}>今日 Token</div>
+                  <div style={labelStyle}>Today's Tokens</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', marginTop: '4px' }}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</div>
                 </div>
               </div>
@@ -136,15 +136,15 @@ export default function AgentDetail() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ fontWeight: 600 }}>SOUL.md</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-orange)' }}>⚠ 修改将触发 Pod 重启</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-orange)' }}>⚠ Changes will trigger a Pod restart</div>
                 </div>
                 <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--line-subtle)' }}>
                   <MonacoEditor value={soul} onChange={setSoul} language="markdown" height="300px" />
                 </div>
-                <button onClick={() => setSoulConfirm(true)} style={{ marginTop: '12px', padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>保存 SOUL.md</button>
+                <button onClick={() => setSoulConfirm(true)} style={{ marginTop: '12px', padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Save SOUL.md</button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                {[['模型', agent.spec.llm.model], ['Temperature', String(agent.spec.llm.temperature)], ['Max Tokens', String(agent.spec.llm.maxTokens)]].map(([k, v]) => (
+                {[['Model', agent.spec.llm.model], ['Temperature', String(agent.spec.llm.temperature)], ['Max Tokens', String(agent.spec.llm.maxTokens)]].map(([k, v]) => (
                   <div key={k}>
                     <div style={labelStyle}>{k}</div>
                     <div style={{ fontWeight: 500, marginTop: '4px' }}>{v}</div>
@@ -152,7 +152,7 @@ export default function AgentDetail() {
                 ))}
               </div>
               <div>
-                <div style={labelStyle}>Cron 表达式</div>
+                <div style={labelStyle}>Cron Expression</div>
                 <div style={{ fontWeight: 500, marginTop: '4px', fontFamily: 'monospace' }}>{agent.spec.cron.schedule}</div>
               </div>
             </div>
@@ -163,14 +163,14 @@ export default function AgentDetail() {
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 {(['events', 'pod'] as const).map((t) => (
                   <button key={t} onClick={() => setLogTab(t)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: logTab === t ? 'var(--text-main)' : 'none', color: logTab === t ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.875rem' }}>
-                    {t === 'events' ? '实时事件流' : 'Pod stdout'}
+                    {t === 'events' ? 'Live Event Stream' : 'Pod stdout'}
                   </button>
                 ))}
               </div>
               {logTab === 'events' ? (
                 <div style={{ backgroundColor: '#111', color: '#ccc', borderRadius: '12px', padding: '16px', fontFamily: 'monospace', fontSize: '0.8rem', minHeight: '200px' }}>
-                  <div style={{ color: '#4a9', marginBottom: '8px' }}>● 实时连接中…</div>
-                  <div>等待事件推送…</div>
+                  <div style={{ color: '#4a9', marginBottom: '8px' }}>● Connecting...</div>
+                  <div>Waiting for events...</div>
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#111', color: '#ccc', borderRadius: '12px', padding: '16px', fontFamily: 'monospace', fontSize: '0.8rem', minHeight: '200px', whiteSpace: 'pre-wrap' }}>
@@ -185,14 +185,14 @@ export default function AgentDetail() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-                    {['Trace ID', '类型', '路径', '状态', 'Token', '延迟', '时间'].map((h) => (
+                    {['Trace ID', 'Type', 'Path', 'Status', 'Token', 'Latency', 'Time'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {traces.length === 0 ? (
-                    <tr><td colSpan={7} style={{ padding: '20px', color: 'var(--text-muted)', textAlign: 'center' }}>暂无审计记录</td></tr>
+                    <tr><td colSpan={7} style={{ padding: '20px', color: 'var(--text-muted)', textAlign: 'center' }}>No audit records</td></tr>
                   ) : traces.map((t) => (
                     <tr key={t.trace_id} onClick={() => setSelectedTrace(t)} style={{ borderBottom: '1px solid var(--line-subtle)', cursor: 'pointer' }}>
                       <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t.trace_id.slice(0, 8)}…</td>
@@ -215,11 +215,11 @@ export default function AgentDetail() {
       {soulConfirm && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', width: '400px' }}>
-            <h3 style={{ marginBottom: '8px' }}>确认保存 SOUL.md</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>保存后 Pod 将滚动重启，Agent 暂时不可用。</p>
+            <h3 style={{ marginBottom: '8px' }}>Confirm Save SOUL.md</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '24px' }}>Saving will trigger a rolling restart. Agent will be temporarily unavailable.</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setSoulConfirm(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
-              <button onClick={async () => { await agentsApi.updateAgent(agent.name, { spec: { soul } }).catch(() => {}); setSoulConfirm(false) }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>确认保存</button>
+              <button onClick={() => setSoulConfirm(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={async () => { await agentsApi.updateAgent(agent.name, { spec: { soul } }).catch(() => {}); setSoulConfirm(false) }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Confirm Save</button>
             </div>
           </div>
         </div>
@@ -228,12 +228,12 @@ export default function AgentDetail() {
       {assignModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', width: '480px' }}>
-            <h3 style={{ marginBottom: '20px' }}>指派任务给 {name}</h3>
+            <h3 style={{ marginBottom: '20px' }}>Assign Task to {name}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <label><span style={labelStyle}>标题</span><input value={assignForm.title} onChange={(e) => setAssignForm((p) => ({ ...p, title: e.target.value }))} style={{ width: '100%', marginTop: '6px', padding: '10px 14px', border: '1px solid var(--line-subtle)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit' }} /></label>
-              <label><span style={labelStyle}>描述</span><textarea value={assignForm.description} onChange={(e) => setAssignForm((p) => ({ ...p, description: e.target.value }))} rows={4} style={{ width: '100%', marginTop: '6px', padding: '10px 14px', border: '1px solid var(--line-subtle)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' }} /></label>
+              <label><span style={labelStyle}>Title</span><input value={assignForm.title} onChange={(e) => setAssignForm((p) => ({ ...p, title: e.target.value }))} style={{ width: '100%', marginTop: '6px', padding: '10px 14px', border: '1px solid var(--line-subtle)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit' }} /></label>
+              <label><span style={labelStyle}>Description</span><textarea value={assignForm.description} onChange={(e) => setAssignForm((p) => ({ ...p, description: e.target.value }))} rows={4} style={{ width: '100%', marginTop: '6px', padding: '10px 14px', border: '1px solid var(--line-subtle)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' }} /></label>
               <div>
-                <span style={labelStyle}>优先级</span>
+                <span style={labelStyle}>Priority</span>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                   {(['low', 'medium', 'high'] as const).map((p) => (
                     <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.875rem' }}>
@@ -245,15 +245,15 @@ export default function AgentDetail() {
               </div>
             </div>
             <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              ℹ 将在 Gitea 创建 Issue 并自动 assign 给 @{agent.status.giteaUsername}
+              ℹ Creates a Gitea issue and assigns it to @{agent.status.giteaUsername}
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={() => setAssignModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
+              <button onClick={() => setAssignModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               <button onClick={async () => {
                 if (!name) return
                 await agentsApi.assignTask(name, { repo: agent.spec.gitea.repo, title: assignForm.title, description: assignForm.description, labels: [], priority: assignForm.priority }).catch(() => {})
                 setAssignModal(false)
-              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>创建并指派</button>
+              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Create & Assign</button>
             </div>
           </div>
         </div>

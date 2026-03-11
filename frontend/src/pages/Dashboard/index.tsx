@@ -56,19 +56,19 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        {statCard('运行中 Agent', `${running}/${display.length}`)}
-        {statCard('今日 Token', todayTokens.toLocaleString())}
-        {statCard('Gitea 操作', events.filter((e) => e.event_type.startsWith('gitea.')).length || '—')}
-        {statCard('告警数', alerts.length, alerts.length > 0 ? '需关注' : '正常')}
+        {statCard('Running Agents', `${running}/${display.length}`)}
+        {statCard("Today's Tokens", todayTokens.toLocaleString())}
+        {statCard('Gitea Events', events.filter((e) => e.event_type.startsWith('gitea.')).length || '—')}
+        {statCard('Alerts', alerts.length, alerts.length > 0 ? 'Attention needed' : 'Normal')}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '12px', alignItems: 'start' }}>
         <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
-          <div style={{ fontWeight: 600, fontSize: '1rem', letterSpacing: '-0.02em', marginBottom: '16px' }}>Agent 状态</div>
+          <div style={{ fontWeight: 600, fontSize: '1rem', letterSpacing: '-0.02em', marginBottom: '16px' }}>Agent Status</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-                {['名称', '角色', '状态', '最近行动', 'Token/今日'].map((h) => (
+                {['Name', 'Role', 'Status', 'Last Action', 'Token/Today'].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
                 ))}
               </tr>
@@ -89,13 +89,13 @@ export default function Dashboard() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem', letterSpacing: '-0.02em', marginBottom: '12px' }}>Token 趋势（今日）</div>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', letterSpacing: '-0.02em', marginBottom: '12px' }}>Token Trend (Today)</div>
             <ReactECharts option={chartOption} style={{ height: '180px' }} />
           </div>
           <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem', letterSpacing: '-0.02em', marginBottom: '12px' }}>实时事件流</div>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', letterSpacing: '-0.02em', marginBottom: '12px' }}>Live Event Stream</div>
             {events.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>暂无事件…</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No events yet</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
                 {events.map((ev, i) => (

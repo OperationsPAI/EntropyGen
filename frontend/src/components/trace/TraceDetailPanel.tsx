@@ -43,11 +43,11 @@ export default function TraceDetailPanel({ trace, onClose }: Props) {
         display: 'flex', gap: '16px', borderBottom: '1px solid var(--line-subtle)',
         flexWrap: 'wrap',
       }}>
-        <span>状态 <strong style={{ color: trace.status_code >= 400 ? '#e5502b' : 'var(--text-main)' }}>{trace.status_code}</strong></span>
-        {trace.model && <span>模型 <strong>{trace.model}</strong></span>}
+        <span>Status <strong style={{ color: trace.status_code >= 400 ? '#e5502b' : 'var(--text-main)' }}>{trace.status_code}</strong></span>
+        {trace.model && <span>Model <strong>{trace.model}</strong></span>}
         {trace.tokens_in != null && <span>In <strong>{trace.tokens_in}</strong></span>}
         {trace.tokens_out != null && <span>Out <strong>{trace.tokens_out}</strong></span>}
-        <span>延迟 <strong>{trace.latency_ms}ms</strong></span>
+        <span>Latency <strong>{trace.latency_ms}ms</strong></span>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -19,27 +19,27 @@ export default function Export() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>训练数据导出</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Training Data Export</h2>
       <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '32px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <label>
-              <span style={labelStyle}>开始时间</span>
+              <span style={labelStyle}>Start Date</span>
               <input type="date" onChange={(e) => setFilter((p) => ({ ...p, start_time: e.target.value || undefined }))} style={inputStyle} />
             </label>
             <label>
-              <span style={labelStyle}>结束时间</span>
+              <span style={labelStyle}>End Date</span>
               <input type="date" onChange={(e) => setFilter((p) => ({ ...p, end_time: e.target.value || undefined }))} style={inputStyle} />
             </label>
           </div>
           <label>
-            <span style={labelStyle}>Agent（留空=全部）</span>
+            <span style={labelStyle}>Agent (empty = all)</span>
             <input placeholder="agent-name" onChange={(e) => setFilter((p) => ({ ...p, agent_id: e.target.value ? [e.target.value] : undefined }))} style={inputStyle} />
           </label>
           <label>
-            <span style={labelStyle}>Request Type（留空=全部）</span>
+            <span style={labelStyle}>Request Type (empty = all)</span>
             <select onChange={(e) => setFilter((p) => ({ ...p, request_type: (e.target.value as RequestType) || undefined }))} style={{ ...inputStyle, backgroundColor: 'white' }}>
-              <option value="">全部</option>
+              <option value="">All</option>
               <option value="llm_inference">llm_inference</option>
               <option value="gitea_api">gitea_api</option>
               <option value="git_http">git_http</option>
@@ -49,16 +49,16 @@ export default function Export() {
 
           {estimated !== null && (
             <div style={{ padding: '12px 16px', backgroundColor: '#f5f5f5', borderRadius: '8px', fontSize: '0.875rem' }}>
-              预估数据量：约 <strong>{estimated.toLocaleString()}</strong> 条记录
+              Estimated records: ~<strong>{estimated.toLocaleString()}</strong>
             </div>
           )}
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <button onClick={handleEstimate} disabled={estimating} style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: estimating ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-              {estimating ? '估算中…' : '预估数量'}
+              {estimating ? 'Estimating...' : 'Estimate Count'}
             </button>
             <button onClick={() => auditApi.exportTraces(filter)} style={{ flex: 1, padding: '12px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-              导出 JSONL
+              Export JSONL
             </button>
           </div>
         </div>

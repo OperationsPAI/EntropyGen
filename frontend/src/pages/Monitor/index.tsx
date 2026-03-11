@@ -4,7 +4,7 @@ function genDays(n: number) {
   return Array.from({ length: n }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - n + i + 1)
-    return d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+    return d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
   })
 }
 
@@ -62,15 +62,15 @@ export default function Monitor() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>监控图表</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Monitoring Charts</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {card('Token 消耗趋势（最近 30 天）', <ReactECharts option={tokenTrendOption} style={{ height: '100%' }} />)}
-        {card('Agent 操作热力图（按小时）', <ReactECharts option={heatmapOption} style={{ height: '100%' }} />)}
+        {card('Token Usage (Last 30 Days)', <ReactECharts option={tokenTrendOption} style={{ height: '100%' }} />)}
+        {card('Activity Heatmap (by Hour)', <ReactECharts option={heatmapOption} style={{ height: '100%' }} />)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        {card('模型使用分布', <ReactECharts option={pieOption} style={{ height: '100%' }} />)}
-        {card('平均延迟趋势', <ReactECharts option={latencyOption} style={{ height: '100%' }} />)}
-        {card('Agent 活跃度排行（今日）', <ReactECharts option={rankOption} style={{ height: '100%' }} />)}
+        {card('Model Distribution', <ReactECharts option={pieOption} style={{ height: '100%' }} />)}
+        {card('Avg Latency Trend', <ReactECharts option={latencyOption} style={{ height: '100%' }} />)}
+        {card('Agent Activity Ranking (Today)', <ReactECharts option={rankOption} style={{ height: '100%' }} />)}
       </div>
     </div>
   )

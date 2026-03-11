@@ -14,7 +14,7 @@ const PHASES: AgentPhase[] = ['Pending', 'Initializing', 'Running', 'Paused', 'E
 
 function getAge(createdAt: string) {
   const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000)
-  return days === 0 ? '今天' : `${days}天前`
+  return days === 0 ? 'today' : `${days}d ago`
 }
 
 export default function AgentList() {
@@ -68,11 +68,11 @@ export default function AgentList() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {sel('全部角色', roleFilter, setRoleFilter, ROLES)}
-          {sel('全部状态', phaseFilter, setPhaseFilter, PHASES)}
+          {sel('All Roles', roleFilter, setRoleFilter, ROLES)}
+          {sel('All Status', phaseFilter, setPhaseFilter, PHASES)}
         </div>
         <button onClick={() => setDrawerOpen(true)} style={{ padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          + 新建 Agent
+          + New Agent
         </button>
       </div>
 
@@ -80,7 +80,7 @@ export default function AgentList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-              {['名称', '角色', '状态', '模型', '最近行动', 'Token/今日', 'Age', '操作'].map((h) => (
+              {['Name', 'Role', 'Status', 'Model', 'Last Action', 'Token/Today', 'Age', 'Actions'].map((h) => (
                 <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
               ))}
             </tr>
@@ -97,9 +97,9 @@ export default function AgentList() {
                 <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{getAge(agent.status.createdAt)}</td>
                 <td style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => handleTogglePause(agent)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>{agent.status.phase === 'Paused' ? '恢复' : '暂停'}</button>
-                    <button onClick={() => navigate(`/agents/${agent.name}`)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>详情</button>
-                    <button onClick={() => setDeleteTarget(agent)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#e5502b', fontFamily: 'inherit' }}>删除</button>
+                    <button onClick={() => handleTogglePause(agent)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>{agent.status.phase === 'Paused' ? 'Resume' : 'Pause'}</button>
+                    <button onClick={() => navigate(`/agents/${agent.name}`)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>Detail</button>
+                    <button onClick={() => setDeleteTarget(agent)} style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#e5502b', fontFamily: 'inherit' }}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -111,12 +111,12 @@ export default function AgentList() {
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', width: '400px' }}>
-            <h3 style={{ marginBottom: '8px' }}>删除 Agent</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px' }}>请输入 <strong>{deleteTarget.name}</strong> 确认删除。</p>
+            <h3 style={{ marginBottom: '8px' }}>Delete Agent</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px' }}>This action is irreversible. Type <strong>{deleteTarget.name}</strong> to confirm.</p>
             <input value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)} placeholder={deleteTarget.name} style={{ ...inputStyle, marginBottom: '16px' }} />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setDeleteTarget(null); setDeleteInput('') }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
-              <button onClick={handleDelete} disabled={deleteInput !== deleteTarget.name} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: deleteInput === deleteTarget.name ? '#e5502b' : '#ccc', color: 'white', border: 'none', cursor: deleteInput === deleteTarget.name ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 600 }}>确认删除</button>
+              <button onClick={() => { setDeleteTarget(null); setDeleteInput('') }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleteInput !== deleteTarget.name} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: deleteInput === deleteTarget.name ? '#e5502b' : '#ccc', color: 'white', border: 'none', cursor: deleteInput === deleteTarget.name ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 600 }}>Confirm Delete</button>
             </div>
           </div>
         </div>
@@ -126,8 +126,8 @@ export default function AgentList() {
         <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '480px', backgroundColor: 'white', boxShadow: '-4px 0 24px rgba(0,0,0,0.1)', zIndex: 200, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '24px', borderBottom: '1px solid var(--line-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '1rem' }}>新建 Agent</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>步骤 {step}/3</div>
+              <div style={{ fontWeight: 600, fontSize: '1rem' }}>New Agent</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Step {step}/3</div>
             </div>
             <button onClick={() => { setDrawerOpen(false); setStep(1) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: 'var(--text-muted)' }}>×</button>
           </div>
@@ -137,13 +137,13 @@ export default function AgentList() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {step === 1 && (
               <>
-                <label><span style={labelStyle}>名称</span><input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} style={inputStyle} /></label>
-                <label><span style={labelStyle}>角色</span>
+                <label><span style={labelStyle}>Name</span><input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} style={inputStyle} /></label>
+                <label><span style={labelStyle}>Role</span>
                   <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value as AgentRole }))} style={{ ...inputStyle, backgroundColor: 'white' }}>
                     {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </label>
-                <label><span style={labelStyle}>LLM 模型</span><input value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} style={inputStyle} /></label>
+                <label><span style={labelStyle}>LLM Model</span><input value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} style={inputStyle} /></label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <label><span style={labelStyle}>Temperature</span><input type="number" min={0} max={2} step={0.1} value={form.temperature} onChange={(e) => setForm((p) => ({ ...p, temperature: parseFloat(e.target.value) }))} style={inputStyle} /></label>
                   <label><span style={labelStyle}>Max Tokens</span><input type="number" value={form.maxTokens} onChange={(e) => setForm((p) => ({ ...p, maxTokens: parseInt(e.target.value) }))} style={inputStyle} /></label>
@@ -153,10 +153,10 @@ export default function AgentList() {
             {step === 2 && (
               <>
                 <label>
-                  <span style={labelStyle}>Cron 表达式</span>
+                  <span style={labelStyle}>Cron Expression</span>
                   <input value={form.schedule} onChange={(e) => setForm((p) => ({ ...p, schedule: e.target.value }))} style={inputStyle} />
                 </label>
-                <label><span style={labelStyle}>触发 Prompt</span><textarea value={form.prompt} onChange={(e) => setForm((p) => ({ ...p, prompt: e.target.value }))} rows={5} style={{ ...inputStyle, resize: 'vertical' }} /></label>
+                <label><span style={labelStyle}>Trigger Prompt</span><textarea value={form.prompt} onChange={(e) => setForm((p) => ({ ...p, prompt: e.target.value }))} rows={5} style={{ ...inputStyle, resize: 'vertical' }} /></label>
               </>
             )}
             {step === 3 && (
@@ -166,9 +166,9 @@ export default function AgentList() {
                     <label key={k}><span style={labelStyle}>{k}</span><input value={form[k]} onChange={(e) => setForm((p) => ({ ...p, [k]: e.target.value }))} style={inputStyle} /></label>
                   ))}
                 </div>
-                <label><span style={labelStyle}>Gitea 仓库</span><input value={form.repo} onChange={(e) => setForm((p) => ({ ...p, repo: e.target.value }))} style={inputStyle} /></label>
+                <label><span style={labelStyle}>Gitea Repo</span><input value={form.repo} onChange={(e) => setForm((p) => ({ ...p, repo: e.target.value }))} style={inputStyle} /></label>
                 <div>
-                  <span style={labelStyle}>Gitea 权限</span>
+                  <span style={labelStyle}>Gitea Permissions</span>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                     {(['read', 'write', 'review', 'merge'] as const).map((p) => (
                       <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', cursor: 'pointer' }}>
@@ -182,15 +182,15 @@ export default function AgentList() {
             )}
           </div>
           <div style={{ padding: '20px 24px', borderTop: '1px solid var(--line-subtle)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button onClick={() => { setDrawerOpen(false); setStep(1) }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>取消</button>
-            {step > 1 && <button onClick={() => setStep((s) => s - 1)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>上一步</button>}
+            <button onClick={() => { setDrawerOpen(false); setStep(1) }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            {step > 1 && <button onClick={() => setStep((s) => s - 1)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Back</button>}
             {step < 3 ? (
-              <button onClick={() => setStep((s) => s + 1)} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>下一步</button>
+              <button onClick={() => setStep((s) => s + 1)} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Next</button>
             ) : (
               <button onClick={async () => {
                 await agentsApi.createAgent({ name: form.name, spec: { role: form.role, llm: { model: form.model, temperature: form.temperature, maxTokens: form.maxTokens }, cron: { schedule: form.schedule, prompt: form.prompt }, resources: { cpuRequest: form.cpuRequest, cpuLimit: form.cpuLimit, memoryRequest: form.memoryRequest, memoryLimit: form.memoryLimit, workspaceSize: form.workspaceSize }, gitea: { repo: form.repo, permissions: form.permissions } } }).catch(() => {})
                 setDrawerOpen(false); setStep(1)
-              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>创建 Agent</button>
+              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Create Agent</button>
             )}
           </div>
         </div>
