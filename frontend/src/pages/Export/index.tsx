@@ -25,11 +25,11 @@ export default function Export() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <label>
               <span style={labelStyle}>Start Date</span>
-              <input type="date" onChange={(e) => setFilter((p) => ({ ...p, start_time: e.target.value || undefined }))} style={inputStyle} />
+              <input type="text" placeholder="YYYY-MM-DD" lang="en" onBlur={(e) => setFilter((p) => ({ ...p, start_time: e.target.value || undefined }))} style={inputStyle} />
             </label>
             <label>
               <span style={labelStyle}>End Date</span>
-              <input type="date" onChange={(e) => setFilter((p) => ({ ...p, end_time: e.target.value || undefined }))} style={inputStyle} />
+              <input type="text" placeholder="YYYY-MM-DD" lang="en" onBlur={(e) => setFilter((p) => ({ ...p, end_time: e.target.value || undefined }))} style={inputStyle} />
             </label>
           </div>
           <label>

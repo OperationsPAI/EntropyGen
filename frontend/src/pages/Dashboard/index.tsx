@@ -33,7 +33,7 @@ export default function Dashboard() {
   useEffect(() => { if (agents.length > 0) setDisplay(agents) }, [agents])
 
   const running = display.filter((a) => a.status.phase === 'Running').length
-  const todayTokens = display.reduce((s, a) => s + a.status.tokenUsage?.today ?? 0, 0)
+  const todayTokens = display.reduce((s, a) => s + (a.status.tokenUsage?.today ?? 0), 0)
   const chartData = genHourlyData()
 
   const chartOption = {

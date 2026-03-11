@@ -1,0 +1,76 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: aidevops-platform
+
+build:
+  local:
+    push: true
+    concurrency: 4
+  artifacts:
+  - image: 10.10.10.240/library/backend
+    docker:
+      dockerfile: build/backend/Dockerfile
+    context: .
+  - image: 10.10.10.240/library/operator
+    docker:
+      dockerfile: build/operator/Dockerfile
+    context: .
+  - image: 10.10.10.240/library/gateway
+    docker:
+      dockerfile: build/gateway/Dockerfile
+    context: .
+  - image: 10.10.10.240/library/event-collector
+    docker:
+      dockerfile: build/event-collector/Dockerfile
+    context: .
+  - image: 10.10.10.240/library/gitea-init
+    docker:
+      dockerfile: build/gitea-init/Dockerfile
+    context: .
+  - image: 10.10.10.240/library/control-panel-frontend
+    docker:
+      dockerfile: frontend/Dockerfile
+    context: frontend
+
+deploy:
+  helm:
+    hooks:
+      before:
+      - host:
+          command: ["bash", "scripts/skaffold/pre-deploy.sh"]
+          os: [linux, darwin]
+      after:
+      - host:
+          command: ["bash", "scripts/skaffold/post-deploy.sh"]
+          os: [linux, darwin]
+    releases:
+    - name: aidevops
+      chartPath: k8s/helm
+      namespace: aidevops
+      createNamespace: true
+      setValues:
+        global.registry: "10.10.10.240/library"
+        global.tag: dev
+        global.imagePullPolicy: Always
+        redis.addr: "redis.aidevops.svc:6379"
+        clickhouse.addr: "clickhouse.aidevops.svc:9000"
+        clickhouse.database: audit
+        clickhouse.username: default
+        gitea.addr: "http://gitea.aidevops.svc:3000"
+        litellm.addr: "http://litellm.aidevops.svc:4000"
+        agentNamespace: aidevops
+        controlPlaneNamespace: aidevops
+        backend.port: "8081"
+        ingress.enabled: "false"
+
+verify:
+- name: smoke-test
+  container:
+    name: smoke
+    image: curlimages/curl:latest
+    command: ["sh", "-c"]
+    args:
+    - |
+      echo "Verifying backend health..."
+      curl -sf http://control-panel-backend/api/health | grep -q ok && echo "PASS" || exit 1

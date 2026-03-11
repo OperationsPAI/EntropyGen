@@ -3,10 +3,10 @@ import type { Agent, CreateAgentDto, UpdateAgentDto, AssignTaskDto } from '../ty
 
 export const agentsApi = {
   getAgents: () =>
-    apiClient.get<Agent[]>('/agents').then((r) => r.data),
+    apiClient.get<{ success: boolean; data: Agent[] }>('/agents').then((r) => r.data.data ?? []),
 
   getAgent: (name: string) =>
-    apiClient.get<Agent>(`/agents/${name}`).then((r) => r.data),
+    apiClient.get<{ success: boolean; data: Agent }>(`/agents/${name}`).then((r) => r.data.data),
 
   createAgent: (dto: CreateAgentDto) =>
     apiClient.post<Agent>('/agents', dto).then((r) => r.data),

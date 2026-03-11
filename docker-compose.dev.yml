@@ -9,7 +9,7 @@
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: aidevops-redis
     ports:
       - "6380:6379"
@@ -49,7 +49,7 @@ services:
       retries: 20
 
   gitea:
-    image: gitea/gitea:1.22
+    image: gitea/gitea:1.25
     container_name: aidevops-gitea
     ports:
       - "3000:3000"

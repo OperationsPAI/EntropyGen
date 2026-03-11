@@ -15,7 +15,7 @@ export default function AuditPage() {
 
   const loadTraces = useCallback((f: TraceFilter) => {
     setLoading(true)
-    auditApi.getTraces(f).then((r) => { setTraces(r.items); setTotal(r.total) }).catch(() => {}).finally(() => setLoading(false))
+    auditApi.getTraces(f).then((r) => { setTraces(r?.items ?? []); setTotal(r?.total ?? 0) }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { loadTraces(filter) }, [filter, loadTraces])
@@ -42,8 +42,8 @@ export default function AuditPage() {
           <option value="success">Success</option>
           <option value="error">Error</option>
         </select>
-        <input type="date" onChange={(e) => update({ start_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
-        <input type="date" onChange={(e) => update({ end_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
+        <input type="text" placeholder="Start date (YYYY-MM-DD)" onBlur={(e) => update({ start_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit', width: '160px' }} />
+        <input type="text" placeholder="End date (YYYY-MM-DD)" onBlur={(e) => update({ end_time: e.target.value || undefined })} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--line-subtle)', fontSize: '0.85rem', fontFamily: 'inherit', width: '160px' }} />
         {loading && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Loading...</span>}
         <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{total} records total</span>
       </div>

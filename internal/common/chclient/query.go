@@ -12,9 +12,24 @@ type HeartbeatTimeout struct {
 	LastHeartbeat time.Time `ch:"last_heartbeat"`
 }
 
-// GetRecentTraces returns the most recent traces for a given agent, ordered by created_at DESC.
+// GetRecentTraces returns the most recent traces, optionally filtered by agentID.
+// When agentID is empty, all traces are returned.
 func (c *Client) GetRecentTraces(ctx context.Context, agentID string, limit int) ([]AuditTrace, error) {
-	query := `
+	var (
+		query string
+		args  []any
+	)
+	if agentID == "" {
+		query = `
+SELECT trace_id, span_id, agent_id, agent_role, request_type,
+       method, path, status_code, request_body, response_body,
+       tool_calls, model, tokens_in, tokens_out, latency_ms, created_at
+FROM audit.traces
+ORDER BY created_at DESC
+LIMIT ?`
+		args = []any{limit}
+	} else {
+		query = `
 SELECT trace_id, span_id, agent_id, agent_role, request_type,
        method, path, status_code, request_body, response_body,
        tool_calls, model, tokens_in, tokens_out, latency_ms, created_at
@@ -22,8 +37,10 @@ FROM audit.traces
 WHERE agent_id = ?
 ORDER BY created_at DESC
 LIMIT ?`
+		args = []any{agentID, limit}
+	}
 
-	rows, err := c.conn.Query(ctx, query, agentID, limit)
+	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query traces: %w", err)
 	}
