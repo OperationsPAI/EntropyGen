@@ -1,0 +1,13 @@
+# NetworkPolicy resources enforcing communication boundaries
+# Defines allowed traffic paths between namespaces and components
+# per system-design-overview.md section 13.
+#
+# Policies to implement:
+#   - agents -> agent-gateway only (no direct Gitea/LiteLLM access)
+#   - agent-gateway -> litellm, gitea, redis
+#   - backend -> clickhouse, redis, litellm, k8s-api
+#   - event-collector -> redis
+#   - gitea -> event-collector (webhook callback)
+#   - frontend -> backend only
+#   - deny all other cross-namespace traffic
+# Filled in: as each Phase completes its component

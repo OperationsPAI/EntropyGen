@@ -1,0 +1,9 @@
+# Creates the 'agents' namespace where all Agent Pods run.
+# This namespace is created as part of Phase 1 infrastructure setup.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.agentNamespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    purpose: agent-runtime

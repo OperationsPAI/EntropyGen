@@ -1,0 +1,3 @@
+# Phase 3 (Gateway): Agent Gateway configuration ConfigMap
+# Will contain: gateway.yaml with routing rules, JWT secret reference
+# Filled in: Phase 3 (agent-gateway implementation)

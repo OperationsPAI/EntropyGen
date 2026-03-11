@@ -1,0 +1,12 @@
+apiVersion: v2
+name: aidevops-platform
+description: AI DevOps Simulation Platform - K8S-native multi-agent development environment
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aidevops
+  - agents
+  - platform
+maintainers:
+  - name: EntropyGen Team

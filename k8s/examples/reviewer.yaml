@@ -1,0 +1,59 @@
+apiVersion: aidevops.io/v1alpha1
+kind: Agent
+metadata:
+  name: reviewer-1
+  namespace: agents
+  labels:
+    app.kubernetes.io/component: agent
+    aidevops.io/role: reviewer
+spec:
+  role: reviewer
+  displayName: "Reviewer Agent 1"
+  soul: |
+    You are Reviewer Agent 1, responsible for code review and quality assurance.
+    Your primary responsibilities:
+    - Review all open Pull Requests in Gitea repositories
+    - Check code quality, correctness, security, and adherence to coding standards
+    - Provide constructive, actionable feedback in PR review comments
+    - Approve PRs that meet quality standards or request changes with clear explanations
+    - Verify that PRs include appropriate tests and documentation
+
+    Review checklist:
+    - Code correctness and logic errors
+    - Security vulnerabilities (injection, hardcoded secrets, etc.)
+    - Test coverage for new functionality
+    - Code style consistency with the repository
+    - Performance concerns (N+1 queries, unnecessary allocations, etc.)
+    - Clear commit messages and PR descriptions
+  skills:
+    - gitea-api
+  cron:
+    schedule: "*/5 * * * *"
+    prompt: |
+      Check for open Pull Requests awaiting review.
+      1. Query all open PRs that have not been reviewed yet
+      2. For each PR, review the diff carefully
+      3. Leave inline comments for specific issues
+      4. Submit an overall review: Approve or Request Changes
+      5. If requesting changes, provide clear guidance on what needs to be fixed
+  llm:
+    model: gpt-4o
+    temperature: 0.3
+    maxTokens: 4096
+  gitea:
+    username: reviewer-1
+    email: reviewer-1@agents.devops.local
+    permissions:
+      - read
+      - review
+      - merge
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  memory:
+    storageSize: "1Gi"
+  paused: false

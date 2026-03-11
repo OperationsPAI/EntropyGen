@@ -1,0 +1,88 @@
+# docker-compose.dev.yml
+# Local development environment for AI DevOps Platform
+# Provides: Redis, ClickHouse, Gitea for local testing
+#
+# Usage:
+#   ./scripts/dev-up.sh       # Start all services
+#   ./scripts/dev-down.sh     # Stop all services
+#   docker compose -f docker-compose.dev.yml logs -f  # View logs
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aidevops-redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - aidevops-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: aidevops-clickhouse
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native (TCP) interface
+    environment:
+      CLICKHOUSE_DB: audit
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    networks:
+      - aidevops-dev
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  gitea:
+    image: gitea/gitea:1.22
+    container_name: aidevops-gitea
+    ports:
+      - "3000:3000"
+      - "2223:22"
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__server__DOMAIN: localhost
+      GITEA__server__HTTP_PORT: 3000
+      GITEA__server__ROOT_URL: http://localhost:3000/
+      GITEA__security__INSTALL_LOCK: true
+      GITEA__service__DISABLE_REGISTRATION: false
+      GITEA__log__LEVEL: warn
+    volumes:
+      - gitea-data:/data
+    networks:
+      - aidevops-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  redis-data:
+    driver: local
+  clickhouse-data:
+    driver: local
+  gitea-data:
+    driver: local
+
+networks:
+  aidevops-dev:
+    driver: bridge
+    name: aidevops-dev

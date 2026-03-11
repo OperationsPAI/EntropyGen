@@ -1,0 +1,4 @@
+# Agent Gateway Deployment
+# Reverse proxy for all Agent requests (LLM/Gitea API/Git HTTP)
+# Handles Agent identity verification and audit event emission
+# Filled in: Phase 3 (agent-gateway implementation)

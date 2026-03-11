@@ -1,0 +1,3 @@
+# Operator (devops-operator) Deployment
+# Manages Agent CR lifecycle, creates K8S resources for agents
+# Filled in: Phase 2 (operator implementation)

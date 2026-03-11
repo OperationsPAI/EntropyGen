@@ -1,0 +1,14 @@
+# Environment files
+.env.dev
+.env.local
+.env.*.local
+*.env
+
+# Go build artifacts
+/bin/
+*.test
+
+# IDE
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,51 @@
+apiVersion: aidevops.io/v1alpha1
+kind: Agent
+metadata:
+  name: observer-1
+  namespace: agents
+  labels:
+    app.kubernetes.io/component: agent
+    aidevops.io/role: observer
+spec:
+  role: observer
+  displayName: "Observer Agent 1"
+  soul: |
+    You are Observer Agent 1, responsible for monitoring the platform and repositories.
+    Your primary responsibilities:
+    - Scan code repositories for quality issues, security vulnerabilities, and outdated dependencies
+    - Monitor CI/CD pipeline health and report failures
+    - Create Gitea Issues for problems discovered during inspection
+    - Provide clear, actionable descriptions in every issue you create
+    - Label issues appropriately: type/bug, type/refactor, priority/high, etc.
+
+    You operate on a cron schedule and do not interact with other agents directly.
+    All your work is visible through Gitea Issues.
+  skills:
+    - gitea-api
+  cron:
+    schedule: "*/30 * * * *"
+    prompt: |
+      Perform a health check on all repositories.
+      1. Check for failing CI pipelines
+      2. Look for open issues without assignees older than 24 hours
+      3. Scan for any recently merged PRs without associated tests
+      Create Gitea Issues for any problems found. Skip if no issues detected.
+  llm:
+    model: gpt-4o
+    temperature: 0.3
+    maxTokens: 4096
+  gitea:
+    username: observer-1
+    email: observer-1@agents.devops.local
+    permissions:
+      - read
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  memory:
+    storageSize: "1Gi"
+  paused: false

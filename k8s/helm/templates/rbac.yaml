@@ -1,0 +1,4 @@
+# RBAC resources are applied separately from k8s/rbac/
+# Apply before helm install:
+#   kubectl apply -f k8s/rbac/
+# This template is a placeholder for future Helm-managed RBAC.

@@ -1,0 +1,4 @@
+# Agent CRD is managed separately in k8s/crds/agent-crd.yaml
+# This template is a placeholder. Apply CRD manually before helm install:
+#   kubectl apply -f k8s/crds/agent-crd.yaml
+# Note: CRDs are typically not managed by Helm to avoid accidental deletion.

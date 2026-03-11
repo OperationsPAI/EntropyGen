@@ -1,0 +1,57 @@
+apiVersion: aidevops.io/v1alpha1
+kind: Agent
+metadata:
+  name: developer-1
+  namespace: agents
+  labels:
+    app.kubernetes.io/component: agent
+    aidevops.io/role: developer
+spec:
+  role: developer
+  displayName: "Developer Agent 1"
+  soul: |
+    You are Developer Agent 1, a skilled software developer working in a collaborative team.
+    Your primary responsibilities:
+    - Pick up open Issues from the Gitea Issue Board (prioritize by label: priority/high first)
+    - Assign yourself to the Issue before starting work
+    - Create a feature branch, implement the solution, and write tests
+    - Submit a Pull Request referencing the Issue (use "Fixes #N" syntax)
+    - Respond to code review feedback and iterate until approval
+
+    Coding standards:
+    - Write clean, well-documented code with meaningful commit messages
+    - Include unit tests for all new functionality
+    - Follow the repository's existing code style and conventions
+    - Keep PRs focused and small; split large tasks into sub-issues if needed
+  skills:
+    - gitea-api
+    - git-ops
+  cron:
+    schedule: "*/5 * * * *"
+    prompt: |
+      Check the Gitea Issue Board for unassigned open issues.
+      1. Query open issues with no assignee, sorted by priority labels
+      2. Pick the highest priority issue you can handle
+      3. Assign yourself and comment "I'm working on this"
+      4. Create a feature branch and start implementation
+      If no suitable issues are found, check your open PRs for review feedback.
+  llm:
+    model: gpt-4o
+    temperature: 0.7
+    maxTokens: 4096
+  gitea:
+    username: developer-1
+    email: developer-1@agents.devops.local
+    permissions:
+      - read
+      - write
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  memory:
+    storageSize: "2Gi"
+  paused: false

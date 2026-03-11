@@ -1,0 +1,163 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: agents.aidevops.io
+spec:
+  group: aidevops.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [role, soul]
+              properties:
+                role:
+                  type: string
+                  enum: [observer, developer, reviewer, sre, custom]
+                displayName:
+                  type: string
+                soul:
+                  type: string
+                  description: "SOUL.md content, defines Agent personality"
+                skills:
+                  type: array
+                  items:
+                    type: string
+                  description: "SKILL name list"
+                skillContents:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: "Custom SKILL.md content map"
+                cron:
+                  type: object
+                  properties:
+                    schedule:
+                      type: string
+                      description: "Cron expression"
+                    prompt:
+                      type: string
+                      description: "Prompt injected on schedule"
+                llm:
+                  type: object
+                  properties:
+                    model:
+                      type: string
+                      description: "Model name, routed by LiteLLM"
+                    temperature:
+                      type: number
+                    maxTokens:
+                      type: integer
+                gitea:
+                  type: object
+                  properties:
+                    username:
+                      type: string
+                    email:
+                      type: string
+                    permissions:
+                      type: array
+                      items:
+                        type: string
+                      description: "read/write/admin/review/merge"
+                kubernetes:
+                  type: object
+                  properties:
+                    namespaceAccess:
+                      type: array
+                      items:
+                        type: string
+                      description: "Namespace list SRE can operate on"
+                    rbacRole:
+                      type: string
+                resources:
+                  type: object
+                  properties:
+                    requests:
+                      type: object
+                      properties:
+                        cpu: { type: string }
+                        memory: { type: string }
+                    limits:
+                      type: object
+                      properties:
+                        cpu: { type: string }
+                        memory: { type: string }
+                memory:
+                  type: object
+                  properties:
+                    storageSize:
+                      type: string
+                      default: "1Gi"
+                    storageClass:
+                      type: string
+                paused:
+                  type: boolean
+                  default: false
+                  description: "Pause Agent execution"
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Initializing, Running, Paused, Error]
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type: { type: string }
+                      status: { type: string }
+                      reason: { type: string }
+                      message: { type: string }
+                      lastTransitionTime: { type: string, format: date-time }
+                giteaUser:
+                  type: object
+                  properties:
+                    created: { type: boolean }
+                    username: { type: string }
+                    tokenSecretRef: { type: string }
+                lastAction:
+                  type: object
+                  properties:
+                    description: { type: string }
+                    timestamp: { type: string, format: date-time }
+                tokenUsage:
+                  type: object
+                  properties:
+                    today: { type: integer }
+                    total: { type: integer }
+                podName: { type: string }
+                startedAt: { type: string, format: date-time }
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Role
+          type: string
+          jsonPath: .spec.role
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Model
+          type: string
+          jsonPath: .spec.llm.model
+        - name: Last Action
+          type: string
+          jsonPath: .status.lastAction.description
+        - name: Tokens Today
+          type: integer
+          jsonPath: .status.tokenUsage.today
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: agents
+    singular: agent
+    kind: Agent
+    shortNames: [da]

@@ -1,0 +1,63 @@
+apiVersion: aidevops.io/v1alpha1
+kind: Agent
+metadata:
+  name: sre-1
+  namespace: agents
+  labels:
+    app.kubernetes.io/component: agent
+    aidevops.io/role: sre
+spec:
+  role: sre
+  displayName: "SRE Agent 1"
+  soul: |
+    You are SRE Agent 1, responsible for site reliability and deployment operations.
+    Your primary responsibilities:
+    - Monitor application health in the app-staging namespace
+    - Deploy merged PRs to the staging environment
+    - Investigate and resolve deployment failures
+    - Create Gitea Issues for infrastructure problems discovered during operations
+    - Manage rollbacks when deployments cause service degradation
+
+    Operational guidelines:
+    - Always verify deployment health after applying changes
+    - Use kubectl to inspect pod status, logs, and events
+    - Never deploy directly to production; only app-staging is in scope
+    - Document all deployment actions in Gitea Issue comments
+    - Escalate issues that require manual intervention by creating priority/critical Issues
+  skills:
+    - gitea-api
+    - git-ops
+    - kubectl-ops
+  cron:
+    schedule: "*/10 * * * *"
+    prompt: |
+      Perform operational health check and deployment tasks.
+      1. Check pod health in app-staging namespace (kubectl get pods)
+      2. Look for recently merged PRs that haven't been deployed yet
+      3. If a new version is ready, deploy it to app-staging
+      4. Verify deployment health after any changes
+      5. Create Gitea Issues for any infrastructure problems found
+  llm:
+    model: gpt-4o
+    temperature: 0.3
+    maxTokens: 4096
+  gitea:
+    username: sre-1
+    email: sre-1@agents.devops.local
+    permissions:
+      - read
+      - write
+  kubernetes:
+    namespaceAccess:
+      - app-staging
+    rbacRole: sre-agent-role
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  memory:
+    storageSize: "1Gi"
+  paused: false

@@ -1,0 +1,4 @@
+# Event Collector Deployment
+# Receives Gitea Webhooks and watches K8S Events
+# Writes formatted events to Redis Stream Event Bus
+# Filled in: Phase 4 (event-collector implementation)

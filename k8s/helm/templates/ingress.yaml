@@ -1,0 +1,9 @@
+# Ingress resources for platform entry points
+# Hosts:
+#   - control.devops.local -> Control Panel Frontend/Backend
+#   - gitea.devops.local   -> Gitea Web UI
+#   - app.devops.local     -> app-staging deployed applications
+# Filled in: as each Phase completes its component
+{{- if .Values.ingress.enabled }}
+# Ingress definitions will be added here as components are deployed.
+{{- end }}
