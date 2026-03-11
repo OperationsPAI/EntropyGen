@@ -1,3 +1,123 @@
 package main
 
-func main() {}
+import (
+	"context"
+	"log/slog"
+	"os"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
+
+	"github.com/entropyGen/entropyGen/internal/backend/api"
+	"github.com/entropyGen/entropyGen/internal/backend/chwriter"
+	"github.com/entropyGen/entropyGen/internal/backend/heartbeat"
+	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
+	"github.com/entropyGen/entropyGen/internal/backend/wspush"
+	"github.com/entropyGen/entropyGen/internal/common/chclient"
+	"github.com/entropyGen/entropyGen/internal/common/redisclient"
+)
+
+func main() {
+	listenAddr := envOr("LISTEN_ADDR", ":8081")
+	chAddr := mustEnv("CLICKHOUSE_ADDR")
+	chDB := envOr("CLICKHOUSE_DB", "audit")
+	chUser := envOr("CLICKHOUSE_USER", "default")
+	chPass := envOr("CLICKHOUSE_PASS", "")
+	redisAddr := envOr("REDIS_ADDR", "redis.storage.svc:6379")
+	litellmAddr := mustEnv("LITELLM_ADDR")
+	adminUser := mustEnv("ADMIN_USERNAME")
+	adminPassHash := mustEnv("ADMIN_PASSWORD_HASH")
+	jwtSecret := []byte(mustEnv("JWT_SECRET"))
+	agentNS := envOr("AGENT_NAMESPACE", "agents")
+	dlqDir := envOr("DLQ_DIR", "/var/lib/backend/dlq")
+
+	// ClickHouse
+	ch, err := chclient.New(chAddr, chDB, chUser, chPass)
+	if err != nil {
+		slog.Error("clickhouse init failed", "err", err)
+		os.Exit(1)
+	}
+	if err := ch.CreateSchema(context.Background()); err != nil {
+		slog.Error("clickhouse schema init failed", "err", err)
+		os.Exit(1)
+	}
+
+	// Redis
+	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
+	streamWriter := redisclient.NewStreamWriter(rdb)
+	chReader := redisclient.NewStreamReader(rdb, "ch-writer", "backend-1")
+	wsReader := redisclient.NewStreamReader(rdb, "ws-push", "backend-ws-1")
+
+	ctx := context.Background()
+	for _, stream := range []string{"events:gateway", "events:gitea", "events:k8s"} {
+		_ = chReader.CreateGroup(ctx, stream)
+		_ = wsReader.CreateGroup(ctx, stream)
+	}
+
+	// K8S
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = agentapi.AddToScheme(scheme)
+	var agentCRClient *k8sclient.AgentClient
+	if k8sCfg, err := ctrlconfig.GetConfig(); err == nil {
+		if k8sClient, err := ctrlclient.New(k8sCfg, ctrlclient.Options{Scheme: scheme}); err == nil {
+			agentCRClient = k8sclient.NewAgentClient(k8sClient, agentNS)
+		}
+	}
+	if agentCRClient == nil {
+		slog.Warn("k8s unavailable, agent API disabled")
+		agentCRClient = k8sclient.NewAgentClient(nil, agentNS)
+	}
+
+	// Background services
+	pusher := wspush.NewPusher()
+	go pusher.Run(ctx, wsReader)
+
+	cw := chwriter.New(ch, chReader, streamWriter, dlqDir)
+	go cw.Run(ctx)
+
+	detector := heartbeat.NewDetector(ch, agentCRClient, streamWriter)
+	go detector.RunLoop(ctx, 5*time.Minute)
+
+	// HTTP server
+	if os.Getenv("GIN_MODE") == "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	router := api.NewRouter(api.Config{
+		AdminUsername:     adminUser,
+		AdminPasswordHash: adminPassHash,
+		JWTSecret:         jwtSecret,
+		LiteLLMAddr:       litellmAddr,
+		AgentClient:       agentCRClient,
+		CHClient:          ch,
+		Pusher:            pusher,
+	})
+	slog.Info("backend starting", "addr", listenAddr)
+	if err := router.Run(listenAddr); err != nil {
+		slog.Error("server error", "err", err)
+		os.Exit(1)
+	}
+}
+
+func mustEnv(k string) string {
+	v := os.Getenv(k)
+	if v == "" {
+		slog.Error("required env not set", "key", k)
+		os.Exit(1)
+	}
+	return v
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
