@@ -1,0 +1,223 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+.statLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.statSub {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.trendUp {
+  color: var(--status-green);
+}
+
+.trendDown {
+  color: var(--accent-orange);
+}
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Agent status table */
+.errorRow {
+  background-color: rgba(229, 80, 43, 0.04);
+}
+
+.agentName {
+  font-weight: 600;
+}
+
+.agentRole {
+  color: var(--text-muted);
+}
+
+.lastAction {
+  color: var(--text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenCell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Event stream */
+.liveHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.liveLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #22c55e;
+}
+
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.eventRow {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.eventTime {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.eventAgent {
+  font-weight: 500;
+}
+
+.eventBadge {
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background-color: var(--status-gray-bg);
+  color: var(--status-gray);
+}
+
+.eventBadgeGitea {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue);
+}
+
+.eventBadgeLlm {
+  background-color: var(--status-yellow-bg);
+  color: var(--status-yellow);
+}
+
+.eventBadgeAlert {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+}
+
+/* Waiting animation for empty event stream */
+.waitingText {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.waitingDots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(17, 17, 17, 0.06) 25%,
+    rgba(17, 17, 17, 0.10) 50%,
+    rgba(17, 17, 17, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeletonStatValue {
+  height: 2rem;
+  width: 60%;
+  margin-top: var(--space-sm);
+}
+
+.skeletonStatSub {
+  height: 0.8rem;
+  width: 40%;
+  margin-top: var(--space-sm);
+}
+
+.skeletonRow {
+  height: 44px;
+  width: 100%;
+  margin-bottom: var(--space-sm);
+}
+
+.skeletonChart {
+  height: 180px;
+  width: 100%;
+}

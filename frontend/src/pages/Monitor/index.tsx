@@ -1,4 +1,5 @@
 import ReactECharts from '../../components/ReactECharts'
+import { PageHeader, Card } from '../../components/ui'
 
 function genDays(n: number) {
   return Array.from({ length: n }, (_, i) => {
@@ -53,24 +54,37 @@ export default function Monitor() {
     series: [{ type: 'bar', data: [12400, 45200, 8900, 0], itemStyle: { borderRadius: [0, 4, 4, 0], color: '#111' }, barMaxWidth: 20 }],
   }
 
-  const card = (title: string, chart: React.ReactNode) => (
-    <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
-      <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '12px' }}>{title}</div>
-      <div style={{ height: '200px' }}>{chart}</div>
-    </div>
-  )
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Monitoring Charts</h2>
+      <PageHeader title="Monitoring" />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {card('Token Usage (Last 30 Days)', <ReactECharts option={tokenTrendOption} style={{ height: '100%' }} />)}
-        {card('Activity Heatmap (by Hour)', <ReactECharts option={heatmapOption} style={{ height: '100%' }} />)}
+        <Card title="Token Usage (Last 30 Days)">
+          <div style={{ height: '200px' }}>
+            <ReactECharts option={tokenTrendOption} style={{ height: '100%' }} />
+          </div>
+        </Card>
+        <Card title="Activity Heatmap (by Hour)">
+          <div style={{ height: '200px' }}>
+            <ReactECharts option={heatmapOption} style={{ height: '100%' }} />
+          </div>
+        </Card>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        {card('Model Distribution', <ReactECharts option={pieOption} style={{ height: '100%' }} />)}
-        {card('Avg Latency Trend', <ReactECharts option={latencyOption} style={{ height: '100%' }} />)}
-        {card('Agent Activity Ranking (Today)', <ReactECharts option={rankOption} style={{ height: '100%' }} />)}
+        <Card title="Model Distribution">
+          <div style={{ height: '200px' }}>
+            <ReactECharts option={pieOption} style={{ height: '100%' }} />
+          </div>
+        </Card>
+        <Card title="Avg Latency Trend">
+          <div style={{ height: '200px' }}>
+            <ReactECharts option={latencyOption} style={{ height: '100%' }} />
+          </div>
+        </Card>
+        <Card title="Agent Activity Ranking (Today)">
+          <div style={{ height: '200px' }}>
+            <ReactECharts option={rankOption} style={{ height: '100%' }} />
+          </div>
+        </Card>
       </div>
     </div>
   )

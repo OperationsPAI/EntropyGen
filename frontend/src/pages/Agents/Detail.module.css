@@ -1,0 +1,369 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Tab bar */
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.tab {
+  padding: var(--space-md) var(--space-lg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--text-main);
+}
+
+.tabActive {
+  font-weight: 600;
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
+}
+
+.tabContent {
+  padding: var(--space-lg);
+}
+
+/* Overview grid */
+.overviewGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-lg);
+}
+
+.defGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.defLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.defValue {
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.roleLink {
+  color: var(--text-main);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.roleLink:hover {
+  text-decoration: underline;
+}
+
+/* Conditions list */
+.conditionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-sm);
+}
+
+.condition {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: 0.85rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.conditionOk {
+  background-color: var(--status-green-bg);
+}
+
+.conditionFail {
+  background-color: var(--status-red-bg);
+}
+
+.conditionIcon {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.conditionType {
+  font-weight: 600;
+}
+
+.conditionMsg {
+  color: var(--text-muted);
+}
+
+/* Sidebar actions */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tokenBlock {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--line-subtle);
+  padding-top: var(--space-md);
+}
+
+.tokenValue {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-xs);
+}
+
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineItem {
+  display: flex;
+  gap: var(--space-md);
+  padding-bottom: 20px;
+}
+
+.timelineDot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.timelineDotIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.timelineLine {
+  width: 1px;
+  flex: 1;
+  background-color: var(--line-subtle);
+  min-height: var(--space-md);
+}
+
+.timelineBody {
+  padding-top: var(--space-xs);
+}
+
+.timelineMeta {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.timelineTime {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.timelineTitle {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.timelineDetail {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.timelineCron {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--status-blue-bg);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.timelineCronIcon {
+  color: var(--status-blue);
+  display: flex;
+  align-items: center;
+}
+
+.timelineCronTime {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.timelineCronTitle {
+  font-size: 0.85rem;
+}
+
+.timelineCronDetail {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Timeline dot colors */
+.dotLlm {
+  background-color: var(--status-yellow-bg);
+  color: var(--status-yellow);
+}
+
+.dotGit {
+  background-color: var(--status-green-bg);
+  color: var(--status-green);
+}
+
+.dotPr {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue);
+}
+
+.dotComment {
+  background-color: #f0e8f5;
+  color: #5a3a7a;
+}
+
+.dotIssue {
+  background-color: var(--status-gray-bg);
+  color: var(--status-gray);
+}
+
+.dotAlert {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+}
+
+.dotDefault {
+  background-color: var(--status-gray-bg);
+  color: var(--status-gray);
+}
+
+/* Files tab */
+.filesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.filesInherited {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.filesEditLink {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.filesEditLink:hover {
+  text-decoration: underline;
+}
+
+.filesWrap {
+  height: min(500px, calc(100vh - 340px));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--line-subtle);
+}
+
+/* Logs tab */
+.logToggle {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.logTerminal {
+  background-color: #111;
+  color: #ccc;
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  font-family: monospace;
+  font-size: 0.8rem;
+  min-height: 200px;
+  white-space: pre-wrap;
+}
+
+.logConnecting {
+  color: #4a9;
+  margin-bottom: var(--space-sm);
+}
+
+/* Audit tab */
+.auditSplitWrap {
+  height: min(600px, calc(100vh - 280px));
+}
+
+.traceId {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.statusOk {
+  color: var(--status-green);
+}
+
+.statusErr {
+  color: var(--accent-orange);
+}
+
+/* Assign modal info box */
+.assignInfo {
+  margin-top: 20px;
+  padding: var(--space-md);
+  background-color: rgba(17, 17, 17, 0.04);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Loading state */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(17, 17, 17, 0.06) 25%,
+    rgba(17, 17, 17, 0.10) 50%,
+    rgba(17, 17, 17, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeletonBlock {
+  height: 200px;
+  width: 100%;
+}

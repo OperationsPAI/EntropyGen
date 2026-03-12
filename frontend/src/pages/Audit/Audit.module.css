@@ -1,0 +1,35 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.splitWrap {
+  height: min(700px, calc(100vh - 260px));
+}
+
+.tablePane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableScroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+  flex-shrink: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.ellipsis {
+  padding: 4px 8px;
+  color: var(--text-muted);
+}

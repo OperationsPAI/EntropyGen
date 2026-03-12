@@ -1,0 +1,287 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Step indicator */
+.stepIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg) var(--space-lg) 0;
+  gap: 0;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.stepItemColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.stepDotActive {
+  background-color: var(--text-main);
+  color: white;
+}
+
+.stepDotInactive {
+  border: 2px solid var(--line-subtle);
+  color: var(--text-muted);
+  background: none;
+}
+
+.stepDotCompleted {
+  background-color: var(--text-main);
+  color: white;
+  cursor: pointer;
+}
+
+.stepLine {
+  width: 60px;
+  height: 2px;
+  background-color: var(--line-subtle);
+  margin: 0 4px;
+}
+
+.stepLineActive {
+  background-color: var(--text-main);
+}
+
+.stepLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.stepLabelActive {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* Step content */
+.stepContent {
+  padding: var(--space-lg);
+}
+
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 600px;
+}
+
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+/* Role selection */
+.roleList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.roleItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.roleItem:last-child {
+  border-bottom: none;
+}
+
+.roleItem:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.roleItemSelected {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.roleInfo {
+  flex: 1;
+}
+
+.roleName {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.roleMeta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.roleEditLink {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.roleEditLink:hover {
+  color: var(--text-main);
+}
+
+.roleHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.sectionLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.selectedFiles {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-sm);
+}
+
+.helperText {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Info box */
+.infoBox {
+  padding: var(--space-md);
+  background-color: rgba(17, 17, 17, 0.04);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.infoLink {
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.infoLink:hover {
+  text-decoration: underline;
+}
+
+/* Checkbox group */
+.checkboxGroup {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* Review section */
+.reviewGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+.reviewSection {
+  cursor: pointer;
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.1s;
+}
+
+.reviewSection:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.reviewSectionTitle {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  padding: 4px 0;
+}
+
+.reviewLabel {
+  color: var(--text-muted);
+}
+
+.reviewValue {
+  font-weight: 500;
+}
+
+.warningBox {
+  padding: var(--space-md);
+  background-color: var(--status-yellow-bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--status-yellow);
+  font-weight: 500;
+  margin-top: var(--space-md);
+}
+
+/* Bottom action bar */
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--line-subtle);
+}
+
+.actionBarRight {
+  display: flex;
+  gap: var(--space-sm);
+}

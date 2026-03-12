@@ -1,5 +1,4 @@
 export type AgentPhase = 'Pending' | 'Initializing' | 'Running' | 'Paused' | 'Error'
-export type AgentRole = 'observer' | 'developer' | 'reviewer' | 'sre'
 
 export interface LLMConfig {
   model: string
@@ -9,7 +8,6 @@ export interface LLMConfig {
 
 export interface CronConfig {
   schedule: string
-  prompt: string
 }
 
 export interface ResourceConfig {
@@ -44,8 +42,7 @@ export interface TokenUsage {
 }
 
 export interface AgentSpec {
-  role: AgentRole
-  soul: string
+  role: string
   llm: LLMConfig
   cron: CronConfig
   resources: ResourceConfig
@@ -70,7 +67,7 @@ export interface Agent {
 
 export interface CreateAgentDto {
   name: string
-  spec: Omit<AgentSpec, 'soul'>
+  spec: AgentSpec
 }
 
 export interface UpdateAgentDto {
@@ -83,4 +80,27 @@ export interface AssignTaskDto {
   description: string
   labels: string[]
   priority: 'low' | 'medium' | 'high'
+}
+
+// --- Role types ---
+
+export interface RoleFile {
+  name: string
+  content: string
+  updated_at: string
+}
+
+export interface Role {
+  name: string
+  description: string
+  files: RoleFile[]
+  agent_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateRoleDto {
+  name: string
+  description: string
+  initial_files?: string[]
 }

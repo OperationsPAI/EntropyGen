@@ -1,13 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport } from '@douyinfe/semi-icons'
 import { authApi } from '../../api/auth'
+import styles from './Sidebar.module.css'
 
 const NAV_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', icon: '◉' },
-  { path: '/agents', label: 'Agents', icon: '◈' },
-  { path: '/llm', label: 'LLM Models', icon: '◇' },
-  { path: '/audit', label: 'Audit Log', icon: '◫' },
-  { path: '/monitor', label: 'Monitoring', icon: '◎' },
-  { path: '/export', label: 'Export', icon: '◱' },
+  { path: '/dashboard', label: 'Dashboard', icon: <IconHome size="small" /> },
+  { path: '/agents', label: 'Agents', icon: <IconUserGroup size="small" /> },
+  { path: '/roles', label: 'Roles', icon: <IconSetting size="small" /> },
+  { path: '/llm', label: 'LLM Models', icon: <IconServer size="small" /> },
+  { path: '/audit', label: 'Audit Log', icon: <IconList size="small" /> },
+  { path: '/monitor', label: 'Monitoring', icon: <IconPulse size="small" /> },
+  { path: '/export', label: 'Export', icon: <IconExport size="small" /> },
 ]
 
 export default function Sidebar() {
@@ -32,12 +35,7 @@ export default function Sidebar() {
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em' }}>
-        <div style={{
-          width: '22px', height: '22px',
-          backgroundColor: 'var(--text-main)',
-          borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        <div className={styles.logo}>
           <div style={{ width: '10px', height: '10px', backgroundColor: 'white', borderRadius: '50%' }} />
         </div>
         EntropyGen
@@ -50,31 +48,14 @@ export default function Sidebar() {
             <li key={path}>
               <NavLink
                 to={path}
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
-                  backgroundColor: isActive ? 'rgba(0,0,0,0.04)' : 'transparent',
-                  position: 'relative',
-                  transition: 'all 0.15s',
-                })}
+                className={({ isActive }) =>
+                  `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+                }
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <span style={{
-                        position: 'absolute', left: '-12px',
-                        width: '4px', height: '4px',
-                        borderRadius: '50%', backgroundColor: 'var(--text-main)',
-                      }} />
-                    )}
-                    <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{icon}</span>
+                    {isActive && <span className={styles.activeBar} />}
+                    <span style={{ display: 'flex', opacity: 0.6 }}>{icon}</span>
                     {label}
                   </>
                 )}
@@ -84,18 +65,23 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          textAlign: 'left', padding: '8px 12px',
-          borderRadius: '8px', fontSize: '0.875rem',
-          color: 'var(--text-muted)', fontWeight: 500,
-        }}
-      >
-        Sign Out
-      </button>
+      {/* User info + Sign Out */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '8px 12px',
+        }}>
+          <div className={styles.avatar}>AG</div>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+            Agent Admin
+          </span>
+        </div>
+        <button onClick={handleLogout} className={styles.signOutBtn}>
+          Sign Out
+        </button>
+      </div>
     </aside>
   )
 }

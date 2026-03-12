@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../../api/auth'
+import { Input, Button } from '../../components/ui'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -39,6 +40,7 @@ export default function Login() {
         padding: '48px',
         width: '100%',
         maxWidth: '400px',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.06)',
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px' }}>
@@ -60,58 +62,40 @@ export default function Login() {
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              style={{
-                width: '100%', padding: '10px 14px',
-                border: '1px solid var(--line-subtle)',
-                borderRadius: '8px', fontSize: '0.9rem',
-                outline: 'none', fontFamily: 'inherit',
-              }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: '100%', padding: '10px 14px',
-                border: '1px solid var(--line-subtle)',
-                borderRadius: '8px', fontSize: '0.9rem',
-                outline: 'none', fontFamily: 'inherit',
-              }}
-            />
-          </div>
+          <Input
+            label="Username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
           {error && (
-            <div style={{ color: 'var(--accent-orange)', fontSize: '0.85rem' }}>{error}</div>
+            <div style={{
+              padding: '10px 14px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              color: '#991b1b',
+              fontSize: '0.85rem',
+            }}>
+              {error}
+            </div>
           )}
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', padding: '12px',
-              backgroundColor: 'var(--text-main)',
-              color: 'white', border: 'none',
-              borderRadius: '8px', fontSize: '0.9rem',
-              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1, fontFamily: 'inherit',
-              marginTop: '8px',
-            }}
+            loading={loading}
+            fullWidth
+            style={{ marginTop: '8px' }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+            Sign In
+          </Button>
         </form>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import AlertBanner from '../alert/AlertBanner'
+import ToastContainer from '../ui/Toast'
 import { useWebSocket } from '../../hooks/useWebSocket'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export default function AppShell() {
             <Outlet />
           </main>
         </div>
+        <ToastContainer />
       </div>
     </AuthGuard>
   )

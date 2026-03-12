@@ -1,0 +1,36 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table thead tr {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.table th {
+  text-align: left;
+  padding: 8px 12px 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--line-subtle);
+  transition: background-color 0.1s ease;
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background-color: rgba(17, 17, 17, 0.02);
+}
+
+.table td {
+  padding: 12px;
+}

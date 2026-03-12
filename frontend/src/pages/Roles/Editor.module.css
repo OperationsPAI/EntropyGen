@@ -1,0 +1,198 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  height: calc(100vh - 80px);
+}
+
+.editorCard {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Left file tree panel */
+.fileTree {
+  width: 180px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.fileTreeHeader {
+  padding: 12px 16px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.fileTreeList { flex: 1; overflow-y: auto; }
+
+.fileTreeItem {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-main);
+  position: relative;
+  transition: background-color 0.1s;
+}
+
+.fileTreeItem:hover { background-color: rgba(0,0,0,0.03); }
+.fileTreeItemActive { background-color: rgba(0,0,0,0.06); font-weight: 600; }
+
+.fileTreeItemDelete {
+  position: absolute;
+  right: 8px;
+  opacity: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+.fileTreeItem:hover .fileTreeItemDelete { opacity: 1; }
+.fileTreeItemDelete:hover { color: var(--accent-orange); }
+
+.dirtyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent-orange);
+  flex-shrink: 0;
+}
+
+.fileTreeDivider {
+  height: 1px;
+  background-color: var(--line-subtle);
+  margin: 4px 0;
+}
+
+.newFileBtn {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+}
+.newFileBtn:hover { color: var(--text-main); background-color: rgba(0,0,0,0.03); }
+
+.newFileInput {
+  padding: 6px 16px;
+  border: none;
+  outline: none;
+  font-size: 0.85rem;
+  font-family: inherit;
+  width: 100%;
+  background: rgba(0,0,0,0.04);
+}
+
+/* Right editor panel */
+.editorPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Tab bar */
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid var(--line-subtle);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.tab:hover { color: var(--text-main); }
+.tabActive { color: var(--text-main); font-weight: 600; border-bottom-color: var(--text-main); }
+
+.tabClose {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  line-height: 1;
+}
+.tabClose:hover { opacity: 1; background-color: rgba(0,0,0,0.08); }
+
+/* Editor body */
+.editorBody { flex: 1; overflow: hidden; }
+
+/* Status bar */
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px;
+  border-top: 1px solid var(--line-subtle);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.statusBarLeft { display: flex; align-items: center; gap: 16px; }
+.statusBarRight { display: flex; align-items: center; gap: 8px; }
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, rgba(17,17,17,0.06) 25%, rgba(17,17,17,0.10) 50%, rgba(17,17,17,0.06) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeletonBlock { height: 400px; width: 100%; }
+
+/* Empty editor state */
+.emptyEditor {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}

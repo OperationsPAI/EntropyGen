@@ -1,0 +1,105 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-surface);
+}
+
+.header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.headerSub {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.3rem;
+  color: var(--text-muted);
+  padding: 4px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.closeBtn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.metaBar {
+  padding: 12px 20px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-subtle);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.metaValue {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.metaValueErr {
+  color: #e5502b;
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line-subtle);
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--text-main);
+}
+
+.tabActive {
+  font-weight: 600;
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
+}
+
+.body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorWrap {
+  flex: 1;
+  overflow: hidden;
+}

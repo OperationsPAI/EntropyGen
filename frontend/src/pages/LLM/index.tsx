@@ -1,24 +1,65 @@
 import { useEffect, useState } from 'react'
 import { llmApi, type LLMModel, type CreateModelDto } from '../../api/llm'
-
-const MOCK_MODELS: LLMModel[] = [
-  { id: '1', name: 'gpt-4o', provider: 'openai', rpm: 60, tpm: 100000, status: 'healthy' },
-  { id: '2', name: 'claude-3-5-sonnet', provider: 'anthropic', rpm: 50, tpm: 80000, status: 'healthy' },
-  { id: '3', name: 'gpt-4o-mini', provider: 'openai', rpm: 200, tpm: 200000, status: 'unknown' },
-]
+import { PageHeader, Card, Table, Button, Input, Modal, EmptyState } from '../../components/ui'
+import { useToast } from '../../hooks/useToast'
 
 export default function LLMPage() {
-  const [models, setModels] = useState<LLMModel[]>(MOCK_MODELS)
+  const [models, setModels] = useState<LLMModel[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<LLMModel | null>(null)
   const [healthStatus, setHealthStatus] = useState<Record<string, string>>({})
   const [form, setForm] = useState<Partial<CreateModelDto>>({ provider: 'openai', rpm: 60, tpm: 100000 })
+  const [creating, setCreating] = useState(false)
+  const toast = useToast()
 
-  useEffect(() => { llmApi.getModels().then(setModels).catch(() => {}) }, [])
+  useEffect(() => {
+    setLoading(true)
+    llmApi.getModels()
+      .then(setModels)
+      .catch(() => { setError(true) })
+      .finally(() => setLoading(false))
+  }, [])
 
   const handleHealth = async (id: string) => {
-    setHealthStatus((p) => ({ ...p, [id]: 'checking…' }))
-    const result = await llmApi.checkHealth(id).catch(() => ({ status: 'unhealthy' as const }))
-    setHealthStatus((p) => ({ ...p, [id]: result.status }))
+    setHealthStatus((p) => ({ ...p, [id]: 'checking...' }))
+    try {
+      const result = await llmApi.checkHealth(id)
+      setHealthStatus((p) => ({ ...p, [id]: result.status }))
+      toast.success('Health check complete', `Status: ${result.status}`)
+    } catch {
+      setHealthStatus((p) => ({ ...p, [id]: 'unhealthy' }))
+      toast.error('Health check failed', 'Could not connect to the model.')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await llmApi.deleteModel(deleteTarget.id)
+      setModels((p) => p.filter((x) => x.id !== deleteTarget.id))
+      toast.success('Model deleted', `${deleteTarget.name} has been removed.`)
+    } catch {
+      toast.error('Delete failed', 'Could not delete the model.')
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
+  const handleCreate = async () => {
+    setCreating(true)
+    try {
+      const m = await llmApi.createModel(form as CreateModelDto)
+      setModels((p) => [...p, m])
+      toast.success('Model added', `${m.name} has been configured.`)
+      setModalOpen(false)
+      setForm({ provider: 'openai', rpm: 60, tpm: 100000 })
+    } catch {
+      toast.error('Creation failed', 'Could not add the model.')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const statusBadge = (status: string) => {
@@ -28,79 +69,178 @@ export default function LLMPage() {
       unknown: { bg: '#e6e1dc', color: '#5c5752' },
     }
     const s = map[status] ?? map.unknown
-    return <span style={{ padding: '3px 10px', borderRadius: '999px', backgroundColor: s.bg, color: s.color, fontSize: '0.75rem', fontWeight: 600 }}>{status}</span>
+    return (
+      <span style={{
+        padding: '3px 10px',
+        borderRadius: '999px',
+        backgroundColor: s.bg,
+        color: s.color,
+        fontSize: '0.75rem',
+        fontWeight: 600,
+      }}>
+        {status}
+      </span>
+    )
   }
 
-  const labelStyle = { fontSize: '0.75rem', fontWeight: 600 as const, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }
-  const inputStyle = { width: '100%', padding: '10px 14px', border: '1px solid var(--line-subtle)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit' }
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+            Loading models...
+          </div>
+        </Card>
+      )
+    }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>LLM Models</h2>
-        <button onClick={() => setModalOpen(true)} style={{ padding: '10px 20px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Model</button>
-      </div>
+    if (error) {
+      return (
+        <Card>
+          <EmptyState
+            title="Failed to load models"
+            description="Could not fetch the model list. Please try again."
+            action={
+              <Button variant="secondary" onClick={() => { setError(false); setLoading(true); llmApi.getModels().then(setModels).catch(() => setError(true)).finally(() => setLoading(false)) }}>
+                Retry
+              </Button>
+            }
+          />
+        </Card>
+      )
+    }
 
-      <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '24px', padding: '24px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+    if (models.length === 0) {
+      return (
+        <Card>
+          <EmptyState
+            title="No models configured"
+            description="Add your first model to get started."
+            action={
+              <Button onClick={() => setModalOpen(true)}>Add Model</Button>
+            }
+          />
+        </Card>
+      )
+    }
+
+    return (
+      <Card>
+        <Table>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--line-subtle)' }}>
+            <tr>
               {['Model Name', 'Provider', 'RPM', 'TPM', 'Status', 'Actions'].map((h) => (
-                <th key={h} style={{ textAlign: 'left', padding: '8px 12px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {models.map((m) => (
-              <tr key={m.id} style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-                <td style={{ padding: '12px', fontWeight: 600 }}>{m.name}</td>
-                <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{m.provider}</td>
-                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums' }}>{m.rpm}</td>
-                <td style={{ padding: '12px', fontVariantNumeric: 'tabular-nums' }}>{m.tpm.toLocaleString()}</td>
-                <td style={{ padding: '12px' }}>{statusBadge(healthStatus[m.id] ?? m.status)}</td>
-                <td style={{ padding: '12px' }}>
+              <tr key={m.id}>
+                <td style={{ fontWeight: 600 }}>{m.name}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{m.provider}</td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{m.rpm}</td>
+                <td style={{ fontVariantNumeric: 'tabular-nums' }}>{m.tpm.toLocaleString()}</td>
+                <td>{statusBadge(healthStatus[m.id] ?? m.status)}</td>
+                <td>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleHealth(m.id)} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>Test Connection</button>
-                    <button onClick={() => llmApi.deleteModel(m.id).then(() => setModels((p) => p.filter((x) => x.id !== m.id))).catch(() => {})} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontSize: '0.8rem', color: '#e5502b', fontFamily: 'inherit' }}>Delete</button>
+                    <Button variant="ghost" size="sm" onClick={() => handleHealth(m.id)}>
+                      Test Connection
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => setDeleteTarget(m)}>
+                      Delete
+                    </Button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </Card>
+    )
+  }
 
-      {modalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', width: '440px' }}>
-            <h3 style={{ marginBottom: '20px' }}>Add Model</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {(['name', 'provider', 'apiKey', 'baseUrl'] as const).map((k) => (
-                <label key={k}>
-                  <span style={labelStyle}>{k}</span>
-                  <input value={String(form[k] ?? '')} onChange={(e) => setForm((p) => ({ ...p, [k]: e.target.value }))} type={k === 'apiKey' ? 'password' : 'text'} style={inputStyle} />
-                </label>
-              ))}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {(['rpm', 'tpm'] as const).map((k) => (
-                  <label key={k}>
-                    <span style={labelStyle}>{k.toUpperCase()}</span>
-                    <input type="number" value={form[k] ?? 0} onChange={(e) => setForm((p) => ({ ...p, [k]: parseInt(e.target.value) }))} style={inputStyle} />
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button onClick={() => setModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--line-subtle)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={async () => {
-                const m = await llmApi.createModel(form as CreateModelDto).catch(() => null)
-                if (m) setModels((p) => [...p, m])
-                setModalOpen(false)
-              }} style={{ padding: '10px 20px', borderRadius: '8px', backgroundColor: 'var(--text-main)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Create</button>
-            </div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <PageHeader
+        title="LLM Models"
+        actions={
+          <Button onClick={() => setModalOpen(true)}>+ Add Model</Button>
+        }
+      />
+
+      {renderContent()}
+
+      {/* Add Model Modal */}
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Add Model"
+        width={440}
+        footer={
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} loading={creating}>Create</Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <Input
+            label="Name"
+            value={form.name ?? ''}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          />
+          <Input
+            label="Provider"
+            value={form.provider ?? ''}
+            onChange={(e) => setForm((p) => ({ ...p, provider: e.target.value }))}
+          />
+          <Input
+            label="API Key"
+            type="password"
+            value={form.apiKey ?? ''}
+            onChange={(e) => setForm((p) => ({ ...p, apiKey: e.target.value }))}
+          />
+          <Input
+            label="Base URL"
+            value={form.baseUrl ?? ''}
+            onChange={(e) => setForm((p) => ({ ...p, baseUrl: e.target.value }))}
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Input
+              label="RPM"
+              type="number"
+              value={form.rpm ?? 0}
+              onChange={(e) => setForm((p) => ({ ...p, rpm: parseInt(e.target.value) }))}
+            />
+            <Input
+              label="TPM"
+              type="number"
+              value={form.tpm ?? 0}
+              onChange={(e) => setForm((p) => ({ ...p, tpm: parseInt(e.target.value) }))}
+            />
           </div>
         </div>
-      )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Model"
+        width={400}
+        footer={
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete}>Delete</Button>
+          </div>
+        }
+      >
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+          Are you sure you want to delete <strong style={{ color: 'var(--text-main)' }}>{deleteTarget?.name}</strong>?
+          This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   )
 }
