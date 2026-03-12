@@ -15,7 +15,9 @@ type Config struct {
 	AdminPasswordHash string
 	JWTSecret         []byte
 	LiteLLMAddr       string
+	AgentNamespace    string
 	AgentClient       *k8sclient.AgentClient
+	RoleClient        *k8sclient.RoleClient
 	CHClient          *chclient.Client
 	Pusher            *wspush.Pusher
 }
@@ -27,6 +29,7 @@ func NewRouter(cfg Config) *gin.Engine {
 
 	authH := handler.NewAuthHandler(cfg.AdminUsername, cfg.AdminPasswordHash, cfg.JWTSecret)
 	agentH := handler.NewAgentHandler(cfg.AgentClient)
+	roleH := handler.NewRoleHandler(cfg.RoleClient)
 	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr)
 	auditH := handler.NewAuditHandler(cfg.CHClient)
 	wsH := handler.NewWSHandler(cfg.Pusher)
@@ -52,6 +55,18 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.POST("/agents/:name/resume", agentH.Resume)
 	api.GET("/agents/:name/logs", agentH.Logs)
 
+	// Role management
+	api.GET("/roles", roleH.List)
+	api.POST("/roles", roleH.Create)
+	api.GET("/roles/:name", roleH.Get)
+	api.PATCH("/roles/:name", roleH.Update)
+	api.DELETE("/roles/:name", roleH.Delete)
+	api.GET("/roles/:name/files", roleH.ListFiles)
+	api.GET("/roles/:name/files/:filename", roleH.GetFile)
+	api.PUT("/roles/:name/files/:filename", roleH.PutFile)
+	api.DELETE("/roles/:name/files/:filename", roleH.DeleteFile)
+	api.POST("/roles/:name/files/:filename/rename", roleH.RenameFile)
+
 	// LLM config proxy
 	api.GET("/llm/models", llmH.ListModels)
 	api.POST("/llm/models", llmH.CreateModel)
@@ -66,6 +81,10 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.GET("/audit/stats/agent-activity", auditH.AgentActivity)
 	api.GET("/audit/stats/operations", auditH.Operations)
 	api.GET("/audit/export", auditH.Export)
+
+	// Agent observation (reverse proxy to sidecar)
+	observeH := handler.NewObserveHandler(cfg.AgentNamespace)
+	api.Any("/agents/:name/observe/*path", observeH.Proxy)
 
 	// WebSocket
 	api.GET("/ws/events", wsH.Handle)

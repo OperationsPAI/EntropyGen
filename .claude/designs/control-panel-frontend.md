@@ -672,3 +672,427 @@ MVP 阶段所有登录用户均为完整管理员权限。
 ### 9.3 移动端
 
 当前优先 PC 管理界面（1280px+）。Semi Design 组件默认不响应式，移动端适配推迟到 post-MVP。
+
+## 十、Agent 实时观测中心（"直播间"模式）
+
+> 核心需求：管理员需要像"看直播"一样观测每个 Agent 的实时动态——正在做什么、在想什么、产出了什么。当前的 Monitoring 页面只有统计图表，缺乏对 Agent 行为的**实时透明度**。
+
+### 10.1 设计理念
+
+Agent 本质上是"数字员工"，管理员需要的不是仪表盘上的数字，而是：
+1. **一眼看清全员状态**：谁在忙、谁闲着、谁出了问题
+2. **深入单个 Agent 的"工位"**：看到它此刻在做什么、思考过程、行动结果
+3. **历史回放**：回看某个 Agent 过去做了什么，像翻阅工作日志
+
+这和传统监控（CPU/内存/请求数）是不同维度——传统监控回答"系统健不健康"，Agent 观测回答"它在干什么、干得怎么样"。
+
+### 10.2 Sidebar 导航调整
+
+当前 Sidebar 中"监控图表"定位模糊。调整为：
+
+```
+Sidebar
+├── 仪表盘         /dashboard        （全局总览，保持不变）
+├── Agent          /agents           （管理操作：创建/删除/配置）
+├── Agent 观测     /observe          （新增：实时观测中心）
+├── Roles          /roles
+├── LLM 配置       /llm
+├── 审计日志       /audit
+├── 数据看板       /monitor          （原"监控图表"，改名为运营分析，保留统计图表）
+└── 数据导出       /export
+```
+
+### 10.3 Agent 观测全景页（/observe）
+
+**设计目标**：打开就能看到所有 Agent 的实时状态，无需任何操作。
+
+#### 布局：卡片网格
+
+```
+┌─ PageHeader: Agent Observe ────────────────────────────────────────┐
+│  ● 5/5 Online    ○ Filter: [All ▼]    Auto-refresh: ON            │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  ┌─ developer-1 ──────────┐  ┌─ developer-2 ──────────┐          │
+│  │  ● Running              │  │  ● Running              │          │
+│  │  Role: developer         │  │  Role: developer         │          │
+│  │                          │  │                          │          │
+│  │  ▶ 正在编写登录模块       │  │  ▶ 等待下一个 Cron 周期  │          │
+│  │    feat/login +234 -12   │  │    空闲中...              │          │
+│  │                          │  │                          │          │
+│  │  最近: PR #8 创建         │  │  最近: Issue #12 评论     │          │
+│  │  Token: 45,230           │  │  Token: 12,800           │          │
+│  │  ██████████░░ 12m ago    │  │  ██░░░░░░░░░░ 3m ago     │          │
+│  └──────────────────────────┘  └──────────────────────────┘          │
+│                                                                    │
+│  ┌─ reviewer-1 ───────────┐  ┌─ observer-1 ───────────┐          │
+│  │  ● Running              │  │  ● Running              │          │
+│  │  Role: reviewer          │  │  Role: observer          │          │
+│  │                          │  │                          │          │
+│  │  ▶ 正在 Review PR #8     │  │  ▶ 扫描 open issues      │          │
+│  │    ai-team/webapp        │  │    发现 3 个未分配         │          │
+│  │                          │  │                          │          │
+│  │  最近: PR #7 approved    │  │  最近: Issue #15 创建     │          │
+│  │  Token: 8,900            │  │  Token: 6,120            │          │
+│  │  ████████░░░░ 8m ago     │  │  ██████████████ just now  │          │
+│  └──────────────────────────┘  └──────────────────────────┘          │
+│                                                                    │
+│  ┌─ sre-1 ────────────────┐                                       │
+│  │  ◐ Paused               │                                       │
+│  │  Role: sre               │                                       │
+│  │                          │                                       │
+│  │  ▶ 已暂停                │                                       │
+│  │    管理员手动暂停         │                                       │
+│  │                          │                                       │
+│  │  最近: 告警排查 dev-1     │                                       │
+│  │  Token: 0                │                                       │
+│  │  ░░░░░░░░░░░░ 2h ago     │                                       │
+│  └──────────────────────────┘                                       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+#### 卡片内容说明
+
+每张卡片展示：
+
+| 区域 | 内容 | 数据来源 |
+|------|------|----------|
+| 头部 | Agent 名称 + Phase 状态点 | agent CR status.phase |
+| 角色 | Role 名称 | agent CR spec.role |
+| **当前动态** | 正在做什么的一句话描述 | **新增字段**: WebSocket 推送的 `agent.activity_update` 事件 |
+| 当前动态详情 | 分支名、文件变更数、目标仓库等 | 同上事件的 payload |
+| 最近行动 | 最近一次完成的 Gitea 操作 | agent CR status.lastAction |
+| 今日 Token | 累计消耗 | agent CR status.tokenUsage.today |
+| 活跃度条 | 最后活跃时间的可视化进度条 | 基于 lastAction.timestamp 计算 |
+
+#### 活跃度条规则
+
+```
+距离最后活跃时间：
+  0-1 分钟  →  ██████████████  just now（绿色）
+  1-5 分钟  →  ██████████░░░░  Nm ago（绿色）
+  5-15 分钟 →  ██████░░░░░░░░  Nm ago（黄色）
+  15-60 分钟→  ███░░░░░░░░░░░  Nm ago（灰色）
+  >1 小时   →  █░░░░░░░░░░░░░  Xh ago（灰色）
+```
+
+#### 交互
+
+- **点击任意卡片** → 进入该 Agent 的观测详情页 `/observe/:name`
+- **右键/长按卡片** → 快捷操作：暂停/恢复、指派任务、查看日志
+- **卡片实时刷新**：WebSocket 推送时只更新对应卡片，不影响其他卡片
+- **状态变化动画**：Phase 变更时卡片边框闪烁（绿→红：脉冲红色 2 秒）
+
+### 10.4 Agent 观测详情页（/observe/:name）— "直播间"
+
+**设计目标**：像坐在 Agent 旁边看它工作。
+
+#### 布局
+
+```
+┌─ PageHeader: Observe > developer-1 ● Running ──── [暂停] [指派] ──┐
+│                                                                     │
+│  ┌─ 当前状态 ──────────────────────────────────────────────────┐   │
+│  │  ▶ 正在编写登录模块的单元测试                                 │   │
+│  │    分支: feat/login  仓库: ai-team/webapp                    │   │
+│  │    已持续: 3 分 42 秒                                        │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  ┌─ 实时对话流（左 55%）────────┬─ 代码面板（右 45%）──────────┐   │
+│  │                              │                              │   │
+│  │  ⏰ 13:05 Cron 触发          │  📁 workspace/work/webapp/   │   │
+│  │  ──────────────────────      │  ├── src/                    │   │
+│  │                              │  │   ├── auth.ts  ●          │   │
+│  │  🧠 LLM 推理 #1             │  │   ├── index.ts            │   │
+│  │  ┌─ 💭 thinking ─────────┐  │  │   └── utils.ts            │   │
+│  │  │ (折叠) 展开查看思考过程│  │  ├── test/                   │   │
+│  │  └────────────────────────┘  │  │   └── auth.test.ts  ●     │   │
+│  │  ┌─ User (prompt.md) ────┐  │  └── package.json            │   │
+│  │  │ 检查 open issues...   │  │                              │   │
+│  │  └───────────────────────┘  │  ┌─ Monaco: auth.ts ────────┐│   │
+│  │  ┌─ Assistant ───────────┐  │  │  1│ import express ...    ││   │
+│  │  │ 我将开始处理 Issue #15│  │  │  2│ export function      ││   │
+│  │  │ 首先分析代码结构...    │  │  │ +3│ + login(user, pass) {││   │
+│  │  └───────────────────────┘  │  │ +4│ +   validate(user)   ││   │
+│  │  [🔧 toolCall: read_file]  │  │ +5│ +   return jwt.sign  ││   │
+│  │  [✅ result: ok]            │  │  6│ }                     ││   │
+│  │                              │  │  7│                      ││   │
+│  │  🧠 LLM 推理 #2             │  └────────────────────────────┘│   │
+│  │  ┌─ Assistant ───────────┐  │                              │   │
+│  │  │ 需要修改 auth.ts...   │  │  git diff: 2 files changed  │   │
+│  │  └───────────────────────┘  │  +34 -12 lines              │   │
+│  │  [🔧 toolCall: write_file] │                              │   │
+│  │   ┌─ inline diff ──────┐   │                              │   │
+│  │   │ + login(user, pass) │   │                              │   │
+│  │   │ +   validate(user)  │   │                              │   │
+│  │   └─────────────────────┘   │                              │   │
+│  │                              │                              │   │
+│  │  ● 等待下一个推理...        │                              │   │
+│  └──────────────────────────────┴──────────────────────────────┘   │
+│                                                                     │
+│  ┌─ 历史会话 ──────────────────────────────────────────────────┐   │
+│  │  ▸ a1b2c3d4  今天 13:00  12 messages  ● running             │   │
+│  │  ▸ e5f6g7h8  今天 12:55  8 messages   ✓ completed           │   │
+│  │  ▸ i9j0k1l2  今天 12:50  15 messages  ✓ completed           │   │
+│  │  ▸ m3n4o5p6  今天 12:00  22 messages  ✓ completed           │   │
+│  │                                                [加载更多]     │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 四个核心区域
+
+**1. 当前状态栏（顶部）**
+
+一句话说明 Agent 正在做什么。数据来源：从 Sidecar JSONL 最新消息推导：
+- 最新消息是 `toolCall` → "正在执行 {toolName}..."（带 loading 动画）
+- 最新消息是 assistant `text` → "正在思考..."
+- 最新消息是 `session` 类型 → "会话开始"
+- 长时间无新消息 → "等待下一个 Cron 周期（距下次: 2m30s）"
+- Agent Phase = Paused → "已暂停 — 管理员手动暂停"
+
+**2. 实时对话流（左侧）**
+
+按时间顺序展示 JSONL 消息流，直接解析 OpenClaw 的 JSONL 格式渲染：
+
+- **session 类型**：渲染为会话分割线（淡蓝色背景，标记工作周期起点）
+- **message (role=user)**：左对齐浅色气泡，展示 Cron prompt 或手动指令
+- **message (role=assistant)**：右对齐深色气泡，content 数组逐项渲染：
+  - `thinking` block → 灰色折叠区域，点击展开查看思考过程
+  - `text` block → Markdown 渲染（含代码块语法高亮）
+  - `toolCall` block → 工具调用卡片，显示工具名 + 参数摘要
+- **message (role=toolResult)**：紧跟对应 toolCall 下方，展示执行结果
+  - 成功：绿色边框卡片，内容折叠（点击展开）
+  - 失败（`isError: true`）：红色边框卡片，内容默认展开
+- **toolCall 涉及文件修改时**：内联 diff 展示（+ 绿色新增行、- 红色删除行）
+- **model_change / thinking_level_change**：小型信息标签（灰色 badge）
+- **每条 assistant message**：底部显示 `usage` token 消耗和 `model` 信息
+- **实时流式展示**：Sidecar WebSocket 推送新 JSONL 行，从底部追加。用户手动上滚时暂停自动滚动，出现"回到底部"悬浮按钮
+
+**3. 代码面板（右侧）**
+
+展示 Agent 当前正在编辑的代码，数据来源于 Sidecar 的 workspace API：
+
+- **文件树**：顶部展示 `workspace/work/{repo}/` 的文件树
+  - 已修改文件标记 `●`（根据 git diff 状态）
+  - 新增文件标记 `+`
+  - 点击文件 → 下方 Monaco Editor 展示内容
+- **Monaco Editor（只读）**：展示选中文件的当前内容
+  - diff 高亮：根据 `GET /workspace/diff` 的输出，高亮变更行
+  - 实时更新：Sidecar WebSocket 推送 `file_change` 事件时自动刷新
+- **联动交互**：对话流中点击 toolCall（如 `write_file`、`edit_file`）→ 代码面板自动跳转到对应文件和行号
+
+布局比例：对话流 55% / 代码面板 45%，可拖拽调整（使用现有 `SplitPane` 组件）。
+
+**4. 历史会话列表（底部）**
+
+从 Sidecar `/sessions` API 获取会话文件列表，每个 JSONL 文件对应一个会话：
+
+| 列 | 说明 | 数据来源 |
+|----|------|----------|
+| 会话 ID | JSONL 文件名（UUID 前 8 位） | 文件名 |
+| 时间 | 会话开始时间 | JSONL 首行 `session.timestamp` |
+| 消息数 | 对话消息条数 | Sidecar 预计算 |
+| 状态 | 进行中 / 已完成 | 是否为当前活跃文件 |
+
+- 点击某条历史会话 → 从 Sidecar 加载该 JSONL 完整内容，在对话流区域展示（替换当前实时流）
+- 顶部出现提示栏 "正在查看历史会话 {id} — [返回实时]"
+- 历史会话的代码面板显示该时间点的 git 状态（如果可获取）
+
+### 10.5 数据流设计 — Agent Observer Sidecar 架构
+
+> **设计决策**：不在 ClickHouse 中新建 session/conversation 表，而是在每个 Agent Pod 内部署一个轻量 Sidecar（`agent-observer`），直接读取 OpenClaw 本地的 JSONL 对话文件和 workspace 文件变更。ClickHouse 继续专注于统计分析（token 趋势、操作频次），不重复存储对话内容。
+
+#### 为什么选择 Sidecar 而非 ClickHouse 存储对话
+
+1. **数据完整度**：OpenClaw 的 JSONL 包含 `thinking`（思考过程）、`toolCall`（工具调用细节）、`toolResult`（执行结果），比 Gateway 审计的 request/response body 丰富得多
+2. **代码可视化**：只有 Pod 内能直接 watch `workspace/work/` 目录的文件变更，实现"看 Agent 改代码"的效果
+3. **零改造**：OpenClaw 已经在写这些文件，Sidecar 只是旁观者，不需要改 Agent Runtime
+4. **实时性**：inotify 文件监听 → WebSocket 推送，无 Redis → ClickHouse → API 的链路延迟
+
+#### OpenClaw 本地数据结构
+
+```
+~/.openclaw/
+├── completions/              ← JSONL 对话记录（核心数据源）
+│   └── {session-uuid}.jsonl  ← 每个会话一个文件
+├── workspace/                ← Agent 工作目录（PVC 持久化）
+│   ├── episodic/             ← 每日行动摘要
+│   ├── semantic/             ← 仓库知识积累
+│   ├── state.json            ← 当前任务状态
+│   └── work/{repo}/          ← Git 代码工作目录
+├── memory/                   ← Agent 长期记忆
+├── logs/                     ← 运行日志
+├── subagents/                ← 子 Agent 数据
+└── ...
+```
+
+#### JSONL 消息格式
+
+每行一个 JSON 对象，`type` 字段标识消息类型：
+
+| type | 说明 | 前端渲染方式 |
+|------|------|-------------|
+| `session` | 会话开始标记，含 `id`、`cwd`、`timestamp` | 会话分割线 |
+| `model_change` | 模型切换，含 `provider`、`modelId` | 信息标签 |
+| `thinking_level_change` | 思考模式切换 | 信息标签 |
+| `message` (role=user) | Cron prompt 或用户指令 | 左侧气泡 |
+| `message` (role=assistant) | LLM 回复，可含多个 content block | 右侧气泡 |
+| `message` (role=toolResult) | 工具调用执行结果 | 工具结果卡片 |
+
+Assistant message 的 `content` 是数组，可包含：
+- `{ type: "thinking", thinking: "..." }` — 思考过程（默认折叠展示）
+- `{ type: "text", text: "..." }` — 文本回复（Markdown 渲染）
+- `{ type: "toolCall", name: "...", arguments: {...} }` — 工具调用（展示工具名 + 参数）
+
+每条 assistant message 还包含：`usage`（token 消耗）、`model`、`stopReason`。
+
+消息通过 `parentId` 链接形成对话树。
+
+#### Agent Observer Sidecar
+
+Go 实现，以 Sidecar 容器运行在每个 Agent Pod 内，共享 PVC 卷。
+
+```
+Agent Pod
+┌──────────────────────────────────────────────────────┐
+│  [OpenClaw]  ←→  ~/.openclaw/ (PVC)                  │
+│                       ↑                               │
+│                  (inotify watch)                      │
+│                       │                               │
+│  [agent-observer sidecar]  :8081                     │
+│     │                                                 │
+│     ├── HTTP API（对话 + 文件）                        │
+│     └── WebSocket（实时推送）                          │
+└──────────────────────────────────────────────────────┘
+```
+
+**HTTP API**：
+
+| Method | Path | 说明 |
+|--------|------|------|
+| `GET` | `/sessions` | JSONL 会话文件列表（id, 起始时间, 消息数, 状态） |
+| `GET` | `/sessions/current` | 当前活跃会话内容（最新的 JSONL 文件） |
+| `GET` | `/sessions/:id` | 指定会话的完整 JSONL 内容 |
+| `GET` | `/workspace/tree` | workspace 文件树（含修改状态标记） |
+| `GET` | `/workspace/file?path=...` | 指定文件内容（只允许 ~/.openclaw/ 下） |
+| `GET` | `/workspace/diff` | workspace/work/ 下的 git diff 输出 |
+| `GET` | `/healthz` | Sidecar 健康检查 |
+
+**WebSocket API**：
+
+| Path | 推送内容 |
+|------|----------|
+| `WS /ws/live` | 两类实时事件：`{ type: "jsonl", data: <新 JSONL 行> }` 和 `{ type: "file_change", path: "...", action: "modified\|created\|deleted" }` |
+
+**安全约束**：
+- 文件访问严格限制在 `~/.openclaw/` 目录内，禁止路径穿越
+- Sidecar 只读，不写入任何文件
+- 端口 8081 仅集群内可达（ClusterIP Service）
+
+**K8s 部署**：
+- Operator 在创建 Agent Pod 时自动注入 Sidecar 容器
+- Sidecar 镜像：`registry.devops.local/platform/agent-observer:v1.0.0`
+- 资源限制：50m CPU / 64Mi Memory（轻量旁观者）
+- 共享 PVC 卷：与 OpenClaw 主容器挂载同一 PVC，readOnly
+
+#### 数据流全景
+
+```
+┌─ /observe 全景页 ──────────────────────────────────────┐
+│  数据源：Agent CR (phase, lastAction, tokenUsage)      │
+│         + ClickHouse (聚合统计)                        │
+│  刷新：现有 WebSocket (operator.agent_alert, gitea.*)  │
+│        + 定时轮询 Agent 列表 API                       │
+└────────────────────────────────────────────────────────┘
+
+┌─ /observe/:name 直播间 ───────────────────────────────┐
+│  实时对话流：                                          │
+│    Backend /api/agents/:name/observe/sessions/current  │
+│      → 反向代理到 agent-{name}.agents.svc:8081        │
+│    Backend /api/agents/:name/observe/ws/live           │
+│      → WebSocket 中继到 Sidecar                       │
+│                                                        │
+│  代码面板：                                            │
+│    Backend /api/agents/:name/observe/workspace/tree    │
+│    Backend /api/agents/:name/observe/workspace/file    │
+│    Backend /api/agents/:name/observe/workspace/diff    │
+│      → 反向代理到 Sidecar                             │
+│                                                        │
+│  历史会话：                                            │
+│    Backend /api/agents/:name/observe/sessions          │
+│    Backend /api/agents/:name/observe/sessions/:id      │
+│      → 反向代理到 Sidecar (JSONL on PVC)              │
+└────────────────────────────────────────────────────────┘
+
+┌─ /monitor 数据看板 ────────────────────────────────────┐
+│  数据源：ClickHouse audit.traces + 物化视图            │
+│  定位：运营分析（token 趋势、模型分布、活跃度排行）    │
+│  不存储对话内容，不新建 session/conversation 表        │
+└────────────────────────────────────────────────────────┘
+```
+
+#### Backend 反向代理
+
+Control Panel Backend 新增路由组，将 `/api/agents/:name/observe/*` 反向代理到对应 Agent Pod 的 Sidecar：
+
+```
+/api/agents/:name/observe/*
+  → 解析 agent name
+  → 构造 Sidecar 地址：http://agent-{name}.agents.svc:8081/*
+  → HTTP 反向代理 / WebSocket 中继
+```
+
+WebSocket 中继：前端连接 Backend 的 `/api/agents/:name/observe/ws/live`，Backend 建立到 Sidecar 的 WebSocket 连接，双向转发消息。当前端断开时，Backend 关闭到 Sidecar 的连接（避免泄漏）。
+
+### 10.6 与现有页面的关系
+
+| 现有页面 | 定位调整 |
+|---------|---------|
+| `/dashboard` | 保持不变：全局健康状态一览 |
+| `/agents` | 保持不变：Agent 的管理操作（CRUD、配置） |
+| `/observe` | **新增**：Agent 实时观测，行为透明度 |
+| `/agents/:name` | 保持不变：Agent 的配置详情和管理操作 |
+| `/observe/:name` | **新增**：单个 Agent 的"直播间"，完整对话和行为流 |
+| `/monitor` | 改名"数据看板"：运营分析（token 趋势、活跃度排行等统计图表） |
+| `/audit` | 保持不变：底层 trace 级别的审计日志 |
+
+区分逻辑：
+- **Agent 管理 (`/agents`)** 回答"怎么配置和控制 Agent"
+- **Agent 观测 (`/observe`)** 回答"Agent 此刻在做什么、做得怎么样"
+- **审计日志 (`/audit`)** 回答"系统底层发生了什么请求"
+- **数据看板 (`/monitor`)** 回答"整体趋势和统计"
+
+## 十一、已知问题与改进项
+
+> 以下为代码审查中发现的设计实现差异和交互体验问题，按优先级排序。
+> 详细任务清单见 [frontend-remaining-issues](../tasks/2026-03-12-frontend-remaining-issues.md)。
+
+### 11.1 表单体验
+
+- Role 创建页输入框未限制宽度，Name/Description 拉满整行
+- Role 创建页 Description 使用单行 `<Input>` 而非 `<Textarea>`
+- Agent 创建向导 6 步中 Schedule 和 Gitea 步骤信息密度过低
+- Model 选择使用自由文本输入而非下拉选择
+- 所有表单缺乏前端验证（Name 格式、Cron 表达式、必填项）
+- Cron 输入框缺少人类可读的翻译（如"每 5 分钟"）
+
+### 11.2 编辑器体验
+
+- Role 编辑器无法编辑 Role 的 description
+- Role 编辑器只能逐文件保存，无 Save All 功能
+- Monaco Editor 使用默认 `light` 主题，与应用暖色系背景割裂
+- Role 创建页无文件模板预览
+
+### 11.3 设计文档与实现差异
+
+- 安装了 Semi Design 但未使用任何组件，全部自定义
+- Agent 列表未实现"右侧展开 Detail Panel"，改为页面跳转
+- Activity Timeline Tab 数据为空，仅显示 EmptyState
+
+### 11.4 实时观测能力
+
+- Dashboard 的 Agent 列表只显示基础字段，无法判断 Agent "在做什么"
+- Monitor 页面只有统计图表，缺乏行为级别的观测
+- WebSocket 事件类型有限，不包含对话内容和会话生命周期
+- 缺乏历史对话回放能力

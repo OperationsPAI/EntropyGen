@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { rolesApi } from '../../api/roles'
-import { PageHeader, Card, Button, Input } from '../../components/ui'
+import { PageHeader, Card, Button, Input, Textarea } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
 import styles from './Roles.module.css'
+
+const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
 
 const INITIAL_FILES = [
   { name: 'soul.md', defaultChecked: true },
@@ -18,6 +20,9 @@ export default function NewRole() {
   const [form, setForm] = useState({ name: '', description: '' })
   const [selectedFiles, setSelectedFiles] = useState(['soul.md', 'prompt.md'])
   const [creating, setCreating] = useState(false)
+
+  const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
+  const canCreate = form.name !== '' && NAME_PATTERN.test(form.name)
 
   const toggleFile = (filename: string, checked: boolean) => {
     setSelectedFiles((prev) =>
@@ -54,19 +59,24 @@ export default function NewRole() {
 
       <Card>
         <div className={styles.formBody}>
-          <div>
+          <div className={styles.nameInput}>
             <Input
               label="Name"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             />
-            <div className={styles.hint}>lowercase, hyphens only (e.g. my-role)</div>
+            {nameValid ? (
+              <div className={styles.hint}>lowercase, hyphens only (e.g. my-role)</div>
+            ) : (
+              <div className={styles.hintError}>Must start with a lowercase letter, then lowercase letters, digits, or hyphens</div>
+            )}
           </div>
 
-          <Input
+          <Textarea
             label="Description"
             value={form.description}
             onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            rows={3}
           />
 
           <div className={styles.filesSection}>
@@ -90,7 +100,7 @@ export default function NewRole() {
             <Button variant="secondary" onClick={() => navigate('/roles')}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} loading={creating} disabled={!form.name}>
+            <Button onClick={handleCreate} loading={creating} disabled={!canCreate}>
               Create Role
             </Button>
           </div>

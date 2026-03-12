@@ -1,14 +1,35 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import cronstrue from 'cronstrue'
 import { agentsApi } from '../../api/agents'
+import { llmApi, type LLMModel } from '../../api/llm'
 import { rolesApi } from '../../api/roles'
-import { PageHeader, Card, Button, Input, EmptyState } from '../../components/ui'
+import { PageHeader, Card, Button, Input, Select, EmptyState } from '../../components/ui'
+import MonacoEditor from '../../components/editor/MonacoEditor'
 import { useToast } from '../../hooks/useToast'
 import type { Role } from '../../types/agent'
 import styles from './NewAgent.module.css'
 
-const STEPS = ['Role', 'LLM', 'Schedule', 'Resources', 'Gitea', 'Review'] as const
+const STEPS = ['Identity', 'Configuration', 'Infrastructure', 'Review'] as const
 const TOTAL_STEPS = STEPS.length
+
+const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
+const CRON_SEGMENT_PATTERN = /^[0-9*,\/-]+$/
+
+function isValidCron(value: string): boolean {
+  const segments = value.trim().split(/\s+/)
+  if (segments.length !== 5) return false
+  return segments.every((s) => CRON_SEGMENT_PATTERN.test(s))
+}
+
+function getCronDescription(value: string): string | null {
+  if (!value.trim()) return null
+  try {
+    return cronstrue.toString(value)
+  } catch {
+    return null
+  }
+}
 
 interface FormState {
   name: string
@@ -29,7 +50,7 @@ interface FormState {
 const INITIAL_FORM: FormState = {
   name: '',
   role: '',
-  model: 'gpt-4o',
+  model: '',
   temperature: 0.7,
   maxTokens: 4096,
   schedule: '*/5 * * * *',
@@ -48,8 +69,12 @@ export default function NewAgent() {
   const [step, setStep] = useState(1)
   const [roles, setRoles] = useState<Role[]>([])
   const [rolesLoading, setRolesLoading] = useState(true)
+  const [models, setModels] = useState<LLMModel[]>([])
+  const [modelsLoading, setModelsLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewContent, setPreviewContent] = useState('')
 
   useEffect(() => {
     rolesApi.getRoles()
@@ -58,7 +83,36 @@ export default function NewAgent() {
       .finally(() => setRolesLoading(false))
   }, [])
 
+  useEffect(() => {
+    llmApi.getModels()
+      .then(setModels)
+      .catch(() => {})
+      .finally(() => setModelsLoading(false))
+  }, [])
+
   const selectedRole = roles.find((r) => r.name === form.role)
+
+  const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
+  const cronValid = form.schedule === '' || isValidCron(form.schedule)
+
+  const isStepValid = (s: number): boolean => {
+    switch (s) {
+      case 1:
+        return NAME_PATTERN.test(form.name) && form.role !== ''
+      case 2:
+        return form.model.trim() !== '' && isValidCron(form.schedule)
+      case 3:
+        return (
+          form.cpuRequest.trim() !== '' &&
+          form.cpuLimit.trim() !== '' &&
+          form.memoryRequest.trim() !== '' &&
+          form.memoryLimit.trim() !== '' &&
+          form.workspaceSize.trim() !== ''
+        )
+      default:
+        return true
+    }
+  }
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -99,6 +153,23 @@ export default function NewAgent() {
         : [...prev.permissions, perm],
     }))
 
+  const handlePreviewToggle = async () => {
+    if (previewOpen) {
+      setPreviewOpen(false)
+      return
+    }
+    if (!form.role) return
+    if (!previewContent) {
+      try {
+        const file = await rolesApi.getRoleFile(form.role, 'soul.md')
+        setPreviewContent(file.content)
+      } catch {
+        setPreviewContent('Failed to load soul.md')
+      }
+    }
+    setPreviewOpen(true)
+  }
+
   const renderStepIndicator = () => (
     <div className={styles.stepIndicator}>
       {STEPS.map((label, i) => {
@@ -138,7 +209,7 @@ export default function NewAgent() {
     </div>
   )
 
-  const renderStepRole = () => (
+  const renderStepIdentity = () => (
     <div className={styles.formBody}>
       <Input
         label="Agent Name"
@@ -146,7 +217,11 @@ export default function NewAgent() {
         onChange={(e) => updateField('name', e.target.value)}
         placeholder="my-agent"
       />
-      <span className={styles.helperText}>lowercase, hyphens only</span>
+      {nameValid ? (
+        <span className={styles.helperText}>lowercase, hyphens only</span>
+      ) : (
+        <span className={styles.hintError}>Must start with a lowercase letter, then lowercase letters, digits, or hyphens</span>
+      )}
 
       <div className={styles.roleHeading}>
         <span className={styles.sectionLabel}>Select Role</span>
@@ -214,64 +289,85 @@ export default function NewAgent() {
     </div>
   )
 
-  const renderStepLLM = () => (
-    <div className={styles.formBody}>
-      <Input
-        label="Model"
-        value={form.model}
-        onChange={(e) => updateField('model', e.target.value)}
-      />
-      <div className={styles.formGrid2}>
-        <div>
+  const renderStepConfiguration = () => {
+    const cronDesc = getCronDescription(form.schedule)
+
+    return (
+      <div className={styles.formBody}>
+        <span className={styles.sectionLabel}>LLM</span>
+        <Select
+          label="Model"
+          value={form.model}
+          onChange={(e) => updateField('model', e.target.value)}
+          disabled={modelsLoading}
+        >
+          <option value="">
+            {modelsLoading ? 'Loading models...' : 'Select a model...'}
+          </option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.provider})
+            </option>
+          ))}
+        </Select>
+        <div className={styles.formGrid2}>
+          <div>
+            <Input
+              label="Temperature"
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={form.temperature}
+              onChange={(e) => updateField('temperature', parseFloat(e.target.value))}
+            />
+            <span className={styles.helperText}>0 = deterministic, 2 = creative</span>
+          </div>
           <Input
-            label="Temperature"
+            label="Max Tokens"
             type="number"
-            min={0}
-            max={2}
-            step={0.1}
-            value={form.temperature}
-            onChange={(e) => updateField('temperature', parseFloat(e.target.value))}
+            value={form.maxTokens}
+            onChange={(e) => updateField('maxTokens', parseInt(e.target.value, 10))}
           />
-          <span className={styles.helperText}>0 = deterministic, 2 = creative</span>
+        </div>
+
+        <div className={styles.sectionDivider}>
+          <span className={styles.sectionLabel}>Schedule</span>
         </div>
         <Input
-          label="Max Tokens"
-          type="number"
-          value={form.maxTokens}
-          onChange={(e) => updateField('maxTokens', parseInt(e.target.value, 10))}
+          label="Cron Expression"
+          value={form.schedule}
+          onChange={(e) => updateField('schedule', e.target.value)}
         />
-      </div>
-    </div>
-  )
-
-  const renderStepSchedule = () => (
-    <div className={styles.formBody}>
-      <Input
-        label="Cron Expression"
-        value={form.schedule}
-        onChange={(e) => updateField('schedule', e.target.value)}
-      />
-      <div className={styles.infoBox}>
-        The prompt content is defined in your role's prompt.md file.
-        {form.role && (
-          <>
-            {' '}
-            <a
-              className={styles.infoLink}
-              href={`/roles/${form.role}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Edit in Role Editor &rarr;
-            </a>
-          </>
+        {!cronValid && (
+          <span className={styles.hintError}>Must be 5 space-separated segments using digits, *, commas, slashes, or hyphens</span>
         )}
+        {cronDesc && (
+          <span className={styles.cronReadable}>{cronDesc}</span>
+        )}
+        <div className={styles.infoBox}>
+          The prompt content is defined in your role's prompt.md file.
+          {form.role && (
+            <>
+              {' '}
+              <a
+                className={styles.infoLink}
+                href={`/roles/${form.role}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Edit in Role Editor &rarr;
+              </a>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
-  const renderStepResources = () => (
+  const renderStepInfrastructure = () => (
     <div className={styles.formBody}>
+      <span className={styles.sectionLabel}>Resources</span>
       <span className={styles.sectionLabel}>CPU</span>
       <div className={styles.formGrid2}>
         <Input
@@ -303,11 +399,10 @@ export default function NewAgent() {
         value={form.workspaceSize}
         onChange={(e) => updateField('workspaceSize', e.target.value)}
       />
-    </div>
-  )
 
-  const renderStepGitea = () => (
-    <div className={styles.formBody}>
+      <div className={styles.sectionDivider}>
+        <span className={styles.sectionLabel}>Gitea</span>
+      </div>
       <Input
         label="Repository"
         value={form.repo}
@@ -345,13 +440,35 @@ export default function NewAgent() {
             <span className={styles.reviewLabel}>Role</span>
             <span className={styles.reviewValue}>{form.role || '\u2014'}</span>
           </div>
+          {form.role && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                handlePreviewToggle()
+              }}
+            >
+              {previewOpen ? 'Hide files' : 'Preview files'}
+            </Button>
+          )}
+          {previewOpen && (
+            <div className={styles.previewEditor} onClick={(e) => e.stopPropagation()}>
+              <MonacoEditor
+                value={previewContent}
+                readOnly
+                height="200px"
+                language="markdown"
+              />
+            </div>
+          )}
         </div>
 
         <div className={styles.reviewSection} onClick={() => setStep(2)}>
-          <div className={styles.reviewSectionTitle}>LLM</div>
+          <div className={styles.reviewSectionTitle}>Configuration</div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>Model</span>
-            <span className={styles.reviewValue}>{form.model}</span>
+            <span className={styles.reviewValue}>{form.model || '\u2014'}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>Temperature</span>
@@ -361,18 +478,14 @@ export default function NewAgent() {
             <span className={styles.reviewLabel}>Max Tokens</span>
             <span className={styles.reviewValue}>{form.maxTokens.toLocaleString()}</span>
           </div>
-        </div>
-
-        <div className={styles.reviewSection} onClick={() => setStep(3)}>
-          <div className={styles.reviewSectionTitle}>Schedule</div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>Cron</span>
             <span className={styles.reviewValue}>{form.schedule}</span>
           </div>
         </div>
 
-        <div className={styles.reviewSection} onClick={() => setStep(4)}>
-          <div className={styles.reviewSectionTitle}>Resources</div>
+        <div className={styles.reviewSection} onClick={() => setStep(3)}>
+          <div className={styles.reviewSectionTitle}>Infrastructure</div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>CPU</span>
             <span className={styles.reviewValue}>{form.cpuRequest} / {form.cpuLimit}</span>
@@ -385,10 +498,6 @@ export default function NewAgent() {
             <span className={styles.reviewLabel}>Disk</span>
             <span className={styles.reviewValue}>{form.workspaceSize}</span>
           </div>
-        </div>
-
-        <div className={styles.reviewSection} onClick={() => setStep(5)}>
-          <div className={styles.reviewSectionTitle}>Gitea</div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>Repo</span>
             <span className={styles.reviewValue}>{form.repo || '\u2014'}</span>
@@ -412,7 +521,7 @@ export default function NewAgent() {
     </div>
   )
 
-  const stepRenderers = [renderStepRole, renderStepLLM, renderStepSchedule, renderStepResources, renderStepGitea, renderStepReview]
+  const stepRenderers = [renderStepIdentity, renderStepConfiguration, renderStepInfrastructure, renderStepReview]
 
   return (
     <div className={styles.page}>
@@ -438,11 +547,11 @@ export default function NewAgent() {
               </Button>
             )}
             {step < TOTAL_STEPS ? (
-              <Button onClick={() => setStep((s) => s + 1)}>
+              <Button onClick={() => setStep((s) => s + 1)} disabled={!isStepValid(step)}>
                 Next
               </Button>
             ) : (
-              <Button onClick={handleCreate} loading={creating}>
+              <Button onClick={handleCreate} loading={creating} disabled={!isStepValid(1)}>
                 Create Agent
               </Button>
             )}

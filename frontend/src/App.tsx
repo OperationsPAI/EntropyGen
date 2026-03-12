@@ -13,6 +13,8 @@ const RoleEditor = lazy(() => import('./pages/Roles/Editor'))
 const LLM = lazy(() => import('./pages/LLM'))
 const Audit = lazy(() => import('./pages/Audit'))
 const Monitor = lazy(() => import('./pages/Monitor'))
+const ObserveOverview = lazy(() => import('./pages/Observe/ObserveOverview'))
+const ObserveDetail = lazy(() => import('./pages/Observe/ObserveDetail'))
 const Export = lazy(() => import('./pages/Export'))
 
 const Loading = () => (
@@ -51,6 +53,8 @@ export const router = createBrowserRouter([
       { path: 'agents', element: <Suspense fallback={<Loading />}><AgentList /></Suspense> },
       { path: 'agents/new', element: <Suspense fallback={<Loading />}><NewAgent /></Suspense> },
       { path: 'agents/:name', element: <Suspense fallback={<Loading />}><AgentDetail /></Suspense> },
+      { path: 'observe', element: <Suspense fallback={<Loading />}><ObserveOverview /></Suspense> },
+      { path: 'observe/:name', element: <Suspense fallback={<Loading />}><ObserveDetail /></Suspense> },
       { path: 'roles', element: <Suspense fallback={<Loading />}><RoleList /></Suspense> },
       { path: 'roles/new', element: <Suspense fallback={<Loading />}><NewRole /></Suspense> },
       { path: 'roles/:name', element: <Suspense fallback={<Loading />}><RoleEditor /></Suspense> },

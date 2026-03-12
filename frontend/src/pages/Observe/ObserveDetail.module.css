@@ -1,0 +1,527 @@
+/* === Observe Detail (Live Room) === */
+
+.detailContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  height: calc(100vh - 140px);
+}
+
+/* Status banner */
+.statusBanner {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.statusIcon {
+  font-size: 1rem;
+}
+
+.statusText {
+  font-weight: 500;
+  font-size: 0.9375rem;
+  flex: 1;
+}
+
+.statusMeta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: var(--space-md);
+}
+
+/* Main content area (conversation + code) */
+.mainArea {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--bg-surface);
+}
+
+/* Conversation flow (left) */
+.conversationPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.conversationScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.scrollToBottom {
+  position: sticky;
+  bottom: var(--space-md);
+  align-self: center;
+  background-color: var(--text-main);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.scrollToBottom:hover {
+  opacity: 1;
+}
+
+/* History banner */
+.historyBanner {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue);
+  padding: 8px var(--space-lg);
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.historyBannerLink {
+  color: var(--status-blue);
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+}
+
+/* Code panel (right) */
+.codePanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-left: 1px solid var(--line-subtle);
+}
+
+.fileTree {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--line-subtle);
+  overflow-y: auto;
+  max-height: 200px;
+  font-size: 0.8125rem;
+}
+
+.fileTreeTitle {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+}
+
+.fileTreeItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  transition: background-color 0.1s;
+}
+
+.fileTreeItem:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.fileTreeItemActive {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.fileStatus {
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.fileStatusModified {
+  color: var(--status-yellow);
+}
+
+.fileStatusAdded {
+  color: var(--status-green);
+}
+
+.codeEditor {
+  flex: 1;
+  min-height: 0;
+}
+
+.diffSummary {
+  padding: 8px var(--space-md);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--line-subtle);
+}
+
+/* Session history (bottom) */
+.sessionHistory {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sessionHistoryHeader {
+  padding: var(--space-sm) var(--space-lg);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--line-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sessionList {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.sessionItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 8px var(--space-lg);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.sessionItem:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.sessionItemActive {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+}
+
+.sessionId {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sessionTime {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.sessionMsgCount {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.sessionStatus {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.sessionStatusActive {
+  background-color: var(--status-green-bg);
+  color: var(--status-green);
+}
+
+.sessionStatusDone {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+}
+
+/* === Message bubbles === */
+
+.sessionDivider {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.sessionDividerLine {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge {
+  text-align: center;
+  padding: 4px 0;
+}
+
+.badgeTag {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.userBubble {
+  align-self: flex-start;
+  max-width: 85%;
+}
+
+.userBubbleInner {
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 12px 12px 12px 2px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.userLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.assistantBubble {
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.assistantBubbleInner {
+  background-color: var(--text-main);
+  color: white;
+  border-radius: 12px 12px 2px 12px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.assistantLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-align: right;
+}
+
+.assistantText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.assistantText code {
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8em;
+}
+
+.assistantText pre {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  margin: 6px 0;
+  font-size: 0.75rem;
+}
+
+.assistantMeta {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: 6px;
+  font-size: 0.625rem;
+  opacity: 0.7;
+  justify-content: flex-end;
+}
+
+/* Thinking block (collapsible) */
+.thinkingBlock {
+  margin-bottom: 6px;
+}
+
+.thinkingToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  cursor: pointer;
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+}
+
+.thinkingToggle:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.thinkingContent {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.8);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Tool call card */
+.toolCallCard {
+  margin: 6px 0;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.toolCallCard:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.toolCallName {
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolCallArgs {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tool result card */
+.toolResult {
+  align-self: flex-end;
+  max-width: 85%;
+  margin-top: -8px;
+}
+
+.toolResultInner {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.toolResultSuccess {
+  background-color: var(--status-green-bg);
+  border: 1px solid rgba(42, 64, 42, 0.2);
+  color: var(--status-green);
+}
+
+.toolResultError {
+  background-color: var(--status-red-bg);
+  border: 1px solid rgba(64, 42, 42, 0.2);
+  color: var(--status-red);
+}
+
+.toolResultToggle {
+  background: none;
+  border: none;
+  font-size: 0.6875rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.toolResultContent {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Inline diff */
+.inlineDiff {
+  margin: 6px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.6875rem;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.diffLineAdded {
+  background-color: rgba(42, 64, 42, 0.3);
+  padding: 1px 8px;
+  color: #a0d8a0;
+}
+
+.diffLineRemoved {
+  background-color: rgba(64, 42, 42, 0.3);
+  padding: 1px 8px;
+  color: #d8a0a0;
+}
+
+.diffLineContext {
+  padding: 1px 8px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Loading / empty states */
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.waitingDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--status-green);
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}

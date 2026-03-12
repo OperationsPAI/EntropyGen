@@ -186,6 +186,11 @@
   color: var(--text-muted);
 }
 
+.hintError {
+  color: var(--status-error, #e53e3e);
+  font-size: 0.8rem;
+}
+
 /* Info box */
 .infoBox {
   padding: var(--space-md);
@@ -284,4 +289,25 @@
 .actionBarRight {
   display: flex;
   gap: var(--space-sm);
+}
+
+/* Section divider for merged steps */
+.sectionDivider {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--line-subtle);
+}
+
+/* Cron human-readable display */
+.cronReadable {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Preview editor for soul.md */
+.previewEditor {
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: var(--space-sm);
 }

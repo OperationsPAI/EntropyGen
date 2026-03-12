@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,15 +67,20 @@ func main() {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = agentapi.AddToScheme(scheme)
 	var agentCRClient *k8sclient.AgentClient
+	var k8sClientset kubernetes.Interface
 	if k8sCfg, err := ctrlconfig.GetConfig(); err == nil {
 		if k8sClient, err := ctrlclient.New(k8sCfg, ctrlclient.Options{Scheme: scheme}); err == nil {
 			agentCRClient = k8sclient.NewAgentClient(k8sClient, agentNS)
+		}
+		if cs, err := kubernetes.NewForConfig(k8sCfg); err == nil {
+			k8sClientset = cs
 		}
 	}
 	if agentCRClient == nil {
 		slog.Warn("k8s unavailable, agent API disabled")
 		agentCRClient = k8sclient.NewAgentClient(nil, agentNS)
 	}
+	roleClient := k8sclient.NewRoleClient(k8sClientset, agentCRClient, agentNS)
 
 	// Background services
 	pusher := wspush.NewPusher()
@@ -95,7 +101,9 @@ func main() {
 		AdminPasswordHash: adminPassHash,
 		JWTSecret:         jwtSecret,
 		LiteLLMAddr:       litellmAddr,
+		AgentNamespace:    agentNS,
 		AgentClient:       agentCRClient,
+		RoleClient:        roleClient,
 		CHClient:          ch,
 		Pusher:            pusher,
 	})

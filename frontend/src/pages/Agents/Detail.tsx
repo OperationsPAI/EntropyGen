@@ -341,7 +341,7 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
         footer={
           <>
             <Button variant="secondary" onClick={() => setAssignModal(false)}>Cancel</Button>
-            <Button onClick={handleAssignTask} loading={assignLoading}>Create & Assign</Button>
+            <Button onClick={handleAssignTask} loading={assignLoading} disabled={!assignForm.title.trim()}>Create & Assign</Button>
           </>
         }
       >

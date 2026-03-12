@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Review your design and code before submitting. Ensure they are clear, concise, and correct.
 - Think one step ahead: anticipate how your design/code will be used, what questions the user might have, and what issues might arise.
+- Write your plan to this repository (.claude/plans), not in the ~/.claude/ directory. 
 
 
 ## Build & Development Commands

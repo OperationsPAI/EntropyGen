@@ -10,15 +10,16 @@
     "lint": "eslint --max-warnings 0"
   },
   "dependencies": {
+    "@douyinfe/semi-icons": "^2.88.0",
+    "@douyinfe/semi-ui": "^2.90.0",
+    "@monaco-editor/react": "^4.7.0",
+    "axios": "^1.13.6",
+    "cronstrue": "^3.13.0",
+    "echarts": "^5.6.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "@douyinfe/semi-ui": "^2.90.0",
-    "@douyinfe/semi-icons": "^2.88.0",
-    "zustand": "^5.0.11",
-    "axios": "^1.13.6",
-    "@monaco-editor/react": "^4.7.0",
-    "echarts": "^5.6.0"
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@douyinfe/vite-plugin-semi": "^2.74.3-alpha.2",

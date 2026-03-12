@@ -26,6 +26,9 @@ rules:
   resources: ["agents/status"]
   verbs: ["get", "update", "patch"]
 - apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
   resources: ["pods", "pods/log"]
   verbs: ["get", "list", "watch"]
 ---
