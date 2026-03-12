@@ -7,6 +7,14 @@
 # Go build artifacts
 /bin/
 *.test
+/event-collector
+/event-collector-*
+/operator
+/operator-*
+/gateway
+/gateway-*
+/backend
+/backend-*
 
 # IDE
 .idea/
