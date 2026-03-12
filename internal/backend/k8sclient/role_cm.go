@@ -55,7 +55,7 @@ func (r *RoleClient) List(ctx context.Context) ([]Role, error) {
 		return nil, err
 	}
 	cmList, err := r.k8s.CoreV1().ConfigMaps(r.namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "entropyGen/component=role",
+		LabelSelector: "entropygen.io/component=role",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list role configmaps: %w", err)
@@ -101,10 +101,10 @@ func (r *RoleClient) Create(ctx context.Context, req CreateRoleRequest) (*Role, 
 			Name:      cmName(req.Name),
 			Namespace: r.namespace,
 			Labels: map[string]string{
-				"entropyGen/component": "role",
+				"entropygen.io/component": "role",
 			},
 			Annotations: map[string]string{
-				"entropyGen/description": req.Description,
+				"entropygen.io/description": req.Description,
 			},
 		},
 		Data: data,
@@ -131,7 +131,7 @@ func (r *RoleClient) UpdateDescription(ctx context.Context, name, description st
 	if cm.Annotations == nil {
 		cm.Annotations = make(map[string]string)
 	}
-	cm.Annotations["entropyGen/description"] = description
+	cm.Annotations["entropygen.io/description"] = description
 	updated, err := r.k8s.CoreV1().ConfigMaps(r.namespace).Update(ctx, cm, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("update description for role %s: %w", name, err)
@@ -277,7 +277,7 @@ func cmName(roleName string) string {
 func (r *RoleClient) cmToRole(cm *corev1.ConfigMap, agentCount int) Role {
 	description := ""
 	if cm.Annotations != nil {
-		description = cm.Annotations["entropyGen/description"]
+		description = cm.Annotations["entropygen.io/description"]
 	}
 	ts := cm.CreationTimestamp.Time
 	names := make([]string, 0, len(cm.Data))
