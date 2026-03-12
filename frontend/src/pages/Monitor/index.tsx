@@ -1,4 +1,4 @@
-import ReactECharts from 'echarts-for-react'
+import ReactECharts from '../../components/ReactECharts'
 
 function genDays(n: number) {
   return Array.from({ length: n }, (_, i) => {

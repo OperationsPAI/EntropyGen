@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -21,15 +23,26 @@ import (
 )
 
 const (
-	gatewayURL         = "http://agent-gateway.control-plane.svc:8080"
-	agentRuntimeImage  = "registry.devops.local/platform/agent-runtime:latest"
 	defaultStorageSize = "1Gi"
 	annotationCfgHash  = "aidevops.io/config-hash"
 )
 
+func agentRuntimeImageName() string {
+	if v := os.Getenv("AGENT_RUNTIME_IMAGE"); v != "" {
+		return v
+	}
+	return "registry.local/agent-runtime:latest"
+}
+
+// skillKey converts a skill path like "git-ops/SKILL.md" to a valid ConfigMap key "git-ops__SKILL.md".
+// K8s ConfigMap keys cannot contain '/'.
+func skillKey(path string) string {
+	return strings.ReplaceAll(path, "/", "__")
+}
+
 // EnsureConfigMap creates or updates the main agent ConfigMap (openclaw.json, SOUL.md, AGENTS.md, cron-config.json).
 func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentapi.Agent) error {
-	data := buildConfigMapData(agent)
+	data := buildConfigMapData(agent, r.GatewayURL)
 	hash := computeHash(data)
 	name := fmt.Sprintf("agent-%s-config", agent.Name)
 
@@ -58,7 +71,7 @@ func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentap
 	return r.Client.Update(ctx, cm)
 }
 
-func buildConfigMapData(agent *agentapi.Agent) map[string]string {
+func buildConfigMapData(agent *agentapi.Agent, gatewayURL string) map[string]string {
 	model := "gpt-4o"
 	if agent.Spec.LLM != nil && agent.Spec.LLM.Model != "" {
 		model = agent.Spec.LLM.Model
@@ -145,15 +158,32 @@ func (r *ResourceReconciler) EnsureSkillsConfigMap(ctx context.Context, agent *a
 
 func buildSkillsData(agent *agentapi.Agent) map[string]string {
 	data := map[string]string{
-		"gitea-api/SKILL.md": "# Gitea API Skill\nUse the Gitea REST API to manage issues, PRs, and repositories.\n",
+		skillKey("gitea-api/SKILL.md"): "# Gitea API Skill\nUse the Gitea REST API to manage issues, PRs, and repositories.\n",
 	}
 	if agent.Spec.Role == "developer" || agent.Spec.Role == "sre" {
-		data["git-ops/SKILL.md"] = "# Git Ops Skill\nClone, branch, commit and push code changes using Git.\n"
+		data[skillKey("git-ops/SKILL.md")] = "# Git Ops Skill\nClone, branch, commit and push code changes using Git.\n"
 	}
 	if agent.Spec.Role == "sre" {
-		data["kubectl-ops/SKILL.md"] = "# Kubectl Ops Skill\nManage Kubernetes deployments in the app-staging namespace using kubectl.\n"
+		data[skillKey("kubectl-ops/SKILL.md")] = "# Kubectl Ops Skill\nManage Kubernetes deployments in the app-staging namespace using kubectl.\n"
 	}
 	return data
+}
+
+// buildSkillItems returns the ConfigMap items mapping for the skills volume,
+// translating "git-ops__SKILL.md" keys back to "git-ops/SKILL.md" paths.
+func buildSkillItems(agent *agentapi.Agent) []corev1.KeyToPath {
+	skillPaths := []string{"gitea-api/SKILL.md"}
+	if agent.Spec.Role == "developer" || agent.Spec.Role == "sre" {
+		skillPaths = append(skillPaths, "git-ops/SKILL.md")
+	}
+	if agent.Spec.Role == "sre" {
+		skillPaths = append(skillPaths, "kubectl-ops/SKILL.md")
+	}
+	items := make([]corev1.KeyToPath, 0, len(skillPaths))
+	for _, p := range skillPaths {
+		items = append(items, corev1.KeyToPath{Key: skillKey(p), Path: p})
+	}
+	return items
 }
 
 // EnsurePVC creates the workspace PVC. PVCs are not updated once created.
@@ -283,7 +313,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 		}
 	}
 
-	desired := buildDeployment(agent, cfgHash)
+	desired := buildDeployment(agent, cfgHash, r.GatewayURL)
 	_ = controllerutil.SetControllerReference(agent, desired, r.Scheme)
 
 	existing := &appsv1.Deployment{}
@@ -307,7 +337,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 	return r.Client.Update(ctx, existing)
 }
 
-func buildDeployment(agent *agentapi.Agent, cfgHash string) *appsv1.Deployment {
+func buildDeployment(agent *agentapi.Agent, cfgHash string, gatewayURL string) *appsv1.Deployment {
 	replicas := int32(1)
 	if agent.Spec.Paused {
 		replicas = 0
@@ -348,7 +378,7 @@ func buildDeployment(agent *agentapi.Agent, cfgHash string) *appsv1.Deployment {
 					ServiceAccountName: saName,
 					Containers: []corev1.Container{{
 						Name:      "agent-runtime",
-						Image:     agentRuntimeImage,
+						Image:     agentRuntimeImageName(),
 						Resources: buildResourceRequirements(agent),
 						Env: []corev1.EnvVar{
 							{Name: "AGENT_ID", Value: "agent-" + agent.Name},
@@ -392,6 +422,7 @@ func buildDeployment(agent *agentapi.Agent, cfgHash string) *appsv1.Deployment {
 						{Name: "skills", VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
 								LocalObjectReference: corev1.LocalObjectReference{Name: skillsCMName},
+								Items:                buildSkillItems(agent),
 							},
 						}},
 						{Name: "jwt-token", VolumeSource: corev1.VolumeSource{

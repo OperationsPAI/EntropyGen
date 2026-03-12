@@ -1,0 +1,281 @@
+{{- /*
+  Platform Init Job — single post-install/post-upgrade hook that handles ALL
+  platform initialization in sequential steps:
+    1. Wait for Gitea readiness
+    2. Rotate Gitea admin API token → patch gitea-admin-token secret
+    3. Create Gitea organization
+    4. Create Gitea repository
+    5. Create standard issue labels
+    6. Create webhook to event-collector
+    7. Configure branch protection on main
+    8. Fetch runner registration token → write to K8s secret
+
+  Design decisions:
+  - Secrets (jwt, webhook, gitea-creds, backend-admin) are managed declaratively
+    in secrets.yaml using Helm lookup(), NOT created imperatively here.
+  - Gitea admin user is created automatically by the Gitea container via
+    GITEA_ADMIN_* env vars (see infra.yaml), so we don't kubectl exec here.
+  - All Gitea API calls are idempotent (check-before-create).
+  - Labels are configured in values.yaml under platformInit.labels.
+*/ -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "aidevops-platform.fullname" . }}-platform-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "0"
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: platform-init
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: platform-init
+      containers:
+      - name: init
+        image: {{ .Values.platformInit.image }}
+        env:
+        - name: NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: GITEA_URL
+          value: {{ .Values.gitea.addr | quote }}
+        - name: GITEA_ADMIN_USER
+          value: {{ .Values.platformInit.giteaAdminUser | quote }}
+        - name: GITEA_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gitea-admin-creds
+              key: password
+        - name: GITEA_ORG
+          value: {{ .Values.platformInit.giteaOrg | quote }}
+        - name: GITEA_REPO
+          value: {{ .Values.platformInit.giteaRepo | quote }}
+        - name: EVENT_COLLECTOR_URL
+          value: "http://event-collector.{{ .Release.Namespace }}.svc:{{ .Values.eventCollector.port }}/webhooks/gitea"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          log() { echo "[platform-init] $*"; }
+
+          # ── Helper: Gitea API call ──
+          gitea_api() {
+            local method=$1 path=$2; shift 2
+            curl -sf -X "$method" \
+              -H "Authorization: token $GITEA_TOKEN" \
+              -H "Content-Type: application/json" \
+              "$GITEA_URL/api/v1$path" "$@"
+          }
+
+          # ============================================================
+          # Step 1/8: Wait for Gitea readiness
+          # ============================================================
+          log "=== Step 1/8: Waiting for Gitea ==="
+          TRIES=0
+          until curl -sf "$GITEA_URL/api/v1/version" > /dev/null 2>&1; do
+            TRIES=$((TRIES + 1))
+            if [ "$TRIES" -ge 100 ]; then
+              log "ERROR: Gitea not ready after 300s"
+              exit 1
+            fi
+            sleep 3
+          done
+          log "Gitea ready"
+
+          # ============================================================
+          # Step 2/8: Rotate API token → patch gitea-admin-token secret
+          # ============================================================
+          log "=== Step 2/8: API token ==="
+
+          # Delete old platform-token if exists
+          TOKEN_ID=$(curl -sf -u "$GITEA_ADMIN_USER:$GITEA_ADMIN_PASSWORD" \
+            "$GITEA_URL/api/v1/users/$GITEA_ADMIN_USER/tokens" \
+            | grep -o "\"id\":[0-9]*,\"name\":\"platform-token\"" \
+            | grep -o "\"id\":[0-9]*" | grep -o "[0-9]*" || echo "")
+          if [ -n "$TOKEN_ID" ]; then
+            curl -sf -X DELETE -u "$GITEA_ADMIN_USER:$GITEA_ADMIN_PASSWORD" \
+              "$GITEA_URL/api/v1/users/$GITEA_ADMIN_USER/tokens/$TOKEN_ID" || true
+            log "deleted old token (id=$TOKEN_ID)"
+          fi
+
+          # Create new token with full scopes
+          TOKEN=$(curl -sf -X POST -u "$GITEA_ADMIN_USER:$GITEA_ADMIN_PASSWORD" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"platform-token","scopes":["write:admin","write:notification","write:organization","write:issue","write:repository","write:user"]}' \
+            "$GITEA_URL/api/v1/users/$GITEA_ADMIN_USER/tokens" \
+            | grep -o '"sha1":"[^"]*"' | grep -o '"sha1":"[^"]*' | cut -d'"' -f4)
+
+          if [ -z "$TOKEN" ]; then
+            log "ERROR: failed to create Gitea API token"
+            exit 1
+          fi
+          log "token created: ${TOKEN:0:8}..."
+
+          # Write to gitea-admin-token secret (create or update)
+          kubectl create secret generic gitea-admin-token \
+            --from-literal=token="$TOKEN" \
+            -n "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+          # Export for subsequent steps
+          GITEA_TOKEN="$TOKEN"
+
+          # ============================================================
+          # Step 3/8: Create organization
+          # ============================================================
+          log "=== Step 3/8: Organization ==="
+          if gitea_api GET "/orgs/$GITEA_ORG" > /dev/null 2>&1; then
+            log "org/$GITEA_ORG exists, skipping"
+          else
+            gitea_api POST "/orgs" \
+              -d "{\"username\":\"$GITEA_ORG\",\"visibility\":\"public\"}" > /dev/null
+            log "org/$GITEA_ORG created"
+          fi
+
+          # ============================================================
+          # Step 4/8: Create repository
+          # ============================================================
+          log "=== Step 4/8: Repository ==="
+          if gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO" > /dev/null 2>&1; then
+            log "repo/$GITEA_ORG/$GITEA_REPO exists, skipping"
+          else
+            gitea_api POST "/orgs/$GITEA_ORG/repos" \
+              -d "{\"name\":\"$GITEA_REPO\",\"auto_init\":true,\"default_branch\":\"main\",\"private\":false}" > /dev/null
+            log "repo/$GITEA_ORG/$GITEA_REPO created"
+          fi
+
+          # ============================================================
+          # Step 5/8: Create standard issue labels
+          # ============================================================
+          log "=== Step 5/8: Labels ==="
+          EXISTING_LABELS=$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/labels?limit=50" 2>/dev/null || echo "[]")
+          CREATED=0
+          SKIPPED=0
+
+          {{- range .Values.platformInit.labels }}
+          if echo "$EXISTING_LABELS" | grep -q '"name":"{{ .name }}"'; then
+            SKIPPED=$((SKIPPED + 1))
+          else
+            gitea_api POST "/repos/$GITEA_ORG/$GITEA_REPO/labels" \
+              -d '{"name":"{{ .name }}","color":"{{ .color }}","description":"{{ .description }}"}' > /dev/null 2>&1
+            CREATED=$((CREATED + 1))
+          fi
+          {{- end }}
+          log "labels: created=$CREATED skipped=$SKIPPED"
+
+          # ============================================================
+          # Step 6/8: Create webhook
+          # ============================================================
+          log "=== Step 6/8: Webhook ==="
+          EXISTING_HOOKS=$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/hooks?limit=50" 2>/dev/null || echo "[]")
+          if echo "$EXISTING_HOOKS" | grep -q "\"url\":\"$EVENT_COLLECTOR_URL\""; then
+            log "webhook exists, skipping"
+          else
+            WEBHOOK_SECRET=$(kubectl get secret gitea-webhook-secret -n "$NAMESPACE" -o jsonpath='{.data.secret}' | base64 -d)
+            gitea_api POST "/repos/$GITEA_ORG/$GITEA_REPO/hooks" \
+              -d "{
+                \"type\":\"gitea\",
+                \"active\":true,
+                \"config\":{\"url\":\"$EVENT_COLLECTOR_URL\",\"secret\":\"$WEBHOOK_SECRET\",\"content_type\":\"json\"},
+                \"events\":[\"push\",\"issues\",\"issue_comment\",\"pull_request\",\"pull_request_comment\",\"workflow_run\"]
+              }" > /dev/null
+            log "webhook created -> $EVENT_COLLECTOR_URL"
+          fi
+
+          # ============================================================
+          # Step 7/8: Configure branch protection
+          # ============================================================
+          log "=== Step 7/8: Branch protection ==="
+          EXISTING_BP=$(gitea_api GET "/repos/$GITEA_ORG/$GITEA_REPO/branch_protections" 2>/dev/null || echo "[]")
+          if echo "$EXISTING_BP" | grep -q '"branch_name":"main"\|"rule_name":"main"'; then
+            log "branch protection for main exists, skipping"
+          else
+            gitea_api POST "/repos/$GITEA_ORG/$GITEA_REPO/branch_protections" \
+              -d '{"branch_name":"main","rule_name":"main","enable_push":false,"enable_status_check":true,"required_approvals":1}' > /dev/null
+            log "branch protection for main configured"
+          fi
+
+          # ============================================================
+          # Step 8/8: Runner registration token
+          # ============================================================
+          log "=== Step 8/8: Runner registration token ==="
+          RUNNER_TOKEN=$(curl -sf -X POST \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Accept: application/json" \
+            "$GITEA_URL/api/v1/admin/runners/registration-token" \
+            | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$RUNNER_TOKEN" ]; then
+            log "WARNING: failed to get runner registration token (non-fatal)"
+          else
+            kubectl create secret generic gitea-runner-token \
+              --from-literal=token="$RUNNER_TOKEN" \
+              -n "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+            log "runner token written to $NAMESPACE/gitea-runner-token"
+          fi
+
+          # Restart operator to pick up new Gitea token
+          kubectl rollout restart deployment/devops-operator -n "$NAMESPACE" 2>/dev/null || true
+
+          log "=== Platform init complete ==="
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "32Mi"
+          limits:
+            cpu: "200m"
+            memory: "64Mi"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platform-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: platform-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "create", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: platform-init
+subjects:
+- kind: ServiceAccount
+  name: platform-init
+  namespace: {{ .Release.Namespace }}

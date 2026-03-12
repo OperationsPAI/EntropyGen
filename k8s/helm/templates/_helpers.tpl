@@ -45,3 +45,44 @@ Usage: {{ include "aidevops-platform.image" (dict "registry" .Values.global.regi
 {{- define "aidevops-platform.image" -}}
 {{- printf "%s/%s:%s" .registry .name .tag }}
 {{- end }}
+
+{{/*
+wait-for-deps: generates initContainers that block until each TCP endpoint is reachable.
+Usage:
+  initContainers:
+    {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+      (dict "name" "redis"      "addr" .Values.redis.addr)
+      (dict "name" "clickhouse" "addr" .Values.clickhouse.addr)
+    )) | nindent 8 }}
+
+Each dep needs:
+  - name: human-readable name (used as initContainer name: wait-for-<name>)
+  - addr: "host:port" or "http://host:port" (http:// prefix is stripped, path ignored)
+*/}}
+{{- define "aidevops-platform.wait-for-deps" -}}
+{{- range .deps }}
+- name: wait-for-{{ .name }}
+  image: busybox:1.37
+  command:
+  - /bin/sh
+  - -c
+  - |
+    TARGET="{{ .addr }}"
+    # Strip http(s):// prefix and /path suffix to extract host:port
+    TARGET=$(echo "$TARGET" | sed -e 's|^https\?://||' -e 's|/.*||')
+    HOST=$(echo "$TARGET" | cut -d: -f1)
+    PORT=$(echo "$TARGET" | cut -d: -f2)
+    echo "Waiting for $HOST:$PORT ..."
+    while ! nc -z "$HOST" "$PORT" 2>/dev/null; do
+      sleep 2
+    done
+    echo "$HOST:$PORT is ready"
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "8Mi"
+    limits:
+      cpu: "50m"
+      memory: "16Mi"
+{{- end }}
+{{- end }}

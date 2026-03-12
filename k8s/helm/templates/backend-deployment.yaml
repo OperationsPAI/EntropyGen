@@ -54,6 +54,7 @@ metadata:
     app.kubernetes.io/component: backend
 spec:
   accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.storage.className }}
   resources:
     requests:
       storage: 1Gi
@@ -79,6 +80,11 @@ spec:
         {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: control-panel-backend
+      initContainers:
+        {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+          (dict "name" "redis"      "addr" .Values.redis.addr)
+          (dict "name" "clickhouse" "addr" .Values.clickhouse.addr)
+        )) | nindent 8 }}
       containers:
       - name: backend
         image: {{ include "aidevops-platform.image" (dict "registry" .Values.global.registry "name" .Values.backend.image "tag" .Values.global.tag) }}

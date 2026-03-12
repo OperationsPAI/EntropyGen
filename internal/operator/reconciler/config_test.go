@@ -13,7 +13,7 @@ func TestBuildConfigMapData_SoulContent(t *testing.T) {
 	agent.Spec.Soul = "You are a test agent."
 	agent.Spec.Role = "developer"
 
-	data := buildConfigMapData(agent)
+	data := buildConfigMapData(agent, "http://agent-gateway.test.svc:80")
 
 	if data["SOUL.md"] != "You are a test agent." {
 		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "You are a test agent.")
@@ -39,7 +39,7 @@ func TestBuildConfigMapData_CustomModel(t *testing.T) {
 	agent.Spec.Role = "observer"
 	agent.Spec.LLM = &agentapi.AgentLLM{Model: "claude-3-5-sonnet"}
 
-	data := buildConfigMapData(agent)
+	data := buildConfigMapData(agent, "http://agent-gateway.test.svc:80")
 
 	var cfg map[string]interface{}
 	json.Unmarshal([]byte(data["openclaw.json"]), &cfg)

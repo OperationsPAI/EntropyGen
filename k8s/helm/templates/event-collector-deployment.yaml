@@ -63,6 +63,10 @@ spec:
         {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: event-collector
+      initContainers:
+        {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+          (dict "name" "redis" "addr" .Values.redis.addr)
+        )) | nindent 8 }}
       containers:
       - name: event-collector
         image: {{ include "aidevops-platform.image" (dict "registry" .Values.global.registry "name" .Values.eventCollector.image "tag" .Values.global.tag) }}

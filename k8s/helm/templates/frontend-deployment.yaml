@@ -31,12 +31,7 @@ spec:
           name: http
           protocol: TCP
         resources:
-          requests:
-            cpu: {{ .Values.frontend.resources.requests.cpu }}
-            memory: {{ .Values.frontend.resources.requests.memory }}
-          limits:
-            cpu: {{ .Values.frontend.resources.limits.cpu }}
-            memory: {{ .Values.frontend.resources.limits.memory }}
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
         readinessProbe:
           httpGet:
             path: /
@@ -59,7 +54,7 @@ metadata:
     {{- include "aidevops-platform.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
 spec:
-  type: ClusterIP
+  type: {{ .Values.frontend.serviceType }}
   selector:
     app.kubernetes.io/component: frontend
     {{- include "aidevops-platform.selectorLabels" . | nindent 4 }}
@@ -68,3 +63,6 @@ spec:
     port: 80
     targetPort: 80
     protocol: TCP
+    {{- if eq .Values.frontend.serviceType "NodePort" }}
+    nodePort: {{ .Values.frontend.nodePort }}
+    {{- end }}

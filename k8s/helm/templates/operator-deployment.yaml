@@ -1,7 +1,6 @@
 {{- /*
   Operator (devops-operator) Deployment and ServiceAccount.
-  ClusterRole is applied separately from k8s/rbac/operator-clusterrole.yaml.
-  Phase: 2 (Operator implementation)
+  ClusterRole + ClusterRoleBinding are in rbac.yaml.
 */ -}}
 apiVersion: v1
 kind: ServiceAccount
@@ -11,22 +10,6 @@ metadata:
   labels:
     {{- include "aidevops-platform.labels" . | nindent 4 }}
     app.kubernetes.io/component: operator
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: devops-operator-rolebinding
-  labels:
-    {{- include "aidevops-platform.labels" . | nindent 4 }}
-    app.kubernetes.io/component: operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: devops-operator-role
-subjects:
-- kind: ServiceAccount
-  name: devops-operator
-  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -49,6 +32,11 @@ spec:
         {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: devops-operator
+      initContainers:
+        {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+          (dict "name" "redis" "addr" .Values.redis.addr)
+          (dict "name" "gitea" "addr" .Values.gitea.addr)
+        )) | nindent 8 }}
       containers:
       - name: operator
         image: {{ include "aidevops-platform.image" (dict "registry" .Values.global.registry "name" .Values.operator.image "tag" .Values.global.tag) }}
@@ -71,19 +59,23 @@ spec:
           value: {{ .Values.agentNamespace }}
         - name: REDIS_ADDR
           value: {{ .Values.redis.addr }}
+        - name: AGENT_RUNTIME_IMAGE
+          value: {{ .Values.agentRuntimeImage }}
         - name: CONTROL_PLANE_NAMESPACE
           value: {{ .Release.Namespace }}
+        - name: GATEWAY_URL
+          value: "http://agent-gateway.{{ .Release.Namespace }}.svc:80"
         resources:
           {{- toYaml .Values.operator.resources | nindent 10 }}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: {{ .Values.operator.healthPort }}
           initialDelaySeconds: 15
           periodSeconds: 20
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: {{ .Values.operator.healthPort }}
           initialDelaySeconds: 5
           periodSeconds: 10

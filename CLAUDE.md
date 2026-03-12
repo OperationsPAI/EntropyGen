@@ -7,9 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - All code, comments, commit messages, design documents, and file content: **English**
 - Communication with the user (conversation, explanations, questions): **Chinese**
 
-## Current Phase: Architecture Design
+# Rules must obey:
 
-The project is in the early design phase. All outputs are currently markdown documents, **code writing is prohibited**. All component designs must be confirmed by the user before finalization.
+- Review your design and code before submitting. Ensure they are clear, concise, and correct.
+- Think one step ahead: anticipate how your design/code will be used, what questions the user might have, and what issues might arise.
+
 
 ## Build & Development Commands
 

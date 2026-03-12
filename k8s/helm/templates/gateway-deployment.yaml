@@ -29,6 +29,10 @@ spec:
         app.kubernetes.io/component: gateway
         {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
     spec:
+      initContainers:
+        {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+          (dict "name" "redis" "addr" .Values.redis.addr)
+        )) | nindent 8 }}
       containers:
       - name: gateway
         image: {{ include "aidevops-platform.image" (dict "registry" .Values.global.registry "name" .Values.gateway.image "tag" .Values.global.tag) }}
@@ -85,4 +89,7 @@ spec:
     port: 80
     targetPort: {{ .Values.gateway.port }}
     protocol: TCP
-  type: ClusterIP
+    {{- if eq .Values.gateway.serviceType "NodePort" }}
+    nodePort: {{ .Values.gateway.nodePort }}
+    {{- end }}
+  type: {{ .Values.gateway.serviceType }}

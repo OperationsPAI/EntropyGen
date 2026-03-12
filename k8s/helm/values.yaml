@@ -6,6 +6,7 @@ global:
 operator:
   replicas: 1
   image: operator
+  healthPort: 8081
   resources:
     requests:
       cpu: "100m"
@@ -19,6 +20,7 @@ gateway:
   image: gateway
   jwtSecretRef: agent-gateway-jwt-secret
   port: 8080
+  serviceType: ClusterIP
   resources:
     requests:
       cpu: "100m"
@@ -56,6 +58,8 @@ frontend:
   replicas: 1
   image: control-panel-frontend
   port: 3000
+  serviceType: NodePort
+  nodePort: 30083
   resources:
     requests:
       cpu: "50m"
@@ -65,24 +69,80 @@ frontend:
       memory: "128Mi"
 
 redis:
-  addr: redis.storage.svc:6379
+  addr: redis.aidevops.svc:6379
   maxmemory: 512mb
   maxmemoryPolicy: allkeys-lru
 
 clickhouse:
-  addr: clickhouse.storage.svc:9000
+  addr: clickhouse.aidevops.svc:9000
   database: audit
   username: default
 
 litellm:
-  addr: http://litellm.llm-gateway.svc:4000
+  addr: http://litellm.aidevops.svc:4000
 
 gitea:
-  addr: http://gitea.devops-infra.svc:3000
+  addr: http://gitea.aidevops.svc:3000
   adminTokenSecretRef: gitea-admin-token
+  adminPassword: "gitea-admin123"
+  serviceType: NodePort
+  nodePort: 30030
 
-agentNamespace: agents
-controlPlaneNamespace: control-plane
+# Platform Init Job — single post-install/post-upgrade hook that bootstraps
+# the entire Gitea platform: API token, org, repo, labels, webhook, branch
+# protection, runner token. All steps are idempotent.
+platformInit:
+  image: bitnami/kubectl:latest
+  giteaAdminUser: gitea-admin
+  giteaOrg: platform
+  giteaRepo: platform-demo
+  labels:
+  - name: "priority/critical"
+    color: "#FF0000"
+    description: "Critical priority"
+  - name: "priority/high"
+    color: "#FF6600"
+    description: "High priority"
+  - name: "priority/medium"
+    color: "#FFCC00"
+    description: "Medium priority"
+  - name: "priority/low"
+    color: "#00CC00"
+    description: "Low priority"
+  - name: "type/bug"
+    color: "#EE0701"
+    description: "Bug report"
+  - name: "type/feature"
+    color: "#84B6EB"
+    description: "New feature request"
+  - name: "type/docs"
+    color: "#0075CA"
+    description: "Documentation"
+  - name: "type/refactor"
+    color: "#E4E669"
+    description: "Code refactoring"
+  - name: "type/test"
+    color: "#F9D0C4"
+    description: "Test related"
+  - name: "role/developer"
+    color: "#7057FF"
+    description: "For developer agents"
+  - name: "role/reviewer"
+    color: "#008672"
+    description: "For reviewer agents"
+  - name: "role/qa"
+    color: "#E4E669"
+    description: "For QA agents"
+  - name: "role/sre"
+    color: "#0052CC"
+    description: "For SRE agents"
+
+agentNamespace: aidevops
+controlPlaneNamespace: aidevops
+agentRuntimeImage: "10.10.10.240/library/agent-runtime:latest"
+
+storage:
+  className: juicefs-sc
 
 ingress:
   enabled: true

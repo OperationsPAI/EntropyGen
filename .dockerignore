@@ -1,0 +1,32 @@
+# Version control
+.git
+.gitignore
+
+# Node
+node_modules
+frontend/node_modules
+frontend/dist
+
+# Build artifacts
+dist
+bin
+*.exe
+
+# Docker
+**/Dockerfile
+.dockerignore
+
+# IDE / OS
+.idea
+.vscode
+*.swp
+.DS_Store
+
+# Docs / design
+*.md
+.claude
+docs
+
+# Test artifacts
+**/*_test.go
+coverage.out

@@ -25,16 +25,16 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: backend
+            name: control-panel-backend
             port:
-              number: 8080
+              name: http
       - path: /
         pathType: Prefix
         backend:
           service:
             name: frontend
             port:
-              number: 80
+              name: http
   - host: {{ .Values.ingress.hosts.gitea }}
     http:
       paths:
@@ -42,7 +42,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: gitea-http
+            name: gitea
             port:
-              number: 3000
+              name: http
 {{- end }}

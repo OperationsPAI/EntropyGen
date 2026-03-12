@@ -19,6 +19,7 @@ type ResourceReconciler struct {
 	GiteaClient *giteaclient.Client
 	JWTSecret   []byte
 	RedisClient *redis.Client
+	GatewayURL  string
 }
 
 // ReconcileAll reconciles resources in dependency order (7-step sequence from design doc S3).

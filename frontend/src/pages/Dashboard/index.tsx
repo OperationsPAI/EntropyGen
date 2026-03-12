@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import ReactECharts from 'echarts-for-react'
+import ReactECharts from '../../components/ReactECharts'
 import { agentsApi } from '../../api/agents'
 import { useAgentStore } from '../../stores/agentStore'
 import { useEventStore } from '../../stores/eventStore'

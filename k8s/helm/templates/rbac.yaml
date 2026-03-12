@@ -1,4 +1,63 @@
-# RBAC resources are applied separately from k8s/rbac/
-# Apply before helm install:
-#   kubectl apply -f k8s/rbac/
-# This template is a placeholder for future Helm-managed RBAC.
+{{- /* ClusterRole and ClusterRoleBinding for the devops-operator */ -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devops-operator-role
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["aidevops.io"]
+    resources: ["agents"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["aidevops.io"]
+    resources: ["agents/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["aidevops.io"]
+    resources: ["agents/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devops-operator-rolebinding
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: devops-operator-role
+subjects:
+  - kind: ServiceAccount
+    name: devops-operator
+    namespace: {{ .Release.Namespace }}
+---
+{{- /* ClusterRole for agent pods (read-only self-diagnosis) */ -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-readonly-role
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]

@@ -38,6 +38,7 @@ func main() {
 	agentNS := envOr("AGENT_NAMESPACE", "agents")
 	controlPlaneNS := envOr("CONTROL_PLANE_NAMESPACE", "control-plane")
 	redisAddr := envOr("REDIS_ADDR", "redis.storage.svc:6379")
+	gatewayURL := envOr("GATEWAY_URL", fmt.Sprintf("http://agent-gateway.%s.svc:80", controlPlaneNS))
 
 	giteaCli, err := giteaclient.New(giteaURL, giteaToken)
 	if err != nil {
@@ -82,6 +83,7 @@ func main() {
 		JWTSecret:      []byte(jwtSecret),
 		AgentNamespace: agentNS,
 		RedisClient:    rdb,
+		GatewayURL:     gatewayURL,
 	}
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		log.Error(err, "setup reconciler")

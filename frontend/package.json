@@ -7,31 +7,30 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint --max-warnings 0"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.0",
-    "@douyinfe/semi-ui": "^2.65.0",
-    "@douyinfe/semi-icons": "^2.65.0",
-    "zustand": "^4.5.2",
-    "axios": "^1.6.8",
-    "@monaco-editor/react": "^4.6.0",
-    "echarts": "^5.5.0",
-    "echarts-for-react": "^3.0.2"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "@douyinfe/semi-ui": "^2.90.0",
+    "@douyinfe/semi-icons": "^2.88.0",
+    "zustand": "^5.0.11",
+    "axios": "^1.13.6",
+    "@monaco-editor/react": "^4.7.0",
+    "echarts": "^5.6.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.22",
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@typescript-eslint/parser": "^7.2.0",
-    "@vitejs/plugin-react": "^4.2.1",
     "@douyinfe/vite-plugin-semi": "^2.74.3-alpha.2",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.6",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.0"
+    "@eslint/js": "^9.22.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "^9.22.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vite": "^6.3.5"
   }
 }

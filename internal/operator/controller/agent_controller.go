@@ -34,6 +34,7 @@ type AgentReconciler struct {
 	JWTSecret      []byte
 	AgentNamespace string
 	RedisClient    *redis.Client
+	GatewayURL     string
 }
 
 func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -109,6 +110,7 @@ func (r *AgentReconciler) newResourceReconciler() *reconciler.ResourceReconciler
 		GiteaClient: r.GiteaClient,
 		JWTSecret:   r.JWTSecret,
 		RedisClient: r.RedisClient,
+		GatewayURL:  r.GatewayURL,
 	}
 }
 
