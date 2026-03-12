@@ -80,6 +80,16 @@ clickhouse:
 
 litellm:
   addr: http://litellm.aidevops.svc:4000
+  image: litellm/litellm:v1.82.0-stable
+  port: 4000
+  masterKey: "sk-litellm-master-key"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
 
 gitea:
   addr: http://gitea.aidevops.svc:3000

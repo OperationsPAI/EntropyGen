@@ -107,6 +107,8 @@ spec:
           value: {{ .Values.redis.addr }}
         - name: LITELLM_ADDR
           value: {{ .Values.litellm.addr }}
+        - name: LITELLM_MASTER_KEY
+          value: {{ .Values.litellm.masterKey | quote }}
         - name: ADMIN_USERNAME
           value: {{ .Values.backend.adminUsername }}
         - name: ADMIN_PASSWORD_HASH

@@ -33,6 +33,7 @@ func main() {
 	chPass := envOr("CLICKHOUSE_PASS", "")
 	redisAddr := envOr("REDIS_ADDR", "redis.storage.svc:6379")
 	litellmAddr := mustEnv("LITELLM_ADDR")
+	litellmKey := envOr("LITELLM_MASTER_KEY", "")
 	adminUser := mustEnv("ADMIN_USERNAME")
 	adminPassHash := mustEnv("ADMIN_PASSWORD_HASH")
 	jwtSecret := []byte(mustEnv("JWT_SECRET"))
@@ -69,11 +70,15 @@ func main() {
 	var agentCRClient *k8sclient.AgentClient
 	var k8sClientset kubernetes.Interface
 	if k8sCfg, err := ctrlconfig.GetConfig(); err == nil {
-		if k8sClient, err := ctrlclient.New(k8sCfg, ctrlclient.Options{Scheme: scheme}); err == nil {
-			agentCRClient = k8sclient.NewAgentClient(k8sClient, agentNS)
+		var k8sClient ctrlclient.Client
+		if c, err := ctrlclient.New(k8sCfg, ctrlclient.Options{Scheme: scheme}); err == nil {
+			k8sClient = c
 		}
 		if cs, err := kubernetes.NewForConfig(k8sCfg); err == nil {
 			k8sClientset = cs
+		}
+		if k8sClient != nil {
+			agentCRClient = k8sclient.NewAgentClientWithKube(k8sClient, k8sClientset, agentNS)
 		}
 	}
 	if agentCRClient == nil {
@@ -101,6 +106,7 @@ func main() {
 		AdminPasswordHash: adminPassHash,
 		JWTSecret:         jwtSecret,
 		LiteLLMAddr:       litellmAddr,
+		LiteLLMMasterKey:  litellmKey,
 		AgentNamespace:    agentNS,
 		AgentClient:       agentCRClient,
 		RoleClient:        roleClient,

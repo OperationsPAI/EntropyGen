@@ -13,12 +13,14 @@ import (
 // LLMHandler proxies LLM model configuration requests to LiteLLM.
 type LLMHandler struct {
 	litellmAddr string
+	masterKey   string
 	httpClient  *http.Client
 }
 
-func NewLLMHandler(litellmAddr string) *LLMHandler {
+func NewLLMHandler(litellmAddr, masterKey string) *LLMHandler {
 	return &LLMHandler{
 		litellmAddr: litellmAddr,
+		masterKey:   masterKey,
 		httpClient:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
@@ -54,6 +56,9 @@ func (h *LLMHandler) proxy(c *gin.Context, method, path string, body []byte) {
 	}
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if h.masterKey != "" {
+		req.Header.Set("Authorization", "Bearer "+h.masterKey)
 	}
 	resp, err := h.httpClient.Do(req)
 	if err != nil {

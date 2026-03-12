@@ -1,0 +1,92 @@
+{{- /*
+  LiteLLM Proxy: Deployment, Service, ConfigMap.
+  Provides unified LLM API proxy for all models.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: litellm
+data:
+  config.yaml: |
+    general_settings:
+      master_key: {{ .Values.litellm.masterKey | quote }}
+    model_list: []
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: litellm
+      {{- include "aidevops-platform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: litellm
+        {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: litellm
+        image: {{ .Values.litellm.image }}
+        args: ["--config", "/app/config.yaml", "--port", {{ .Values.litellm.port | quote }}]
+        ports:
+        - containerPort: {{ .Values.litellm.port }}
+          name: http
+          protocol: TCP
+        env:
+        - name: LITELLM_MASTER_KEY
+          value: {{ .Values.litellm.masterKey | quote }}
+        resources:
+          {{- toYaml .Values.litellm.resources | nindent 10 }}
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        livenessProbe:
+          httpGet:
+            path: /health/liveliness
+            port: {{ .Values.litellm.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: {{ .Values.litellm.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 2
+      volumes:
+      - name: config
+        configMap:
+          name: litellm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: litellm
+spec:
+  selector:
+    app.kubernetes.io/component: litellm
+    {{- include "aidevops-platform.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: http
+    port: {{ .Values.litellm.port }}
+    targetPort: {{ .Values.litellm.port }}
+    protocol: TCP
+  type: ClusterIP

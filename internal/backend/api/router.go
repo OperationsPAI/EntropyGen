@@ -15,6 +15,7 @@ type Config struct {
 	AdminPasswordHash string
 	JWTSecret         []byte
 	LiteLLMAddr       string
+	LiteLLMMasterKey  string
 	AgentNamespace    string
 	AgentClient       *k8sclient.AgentClient
 	RoleClient        *k8sclient.RoleClient
@@ -30,7 +31,7 @@ func NewRouter(cfg Config) *gin.Engine {
 	authH := handler.NewAuthHandler(cfg.AdminUsername, cfg.AdminPasswordHash, cfg.JWTSecret)
 	agentH := handler.NewAgentHandler(cfg.AgentClient)
 	roleH := handler.NewRoleHandler(cfg.RoleClient)
-	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr)
+	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr, cfg.LiteLLMMasterKey)
 	auditH := handler.NewAuditHandler(cfg.CHClient)
 	wsH := handler.NewWSHandler(cfg.Pusher)
 
