@@ -22,7 +22,12 @@ export interface CreateModelDto {
 
 export const llmApi = {
   getModels: () =>
-    apiClient.get<LLMModel[]>('/llm/models').then((r) => r.data),
+    apiClient.get('/llm/models').then((r) => {
+      const body = r.data
+      // LiteLLM returns { data: [...] }, extract the array
+      const list = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : []
+      return list as LLMModel[]
+    }),
 
   createModel: (dto: CreateModelDto) =>
     apiClient.post<LLMModel>('/llm/models', dto).then((r) => r.data),

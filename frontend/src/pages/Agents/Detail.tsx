@@ -66,7 +66,8 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
     if (!agent.spec.role) return
     rolesApi.getRole(agent.spec.role)
       .then((role) => {
-        const files: AgentFile[] = role.files.map((f: RoleFile) => ({
+        if (!role) return
+        const files: AgentFile[] = (role.files ?? []).map((f: RoleFile) => ({
           name: f.name,
           language: 'markdown',
           content: f.content,
@@ -137,6 +138,7 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
             ['Temperature', String(agent.spec.llm.temperature)],
             ['Max Tokens', String(agent.spec.llm.maxTokens)],
             ['Cron', agent.spec.cron.schedule],
+            ['Runtime Image', agent.spec.runtimeImage || '(default)'],
             ['Gitea User', agent.status.giteaUsername ?? '\u2014'],
             ['Phase', agent.status.phase],
             ['Pod', agent.status.podName ?? '\u2014'],

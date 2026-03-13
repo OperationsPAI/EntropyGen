@@ -65,6 +65,12 @@ spec:
           value: {{ .Release.Namespace }}
         - name: GATEWAY_URL
           value: "http://agent-gateway.{{ .Release.Namespace }}.svc:80"
+        - name: DEFAULT_STORAGE_CLASS
+          value: {{ .Values.storage.className }}
+        - name: LLM_API_KEY
+          value: {{ .Values.llm.apiKey | quote }}
+        - name: LLM_BASE_URL
+          value: {{ .Values.llm.baseURL | quote }}
         resources:
           {{- toYaml .Values.operator.resources | nindent 10 }}
         livenessProbe:

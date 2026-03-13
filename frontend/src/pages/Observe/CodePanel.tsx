@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import MonacoEditor from '../../components/editor/MonacoEditor'
 import { observeApi } from '../../api/observe'
 import type { FileTreeNode } from '../../types/observe'
@@ -16,6 +16,8 @@ export default function CodePanel({ agentName, selectedFile, onFileSelected }: C
   const [diff, setDiff] = useState('')
   const [activePath, setActivePath] = useState(selectedFile ?? '')
   const [loading, setLoading] = useState(false)
+  const [followMode, setFollowMode] = useState(true)
+  const autoFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load file tree
   useEffect(() => {
@@ -49,12 +51,12 @@ export default function CodePanel({ agentName, selectedFile, onFileSelected }: C
     return () => { cancelled = true; clearInterval(timer) }
   }, [agentName])
 
-  // Respond to external file selection (e.g., from toolCall click)
+  // Respond to external file selection only in follow mode
   useEffect(() => {
-    if (selectedFile && selectedFile !== activePath) {
+    if (followMode && selectedFile && selectedFile !== activePath) {
       setActivePath(selectedFile)
     }
-  }, [selectedFile, activePath])
+  }, [selectedFile, activePath, followMode])
 
   // Load file content when path changes
   useEffect(() => {
@@ -74,10 +76,37 @@ export default function CodePanel({ agentName, selectedFile, onFileSelected }: C
     return () => { cancelled = true }
   }, [agentName, activePath])
 
+  // In follow mode, auto-reload current file every 5s to pick up agent edits
+  useEffect(() => {
+    if (!followMode || !activePath) return
+    const timer = setInterval(() => {
+      observeApi.getWorkspaceFile(agentName, activePath)
+        .then(setFileContent)
+        .catch(() => {})
+    }, 5_000)
+    return () => clearInterval(timer)
+  }, [followMode, agentName, activePath])
+
   const handleFileClick = useCallback((path: string) => {
     setActivePath(path)
     onFileSelected?.(path)
   }, [onFileSelected])
+
+  const handleToggleFollow = useCallback(() => {
+    setFollowMode((prev) => {
+      const next = !prev
+      // When switching back to follow mode, jump to the latest external selection
+      if (next && selectedFile && selectedFile !== activePath) {
+        setActivePath(selectedFile)
+      }
+      return next
+    })
+    // Clear any pending auto-resume timer
+    if (autoFollowTimerRef.current) {
+      clearTimeout(autoFollowTimerRef.current)
+      autoFollowTimerRef.current = null
+    }
+  }, [selectedFile, activePath])
 
   const flatFiles = flattenTree(tree)
   const diffStats = parseDiffStats(diff)
@@ -85,8 +114,19 @@ export default function CodePanel({ agentName, selectedFile, onFileSelected }: C
 
   return (
     <div className={styles.codePanel}>
+      <div className={styles.codePanelToolbar}>
+        <span className={styles.fileTreeTitle}>Workspace</span>
+        <button
+          className={`${styles.followToggle} ${followMode ? styles.followToggleActive : ''}`}
+          onClick={handleToggleFollow}
+          title={followMode ? 'Following agent edits — click to browse freely' : 'Browse mode — click to follow agent'}
+        >
+          <span className={followMode ? styles.followDot : styles.browseDot} />
+          {followMode ? 'Following' : 'Browse'}
+        </button>
+      </div>
+
       <div className={styles.fileTree}>
-        <div className={styles.fileTreeTitle}>Workspace</div>
         {flatFiles.length === 0 ? (
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '4px 8px' }}>
             No files available

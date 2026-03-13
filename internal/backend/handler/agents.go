@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -102,4 +104,32 @@ func (h *AgentHandler) Logs(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": logs})
+}
+
+// RuntimeImages returns the list of available agent runtime images.
+// The default image comes from AGENT_RUNTIME_IMAGE env var.
+// Extra images can be added via AGENT_RUNTIME_IMAGES (comma-separated).
+func (h *AgentHandler) RuntimeImages(c *gin.Context) {
+	type imageEntry struct {
+		Image   string `json:"image"`
+		Default bool   `json:"default"`
+	}
+
+	defaultImg := os.Getenv("AGENT_RUNTIME_IMAGE")
+	if defaultImg == "" {
+		defaultImg = "registry.local/agent-runtime:latest"
+	}
+
+	images := []imageEntry{{Image: defaultImg, Default: true}}
+
+	if extra := os.Getenv("AGENT_RUNTIME_IMAGES"); extra != "" {
+		for _, img := range strings.Split(extra, ",") {
+			img = strings.TrimSpace(img)
+			if img != "" && img != defaultImg {
+				images = append(images, imageEntry{Image: img})
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": images})
 }

@@ -110,7 +110,7 @@
 ### 7.2.4 Dockerfile
 
 ```dockerfile
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN CGO_ENABLED=0 go build -o gitea-init ./cmd/gitea-init/
@@ -144,7 +144,7 @@ ENTRYPOINT ["/gitea-init"]
 
 ```dockerfile
 # 第一阶段：构建 gitea-cli
-FROM golang:1.23-alpine AS gitea-cli-builder
+FROM golang:1.25-alpine AS gitea-cli-builder
 WORKDIR /app
 COPY . .
 RUN CGO_ENABLED=0 go build -o gitea ./cmd/gitea-cli/

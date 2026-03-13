@@ -48,6 +48,7 @@ func NewRouter(cfg Config) *gin.Engine {
 
 	// Agent management
 	api.GET("/agents", agentH.List)
+	api.GET("/agents/runtime-images", agentH.RuntimeImages)
 	api.POST("/agents", agentH.Create)
 	api.GET("/agents/:name", agentH.Get)
 	api.PUT("/agents/:name", agentH.Update)

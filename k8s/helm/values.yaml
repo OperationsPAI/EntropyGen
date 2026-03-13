@@ -154,6 +154,10 @@ agentRuntimeImage: "10.10.10.240/library/agent-runtime:latest"
 storage:
   className: juicefs-sc
 
+llm:
+  apiKey: ""
+  baseURL: ""
+
 ingress:
   enabled: true
   ingressClassName: nginx

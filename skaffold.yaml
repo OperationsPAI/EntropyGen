@@ -28,6 +28,10 @@ build:
     docker:
       dockerfile: Dockerfile
     context: frontend
+  - image: 10.10.10.240/library/agent-runtime
+    docker:
+      dockerfile: agent-runtime/Dockerfile
+    context: .
 
 deploy:
   helm:
@@ -44,3 +48,5 @@ deploy:
         agentRuntimeImage: "10.10.10.240/library/agent-runtime:latest"
         backend.port: "8081"
         ingress.enabled: "false"
+        llm.apiKey: "sk-nTS4PVnmc24hYSCkAuYZSRY9aXcbfxHLQAJ9zrOpiovV3kvQ"
+        llm.baseURL: "https://bobdong.cn/v1"

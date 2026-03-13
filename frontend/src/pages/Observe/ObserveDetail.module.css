@@ -111,6 +111,56 @@
   border-left: 1px solid var(--line-subtle);
 }
 
+.codePanelToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.followToggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--line-subtle);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.followToggle:hover {
+  border-color: var(--text-muted);
+}
+
+.followToggleActive {
+  background-color: var(--status-green-bg);
+  border-color: var(--status-green);
+  color: var(--status-green);
+}
+
+.followDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--status-green);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.browseDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
 .fileTree {
   padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--line-subtle);

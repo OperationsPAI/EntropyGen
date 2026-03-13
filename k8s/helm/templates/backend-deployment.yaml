@@ -123,6 +123,8 @@ spec:
               key: jwt-secret
         - name: AGENT_NAMESPACE
           value: {{ .Values.agentNamespace }}
+        - name: AGENT_RUNTIME_IMAGE
+          value: {{ .Values.agentRuntimeImage }}
         - name: DLQ_DIR
           value: /var/lib/backend/dlq
         resources:

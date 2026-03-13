@@ -11,20 +11,20 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
   const toast = useToast()
   const [role, setRole] = useState(initialRole)
   const [openTabs, setOpenTabs] = useState<string[]>(() => {
-    const first = initialRole.files[0]
+    const first = (initialRole.files ?? [])[0]
     return first ? [first.name] : []
   })
-  const [activeTab, setActiveTab] = useState(() => initialRole.files[0]?.name ?? '')
+  const [activeTab, setActiveTab] = useState(() => (initialRole.files ?? [])[0]?.name ?? '')
   const [fileContents, setFileContents] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {}
-    for (const f of initialRole.files) {
+    for (const f of initialRole.files ?? []) {
       map[f.name] = f.content
     }
     return map
   })
   const [originalContents, setOriginalContents] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {}
-    for (const f of initialRole.files) {
+    for (const f of initialRole.files ?? []) {
       map[f.name] = f.content
     }
     return map
@@ -100,7 +100,7 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
       setNewFileName(null)
       return
     }
-    if (role.files.some((f) => f.name === trimmed)) {
+    if ((role.files ?? []).some((f) => f.name === trimmed)) {
       toast.error('File exists', `"${trimmed}" already exists in this role.`)
       return
     }
@@ -148,7 +148,7 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
     }
   }
 
-  const fileNames = role.files.map((f) => f.name)
+  const fileNames = (role.files ?? []).map((f) => f.name)
 
   return (
     <>

@@ -35,6 +35,7 @@ type AgentSpec struct {
 	Kubernetes    *AgentKubernetes  `json:"kubernetes,omitempty"`
 	Resources     *AgentResources   `json:"resources,omitempty"`
 	Memory        *AgentMemory      `json:"memory,omitempty"`
+	RuntimeImage  string            `json:"runtimeImage,omitempty"`
 	Paused        bool              `json:"paused,omitempty"`
 }
 

@@ -1,7 +1,10 @@
 # Stage 1: Build gitea-cli
-FROM golang:1.23-alpine AS gitea-cli-builder
+FROM golang:1.25-alpine AS gitea-cli-builder
 WORKDIR /app
-COPY . .
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/gitea-cli/ cmd/gitea-cli/
+COPY internal/gitea-cli/ internal/gitea-cli/
 RUN CGO_ENABLED=0 GOOS=linux go build -o gitea ./cmd/gitea-cli/
 
 # Stage 2: Agent Runtime image
@@ -22,6 +25,9 @@ RUN curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release
     -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl
 
+# Install openclaw
+RUN curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-prompt --no-onboard
+
 # Copy gitea-cli binary
 COPY --from=gitea-cli-builder /app/gitea /usr/local/bin/gitea
 
@@ -30,7 +36,9 @@ COPY agent-runtime/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create non-root user for security
-RUN useradd -m -u 1000 -s /bin/bash node
+RUN useradd -m -u 1000 -s /bin/bash node \
+    && mkdir -p /home/node/.openclaw \
+    && chown -R node:node /home/node/.openclaw
 USER node
 
 # Copy skills (owned by non-root user)

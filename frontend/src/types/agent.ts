@@ -47,6 +47,7 @@ export interface AgentSpec {
   cron: CronConfig
   resources: ResourceConfig
   gitea: GiteaConfig
+  runtimeImage?: string
 }
 
 export interface AgentStatus {
