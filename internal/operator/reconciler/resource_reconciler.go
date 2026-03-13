@@ -19,7 +19,23 @@ type ResourceReconciler struct {
 	GiteaClient *giteaclient.Client
 	JWTSecret   []byte
 	RedisClient *redis.Client
-	GatewayURL  string
+	GatewayURL          string
+	DefaultStorageClass string
+	LLMAPIKey           string
+	LLMBaseURL          string
+
+	// roleData is populated by EnsureRoleData and consumed by subsequent steps.
+	roleData *roleData
+}
+
+// EnsureRoleData fetches the Role ConfigMap and caches the parsed data.
+func (r *ResourceReconciler) EnsureRoleData(ctx context.Context, agent *agentapi.Agent) error {
+	rd, err := r.fetchRoleData(ctx, agent)
+	if err != nil {
+		return err
+	}
+	r.roleData = rd
+	return nil
 }
 
 // ReconcileAll reconciles resources in dependency order (7-step sequence from design doc S3).
@@ -31,8 +47,10 @@ func (r *ResourceReconciler) ReconcileAll(ctx context.Context, agent *agentapi.A
 	steps := []step{
 		{"gitea-user", r.EnsureGiteaUser},
 		{"jwt-secret", r.EnsureJWTSecret},
+		{"fetch-role", r.EnsureRoleData},
 		{"configmap", r.EnsureConfigMap},
 		{"skills-configmap", r.EnsureSkillsConfigMap},
+		{"role-files-configmap", r.EnsureRoleFilesConfigMap},
 		{"pvc", r.EnsurePVC},
 		{"serviceaccount", r.EnsureServiceAccount},
 		{"rolebinding", r.EnsureRoleBinding},

@@ -27,7 +27,7 @@ Operator (`devops-operator`) 是平台的 K8S 控制面核心，负责将 `agent
 
 | 变更类型 | Reconcile 行为 | 是否重启 Pod |
 |----------|---------------|-------------|
-| `spec.soul` / `spec.skills` | 更新 ConfigMap（SOUL.md / SKILL.md），触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
+| `spec.soul` / Role ConfigMap 变更 | 更新 ConfigMap（SOUL.md / SKILL.md），触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
 | `spec.cron.schedule` | 更新 ConfigMap（cron 配置），触发 Pod 滚动重启 | **是**（Cron 在 OpenClaw 启动时注册） |
 | `spec.llm.model` | 更新 ConfigMap（openclaw.json 中 model 字段），触发 Pod 滚动重启 | **是**（模型配置在启动时加载） |
 | `spec.resources` | 更新 Deployment 资源 limits/requests | 否（K8S 原地更新） |
@@ -62,21 +62,42 @@ Operator Reconcile 新 Agent 时，按以下顺序创建资源（每步失败则
   →  存入 Secret: agent-{name}-jwt-token
   （步骤 1 完成后立即执行，不依赖其他资源）
 
-步骤 3: 创建 ConfigMap（config + skills）
+步骤 3: 读取 Role ConfigMap
+  读取 role-{spec.role} ConfigMap，解析 well-known 文件：
+  - SOUL.md / soul.md → roleData.Soul
+  - PROMPT.md / prompt.md → roleData.Prompt
+  - AGENTS.md / agents.md → roleData.AgentsMD
+  - skills__* → roleData.Skills
+  - 其他文件 → roleData.ExtraFiles
+  ConfigMap 不存在时优雅降级（继续使用 spec 字段和模板）
+
+步骤 4: 创建主 ConfigMap（agent-{name}-config）
   写入 openclaw.json / SOUL.md / AGENTS.md / cron-config.json
-  写入 SKILL.md 文件（按 spec.role 选择）
+  优先级链：
+  - SOUL.md: roleData > spec.soul > 空
+  - AGENTS.md: roleData > buildAgentsMD() 模板
+  - cron prompt: spec.cron.prompt > roleData.Prompt > 空
 
-步骤 4: 创建 PVC
-  agent-{name}-workspace（spec.memory.storageSize，默认 5Gi）
+步骤 5: 创建 Skills ConfigMap（agent-{name}-skills）
+  内置 skills（按 spec.role 选择）+ Role ConfigMap 中的自定义 skills
+  合并规则：内置 skill 不被覆盖
 
-步骤 5: 创建 ServiceAccount + RoleBinding
+步骤 6: 创建 Role Files ConfigMap（agent-{name}-role-files）
+  仅当 roleData.ExtraFiles 非空时创建
+  挂载到 /agent/role/，entrypoint.sh 复制到 ~/.openclaw/
+
+步骤 7: 创建 PVC
+  agent-{name}-workspace（spec.memory.storageSize，默认 1Gi）
+
+步骤 8: 创建 ServiceAccount + RoleBinding
   observer/developer/reviewer → agent-readonly-role
   sre → app-staging RoleBinding（额外步骤）
 
-步骤 6: 创建 Deployment
+步骤 9: 创建 Deployment
   引用以上所有 Secret / ConfigMap / PVC
+  如果 roleData.ExtraFiles 非空，额外挂载 role-files volume
 
-步骤 7: 更新 status.phase = Running（Pod Ready 后）
+步骤 10: 更新 status.phase = Running（Pod Ready 后）
 ```
 
 ### JWT Token 签发细节
@@ -149,14 +170,19 @@ agent CR: developer-1
 │
 ├── ConfigMap: agent-developer-1-config
 │   ├── openclaw.json   ← OpenClaw 主配置（model、gateway URL 等）
-│   ├── SOUL.md         ← spec.soul 内容（Agent 人格/角色定义）
-│   ├── AGENTS.md       ← 行为约束（通用部分 + 角色特定补充）
-│   └── cron-config.json ← spec.cron 转换后的 OpenClaw Cron 配置
+│   ├── SOUL.md         ← Role ConfigMap > spec.soul > 空
+│   ├── AGENTS.md       ← Role ConfigMap > 角色模板
+│   └── cron-config.json ← spec.cron + Role PROMPT.md fallback
 │
 ├── ConfigMap: agent-developer-1-skills
-│   ├── gitea-api/SKILL.md    ← 所有角色均有
-│   ├── git-ops/SKILL.md      ← developer / sre 角色
-│   └── kubectl-ops/SKILL.md  ← 仅 sre 角色
+│   ├── gitea-api/SKILL.md    ← 所有角色均有（内置）
+│   ├── git-ops/SKILL.md      ← developer / sre 角色（内置）
+│   ├── kubectl-ops/SKILL.md  ← 仅 sre 角色（内置）
+│   └── {custom}/SKILL.md     ← Role ConfigMap 中的自定义 skills（不覆盖内置）
+│
+├── ConfigMap: agent-developer-1-role-files（可选）
+│   └── {filename}     ← Role ConfigMap 中的非 well-known 文件
+│                        挂载到 /agent/role/，entrypoint.sh 复制到 ~/.openclaw/
 │
 ├── Secret: agent-developer-1-gitea-token
 │   └── token: <gitea-token>
@@ -166,7 +192,7 @@ agent CR: developer-1
 │
 ├── PersistentVolumeClaim: agent-developer-1-workspace
 │   └── 挂载到 /home/node/.openclaw/workspace/（记忆 + 代码工作目录）
-│   └── spec.memory.storageSize（默认 5Gi）
+│   └── spec.memory.storageSize（默认 1Gi）
 │   └── accessModes: [ReadWriteOnce]
 │
 ├── ServiceAccount: agent-developer-1
@@ -179,13 +205,16 @@ agent CR: developer-1
 
 | ConfigMap Key | 挂载路径 |
 |--------------|---------|
-| `openclaw.json` | `/home/node/.openclaw/openclaw.json` |
-| `SOUL.md` | `/home/node/.openclaw/SOUL.md` |
-| `AGENTS.md` | `/home/node/.openclaw/AGENTS.md` |
-| `cron-config.json` | `/home/node/.openclaw/cron/main-loop.json` |
-| `gitea-api/SKILL.md` | `/home/node/.openclaw/skills/gitea-api/SKILL.md` |
-| `git-ops/SKILL.md` | `/home/node/.openclaw/skills/git-ops/SKILL.md` |
-| `kubectl-ops/SKILL.md` | `/home/node/.openclaw/skills/kubectl-ops/SKILL.md` |
+| `openclaw.json` | `/agent/config/openclaw.json` → `~/.openclaw/openclaw.json` |
+| `SOUL.md` | `/agent/config/SOUL.md` → `~/.openclaw/SOUL.md` |
+| `AGENTS.md` | `/agent/config/AGENTS.md` → `~/.openclaw/AGENTS.md` |
+| `cron-config.json` | `/agent/config/cron-config.json` → `~/.openclaw/cron-config.json` |
+| `gitea-api/SKILL.md` | `/agent/skills/gitea-api/SKILL.md` → `~/.openclaw/skills/gitea-api/SKILL.md` |
+| `git-ops/SKILL.md` | `/agent/skills/git-ops/SKILL.md` → `~/.openclaw/skills/git-ops/SKILL.md` |
+| `kubectl-ops/SKILL.md` | `/agent/skills/kubectl-ops/SKILL.md` → `~/.openclaw/skills/kubectl-ops/SKILL.md` |
+| Role extra files | `/agent/role/*` → `~/.openclaw/*`（由 entrypoint.sh 复制） |
+
+> 注：ConfigMap 挂载到 `/agent/config` 和 `/agent/skills` 为只读卷，entrypoint.sh 在启动时复制到可写的 `~/.openclaw/` 目录。
 
 ### RBAC ClusterRole 预设
 

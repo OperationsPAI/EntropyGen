@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import cronstrue from 'cronstrue'
-import { agentsApi } from '../../api/agents'
+import { agentsApi, type RuntimeImage } from '../../api/agents'
 import { llmApi, type LLMModel } from '../../api/llm'
 import { rolesApi } from '../../api/roles'
 import { PageHeader, Card, Button, Input, Select, EmptyState } from '../../components/ui'
@@ -38,6 +38,7 @@ interface FormState {
   temperature: number
   maxTokens: number
   schedule: string
+  runtimeImage: string
   cpuRequest: string
   cpuLimit: string
   memoryRequest: string
@@ -54,6 +55,7 @@ const INITIAL_FORM: FormState = {
   temperature: 0.7,
   maxTokens: 4096,
   schedule: '*/5 * * * *',
+  runtimeImage: '',
   cpuRequest: '100m',
   cpuLimit: '500m',
   memoryRequest: '256Mi',
@@ -71,6 +73,8 @@ export default function NewAgent() {
   const [rolesLoading, setRolesLoading] = useState(true)
   const [models, setModels] = useState<LLMModel[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
+  const [runtimeImages, setRuntimeImages] = useState<RuntimeImage[]>([])
+  const [imagesLoading, setImagesLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -88,6 +92,19 @@ export default function NewAgent() {
       .then(setModels)
       .catch(() => {})
       .finally(() => setModelsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    agentsApi.getRuntimeImages()
+      .then((images) => {
+        setRuntimeImages(images)
+        const defaultImg = images.find((img) => img.default)
+        if (defaultImg) {
+          setForm((prev) => prev.runtimeImage === '' ? { ...prev, runtimeImage: defaultImg.image } : prev)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setImagesLoading(false))
   }, [])
 
   const selectedRole = roles.find((r) => r.name === form.role)
@@ -134,6 +151,7 @@ export default function NewAgent() {
             workspaceSize: form.workspaceSize,
           },
           gitea: { repo: form.repo, permissions: form.permissions },
+          runtimeImage: form.runtimeImage || undefined,
         },
       })
       toast.success('Agent created', form.name)
@@ -161,7 +179,7 @@ export default function NewAgent() {
     if (!form.role) return
     if (!previewContent) {
       try {
-        const file = await rolesApi.getRoleFile(form.role, 'soul.md')
+        const file = await rolesApi.getRoleFile(form.role, 'SOUL.md')
         setPreviewContent(file.content)
       } catch {
         setPreviewContent('Failed to load soul.md')
@@ -264,7 +282,7 @@ export default function NewAgent() {
               <div className={styles.roleInfo}>
                 <div className={styles.roleName}>{role.name}</div>
                 <div className={styles.roleMeta}>
-                  {role.description} &middot; {role.files.length} files &middot; {role.agent_count} agents
+                  {role.description} &middot; {(role.files ?? []).length} files &middot; {role.agent_count} agents
                 </div>
               </div>
               <a
@@ -281,9 +299,9 @@ export default function NewAgent() {
         </div>
       )}
 
-      {selectedRole && selectedRole.files.length > 0 && (
+      {selectedRole && (selectedRole.files ?? []).length > 0 && (
         <div className={styles.selectedFiles}>
-          Selected role files: {selectedRole.files.map((f) => f.name).join(', ')}
+          Selected role files: {(selectedRole.files ?? []).map((f) => f.name).join(', ')}
         </div>
       )}
     </div>
@@ -367,7 +385,26 @@ export default function NewAgent() {
 
   const renderStepInfrastructure = () => (
     <div className={styles.formBody}>
-      <span className={styles.sectionLabel}>Resources</span>
+      <span className={styles.sectionLabel}>Runtime Image</span>
+      <Select
+        label="Agent Image"
+        value={form.runtimeImage}
+        onChange={(e) => updateField('runtimeImage', e.target.value)}
+        disabled={imagesLoading}
+      >
+        <option value="">
+          {imagesLoading ? 'Loading images...' : 'Select an image...'}
+        </option>
+        {runtimeImages.map((img) => (
+          <option key={img.image} value={img.image}>
+            {img.image}{img.default ? ' (default)' : ''}
+          </option>
+        ))}
+      </Select>
+
+      <div className={styles.sectionDivider}>
+        <span className={styles.sectionLabel}>Resources</span>
+      </div>
       <span className={styles.sectionLabel}>CPU</span>
       <div className={styles.formGrid2}>
         <Input
@@ -487,6 +524,10 @@ export default function NewAgent() {
         <div className={styles.reviewSection} onClick={() => setStep(3)}>
           <div className={styles.reviewSectionTitle}>Infrastructure</div>
           <div className={styles.reviewRow}>
+            <span className={styles.reviewLabel}>Image</span>
+            <span className={styles.reviewValue}>{form.runtimeImage || '\u2014'}</span>
+          </div>
+          <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>CPU</span>
             <span className={styles.reviewValue}>{form.cpuRequest} / {form.cpuLimit}</span>
           </div>
@@ -509,9 +550,9 @@ export default function NewAgent() {
         </div>
       </div>
 
-      {selectedRole && selectedRole.files.length > 0 && (
+      {selectedRole && (selectedRole.files ?? []).length > 0 && (
         <div className={styles.selectedFiles}>
-          Role files: {selectedRole.files.map((f) => f.name).join(', ')}
+          Role files: {(selectedRole.files ?? []).map((f) => f.name).join(', ')}
         </div>
       )}
 

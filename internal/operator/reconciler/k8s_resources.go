@@ -27,6 +27,15 @@ const (
 	annotationCfgHash  = "aidevops.io/config-hash"
 )
 
+// roleData holds parsed content from a Role ConfigMap (role-{name}).
+type roleData struct {
+	Soul       string            // SOUL.md content
+	Prompt     string            // PROMPT.md content (injected into cron prompt)
+	AgentsMD   string            // AGENTS.md content (overrides template)
+	Skills     map[string]string // skills/* files
+	ExtraFiles map[string]string // other custom files
+}
+
 func agentRuntimeImageName() string {
 	if v := os.Getenv("AGENT_RUNTIME_IMAGE"); v != "" {
 		return v
@@ -34,7 +43,55 @@ func agentRuntimeImageName() string {
 	return "registry.local/agent-runtime:latest"
 }
 
-// skillKey converts a skill path like "git-ops/SKILL.md" to a valid ConfigMap key "git-ops__SKILL.md".
+func agentRuntimeImage(agent *agentapi.Agent) string {
+	if agent.Spec.RuntimeImage != "" {
+		return agent.Spec.RuntimeImage
+	}
+	return agentRuntimeImageName()
+}
+
+// parseRoleData classifies ConfigMap data entries into well-known role files.
+// Well-known file names are matched case-insensitively.
+func parseRoleData(data map[string]string) *roleData {
+	rd := &roleData{
+		Skills:     map[string]string{},
+		ExtraFiles: map[string]string{},
+	}
+	for k, v := range data {
+		lower := strings.ToLower(k)
+		switch {
+		case lower == "soul.md":
+			rd.Soul = v
+		case lower == "prompt.md":
+			rd.Prompt = v
+		case lower == "agents.md":
+			rd.AgentsMD = v
+		case strings.HasPrefix(lower, "skills__") || strings.HasPrefix(lower, "skills/"):
+			rd.Skills[k] = v
+		default:
+			rd.ExtraFiles[k] = v
+		}
+	}
+	return rd
+}
+
+// fetchRoleData reads the role-{roleName} ConfigMap and parses its content.
+// Returns nil if the ConfigMap does not exist (graceful degradation).
+func (r *ResourceReconciler) fetchRoleData(ctx context.Context, agent *agentapi.Agent) (*roleData, error) {
+	if agent.Spec.Role == "" {
+		return nil, nil
+	}
+	cmName := fmt.Sprintf("role-%s", agent.Spec.Role)
+	cm := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: cmName, Namespace: agent.Namespace}, cm)
+	if errors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("fetch role configmap %s: %w", cmName, err)
+	}
+	return parseRoleData(cm.Data), nil
+}
 // K8s ConfigMap keys cannot contain '/'.
 func skillKey(path string) string {
 	return strings.ReplaceAll(path, "/", "__")
@@ -42,7 +99,7 @@ func skillKey(path string) string {
 
 // EnsureConfigMap creates or updates the main agent ConfigMap (openclaw.json, SOUL.md, AGENTS.md, cron-config.json).
 func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentapi.Agent) error {
-	data := buildConfigMapData(agent, r.GatewayURL)
+	data := buildConfigMapData(agent, r.roleData, r.GatewayURL, r.LLMBaseURL, r.LLMAPIKey)
 	hash := computeHash(data)
 	name := fmt.Sprintf("agent-%s-config", agent.Name)
 
@@ -71,22 +128,55 @@ func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentap
 	return r.Client.Update(ctx, cm)
 }
 
-func buildConfigMapData(agent *agentapi.Agent, gatewayURL string) map[string]string {
-	model := "gpt-4o"
+func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBaseURL, llmAPIKey string) map[string]string {
+	model := ""
 	if agent.Spec.LLM != nil && agent.Spec.LLM.Model != "" {
 		model = agent.Spec.LLM.Model
 	}
 
+	// Extract provider prefix (e.g. "litellm" from "litellm/MiniMax-M2.5")
+	providerName := "litellm"
+	modelID := model
+	if idx := strings.Index(model, "/"); idx > 0 {
+		providerName = model[:idx]
+		modelID = model[idx+1:]
+	} else {
+		// No provider prefix — default to litellm and add prefix
+		model = providerName + "/" + model
+	}
+
+	// Build openclaw.json using the new config format (models.providers + agents.defaults)
 	openclawCfg := map[string]interface{}{
-		"agent": map[string]interface{}{"model": model},
-		"providers": map[string]interface{}{
-			"anthropic": map[string]interface{}{
-				"baseURL": gatewayURL + "/v1",
-				"apiKey":  "__JWT_PLACEHOLDER__",
+		"models": map[string]interface{}{
+			"providers": map[string]interface{}{
+				providerName: map[string]interface{}{
+					"baseUrl": llmBaseURL,
+					"apiKey":  llmAPIKey,
+					"api":     "openai-completions",
+					"models": []map[string]interface{}{
+						{
+							"id":            modelID,
+							"name":          modelID,
+							"reasoning":     false,
+							"input":         []string{"text"},
+							"contextWindow": 128000,
+							"maxTokens":     32000,
+						},
+					},
+				},
 			},
 		},
-		"automation": map[string]interface{}{
-			"webhook": map[string]interface{}{"enabled": true, "port": 9090},
+		"agents": map[string]interface{}{
+			"defaults": map[string]interface{}{
+				"model": map[string]interface{}{
+					"primary": model,
+				},
+			},
+		},
+		"gateway": map[string]interface{}{
+			"controlUi": map[string]interface{}{
+				"dangerouslyAllowHostHeaderOriginFallback": true,
+			},
 		},
 	}
 	openclawJSON, _ := json.MarshalIndent(openclawCfg, "", "  ")
@@ -96,12 +186,30 @@ func buildConfigMapData(agent *agentapi.Agent, gatewayURL string) map[string]str
 		cronCfg["schedule"] = agent.Spec.Cron.Schedule
 		cronCfg["prompt"] = agent.Spec.Cron.Prompt
 	}
+	// If cron prompt is empty but role has PROMPT.md, use it
+	if cronCfg["prompt"] == nil || cronCfg["prompt"] == "" {
+		if rd != nil && rd.Prompt != "" {
+			cronCfg["prompt"] = rd.Prompt
+		}
+	}
 	cronJSON, _ := json.MarshalIndent(cronCfg, "", "  ")
+
+	// SOUL.md: roleData > spec.soul > empty
+	soul := agent.Spec.Soul
+	if rd != nil && rd.Soul != "" {
+		soul = rd.Soul
+	}
+
+	// AGENTS.md: roleData > template
+	agentsMD := buildAgentsMD(agent.Spec.Role)
+	if rd != nil && rd.AgentsMD != "" {
+		agentsMD = rd.AgentsMD
+	}
 
 	return map[string]string{
 		"openclaw.json":    string(openclawJSON),
-		"SOUL.md":          agent.Spec.Soul,
-		"AGENTS.md":        buildAgentsMD(agent.Spec.Role),
+		"SOUL.md":          soul,
+		"AGENTS.md":        agentsMD,
 		"cron-config.json": string(cronJSON),
 	}
 }
@@ -136,7 +244,7 @@ func computeHash(data map[string]string) string {
 
 // EnsureSkillsConfigMap creates or updates the skills ConfigMap.
 func (r *ResourceReconciler) EnsureSkillsConfigMap(ctx context.Context, agent *agentapi.Agent) error {
-	data := buildSkillsData(agent)
+	data := buildSkillsData(agent, r.roleData)
 	name := fmt.Sprintf("agent-%s-skills", agent.Name)
 
 	cm := &corev1.ConfigMap{}
@@ -156,7 +264,32 @@ func (r *ResourceReconciler) EnsureSkillsConfigMap(ctx context.Context, agent *a
 	return r.Client.Update(ctx, cm)
 }
 
-func buildSkillsData(agent *agentapi.Agent) map[string]string {
+// EnsureRoleFilesConfigMap creates a ConfigMap for role-specific extra files.
+// Skipped if the role has no extra files.
+func (r *ResourceReconciler) EnsureRoleFilesConfigMap(ctx context.Context, agent *agentapi.Agent) error {
+	if r.roleData == nil || len(r.roleData.ExtraFiles) == 0 {
+		return nil
+	}
+	name := fmt.Sprintf("agent-%s-role-files", agent.Name)
+
+	cm := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: agent.Namespace}, cm)
+	if errors.IsNotFound(err) {
+		newCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: agent.Namespace},
+			Data:       r.roleData.ExtraFiles,
+		}
+		_ = controllerutil.SetControllerReference(agent, newCM, r.Scheme)
+		return r.Client.Create(ctx, newCM)
+	}
+	if err != nil {
+		return err
+	}
+	cm.Data = r.roleData.ExtraFiles
+	return r.Client.Update(ctx, cm)
+}
+
+func buildSkillsData(agent *agentapi.Agent, rd *roleData) map[string]string {
 	data := map[string]string{
 		skillKey("gitea-api/SKILL.md"): "# Gitea API Skill\nUse the Gitea REST API to manage issues, PRs, and repositories.\n",
 	}
@@ -166,12 +299,20 @@ func buildSkillsData(agent *agentapi.Agent) map[string]string {
 	if agent.Spec.Role == "sre" {
 		data[skillKey("kubectl-ops/SKILL.md")] = "# Kubectl Ops Skill\nManage Kubernetes deployments in the app-staging namespace using kubectl.\n"
 	}
+	// Merge role skills (do not override builtins)
+	if rd != nil {
+		for k, v := range rd.Skills {
+			if _, exists := data[k]; !exists {
+				data[k] = v
+			}
+		}
+	}
 	return data
 }
 
 // buildSkillItems returns the ConfigMap items mapping for the skills volume,
 // translating "git-ops__SKILL.md" keys back to "git-ops/SKILL.md" paths.
-func buildSkillItems(agent *agentapi.Agent) []corev1.KeyToPath {
+func buildSkillItems(agent *agentapi.Agent, rd *roleData) []corev1.KeyToPath {
 	skillPaths := []string{"gitea-api/SKILL.md"}
 	if agent.Spec.Role == "developer" || agent.Spec.Role == "sre" {
 		skillPaths = append(skillPaths, "git-ops/SKILL.md")
@@ -179,6 +320,21 @@ func buildSkillItems(agent *agentapi.Agent) []corev1.KeyToPath {
 	if agent.Spec.Role == "sre" {
 		skillPaths = append(skillPaths, "kubectl-ops/SKILL.md")
 	}
+	// Collect builtin keys for dedup
+	builtinKeys := map[string]bool{}
+	for _, p := range skillPaths {
+		builtinKeys[skillKey(p)] = true
+	}
+	// Add role skill paths (do not override builtins)
+	if rd != nil {
+		for k := range rd.Skills {
+			if !builtinKeys[k] {
+				// Key is already in skillKey format from ConfigMap
+				skillPaths = append(skillPaths, strings.ReplaceAll(k, "__", "/"))
+			}
+		}
+	}
+	sort.Strings(skillPaths)
 	items := make([]corev1.KeyToPath, 0, len(skillPaths))
 	for _, p := range skillPaths {
 		items = append(items, corev1.KeyToPath{Key: skillKey(p), Path: p})
@@ -208,6 +364,11 @@ func (r *ResourceReconciler) EnsurePVC(ctx context.Context, agent *agentapi.Agen
 			sc := agent.Spec.Memory.StorageClass
 			storageClass = &sc
 		}
+	}
+	// Fall back to platform default storage class
+	if storageClass == nil && r.DefaultStorageClass != "" {
+		sc := r.DefaultStorageClass
+		storageClass = &sc
 	}
 
 	newPVC := &corev1.PersistentVolumeClaim{
@@ -313,7 +474,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 		}
 	}
 
-	desired := buildDeployment(agent, cfgHash, r.GatewayURL)
+	desired := buildDeployment(agent, r.roleData, cfgHash, r.GatewayURL)
 	_ = controllerutil.SetControllerReference(agent, desired, r.Scheme)
 
 	existing := &appsv1.Deployment{}
@@ -327,9 +488,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 
 	// Update mutable fields
 	existing.Spec.Replicas = desired.Spec.Replicas
-	if len(existing.Spec.Template.Spec.Containers) > 0 {
-		existing.Spec.Template.Spec.Containers[0].Resources = desired.Spec.Template.Spec.Containers[0].Resources
-	}
+	existing.Spec.Template.Spec = desired.Spec.Template.Spec
 	if existing.Spec.Template.Annotations == nil {
 		existing.Spec.Template.Annotations = map[string]string{}
 	}
@@ -337,7 +496,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 	return r.Client.Update(ctx, existing)
 }
 
-func buildDeployment(agent *agentapi.Agent, cfgHash string, gatewayURL string) *appsv1.Deployment {
+func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewayURL string) *appsv1.Deployment {
 	replicas := int32(1)
 	if agent.Spec.Paused {
 		replicas = 0
@@ -349,9 +508,53 @@ func buildDeployment(agent *agentapi.Agent, cfgHash string, gatewayURL string) *
 	jwtSecretName := fmt.Sprintf("agent-%s-jwt-token", agent.Name)
 	pvcName := fmt.Sprintf("agent-%s-workspace", agent.Name)
 
-	model := "gpt-4o"
+	model := ""
 	if agent.Spec.LLM != nil && agent.Spec.LLM.Model != "" {
 		model = agent.Spec.LLM.Model
+	}
+
+	volumeMounts := []corev1.VolumeMount{
+		{Name: "config", MountPath: "/agent/config", ReadOnly: true},
+		{Name: "skills", MountPath: "/agent/skills", ReadOnly: true},
+		{Name: "jwt-token", MountPath: "/agent/secrets/jwt-token", SubPath: "token", ReadOnly: true},
+		{Name: "workspace", MountPath: "/home/node/.openclaw/workspace"},
+	}
+
+	volumes := []corev1.Volume{
+		{Name: "config", VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: configCMName},
+			},
+		}},
+		{Name: "skills", VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: skillsCMName},
+				Items:                buildSkillItems(agent, rd),
+			},
+		}},
+		{Name: "jwt-token", VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{SecretName: jwtSecretName},
+		}},
+		{Name: "workspace", VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: pvcName,
+			},
+		}},
+	}
+
+	// Add role-files volume if role has extra files
+	if rd != nil && len(rd.ExtraFiles) > 0 {
+		roleFilesCMName := fmt.Sprintf("agent-%s-role-files", agent.Name)
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name: "role-files", MountPath: "/agent/role", ReadOnly: true,
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: "role-files", VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: roleFilesCMName},
+				},
+			},
+		})
 	}
 
 	return &appsv1.Deployment{
@@ -378,7 +581,7 @@ func buildDeployment(agent *agentapi.Agent, cfgHash string, gatewayURL string) *
 					ServiceAccountName: saName,
 					Containers: []corev1.Container{{
 						Name:      "agent-runtime",
-						Image:     agentRuntimeImageName(),
+						Image:     agentRuntimeImage(agent),
 						Resources: buildResourceRequirements(agent),
 						Env: []corev1.EnvVar{
 							{Name: "AGENT_ID", Value: "agent-" + agent.Name},
@@ -406,34 +609,9 @@ func buildDeployment(agent *agentapi.Agent, cfgHash string, gatewayURL string) *
 							PeriodSeconds:    15,
 							FailureThreshold: 2,
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							{Name: "config", MountPath: "/home/node/.openclaw"},
-							{Name: "skills", MountPath: "/home/node/.openclaw/skills"},
-							{Name: "jwt-token", MountPath: "/agent/secrets/jwt-token", SubPath: "token"},
-							{Name: "workspace", MountPath: "/home/node/.openclaw/workspace"},
-						},
+						VolumeMounts: volumeMounts,
 					}},
-					Volumes: []corev1.Volume{
-						{Name: "config", VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: configCMName},
-							},
-						}},
-						{Name: "skills", VolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{Name: skillsCMName},
-								Items:                buildSkillItems(agent),
-							},
-						}},
-						{Name: "jwt-token", VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{SecretName: jwtSecretName},
-						}},
-						{Name: "workspace", VolumeSource: corev1.VolumeSource{
-							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-								ClaimName: pvcName,
-							},
-						}},
-					},
+					Volumes: volumes,
 				},
 			},
 		},

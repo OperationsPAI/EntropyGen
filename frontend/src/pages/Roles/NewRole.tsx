@@ -8,17 +8,17 @@ import styles from './Roles.module.css'
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
 
 const INITIAL_FILES = [
-  { name: 'soul.md', defaultChecked: true },
-  { name: 'prompt.md', defaultChecked: true },
-  { name: 'skills.md', defaultChecked: false },
-  { name: 'memory.md', defaultChecked: false },
+  { name: 'SOUL.md', defaultChecked: true },
+  { name: 'PROMPT.md', defaultChecked: true },
+  { name: 'AGENTS.md', defaultChecked: false },
+  { name: 'MEMORY.md', defaultChecked: false },
 ]
 
 export default function NewRole() {
   const navigate = useNavigate()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '' })
-  const [selectedFiles, setSelectedFiles] = useState(['soul.md', 'prompt.md'])
+  const [selectedFiles, setSelectedFiles] = useState(['SOUL.md', 'PROMPT.md'])
   const [creating, setCreating] = useState(false)
 
   const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
