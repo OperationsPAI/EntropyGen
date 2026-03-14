@@ -19,6 +19,9 @@ const MaxLenGitea = 10000
 // MaxLenK8S is the approximate max length for events:k8s stream
 const MaxLenK8S = 10000
 
+// MaxLenAgent is the approximate max length for events:agent-{name} streams
+const MaxLenAgent = 1000
+
 // StreamWriter writes events to Redis Streams with MAXLEN trimming.
 type StreamWriter struct {
 	client *redis.Client

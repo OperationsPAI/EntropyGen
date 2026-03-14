@@ -2,14 +2,11 @@
 
 ## Clone Strategy
 
-Use shallow clone through the platform gateway for faster checkout:
+Use shallow clone through Gitea directly (credentials are pre-configured via `.netrc`):
 
 ```bash
-# Direct clone via Gitea service
-git clone --depth=1 http://gitea.gitea.svc:3000/{org}/{repo}.git
-
-# Clone through agent gateway (preferred from agent pods)
-git clone --depth=1 http://agent-gateway.control-plane.svc/git/{org}/{repo}.git
+# Clone via Gitea (credentials handled automatically)
+git clone --depth=1 http://gitea.aidevops.svc:3000/{org}/{repo}.git
 ```
 
 ## Git Configuration

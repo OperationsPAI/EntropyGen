@@ -19,6 +19,7 @@ import (
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
 	"github.com/entropyGen/entropyGen/internal/operator/reconciler"
+	"github.com/entropyGen/entropyGen/internal/operator/scheduler"
 )
 
 const (
@@ -38,6 +39,9 @@ type AgentReconciler struct {
 	DefaultStorageClass string
 	LLMAPIKey           string
 	LLMBaseURL          string
+	CronScheduler       *scheduler.CronScheduler
+	RedisAddr           string
+	GiteaURL            string
 }
 
 func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -55,6 +59,9 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	if !agent.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(agent, FinalizerName) {
 			log.Info("cleaning up agent resources", "name", agent.Name)
+			if r.CronScheduler != nil {
+				r.CronScheduler.Remove(agent.Name)
+			}
 			res := r.newResourceReconciler()
 			if err := res.DeleteAll(ctx, agent); err != nil {
 				log.Error(err, "cleanup failed")
@@ -102,6 +109,18 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	r.setCondition(agent, "Ready", "True", "Reconciled", "All resources reconciled successfully")
 	_ = r.Status().Update(ctx, agent)
 
+	// Sync cron scheduler
+	if r.CronScheduler != nil {
+		if agent.Spec.Paused {
+			r.CronScheduler.Remove(agent.Name)
+		} else if agent.Spec.Cron != nil && agent.Spec.Cron.Schedule != "" {
+			prompt := res.CronPrompt(agent)
+			r.CronScheduler.Sync(agent.Name, agent.Spec.Cron.Schedule, prompt)
+		} else {
+			r.CronScheduler.Remove(agent.Name)
+		}
+	}
+
 	log.Info("reconcile complete", "phase", agent.Status.Phase)
 	return ctrl.Result{}, nil
 }
@@ -117,6 +136,8 @@ func (r *AgentReconciler) newResourceReconciler() *reconciler.ResourceReconciler
 		DefaultStorageClass: r.DefaultStorageClass,
 		LLMAPIKey:           r.LLMAPIKey,
 		LLMBaseURL:          r.LLMBaseURL,
+		RedisAddr:           r.RedisAddr,
+		GiteaURL:            r.GiteaURL,
 	}
 }
 

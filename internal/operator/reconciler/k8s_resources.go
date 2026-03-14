@@ -97,7 +97,7 @@ func skillKey(path string) string {
 	return strings.ReplaceAll(path, "/", "__")
 }
 
-// EnsureConfigMap creates or updates the main agent ConfigMap (openclaw.json, SOUL.md, AGENTS.md, cron-config.json).
+// EnsureConfigMap creates or updates the main agent ConfigMap (openclaw.json, SOUL.md, AGENTS.md).
 func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentapi.Agent) error {
 	data := buildConfigMapData(agent, r.roleData, r.GatewayURL, r.LLMBaseURL, r.LLMAPIKey)
 	hash := computeHash(data)
@@ -177,22 +177,16 @@ func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBase
 			"controlUi": map[string]interface{}{
 				"dangerouslyAllowHostHeaderOriginFallback": true,
 			},
+			"http": map[string]interface{}{
+				"endpoints": map[string]interface{}{
+					"chatCompletions": map[string]interface{}{
+						"enabled": true,
+					},
+				},
+			},
 		},
 	}
 	openclawJSON, _ := json.MarshalIndent(openclawCfg, "", "  ")
-
-	cronCfg := map[string]interface{}{}
-	if agent.Spec.Cron != nil {
-		cronCfg["schedule"] = agent.Spec.Cron.Schedule
-		cronCfg["prompt"] = agent.Spec.Cron.Prompt
-	}
-	// If cron prompt is empty but role has PROMPT.md, use it
-	if cronCfg["prompt"] == nil || cronCfg["prompt"] == "" {
-		if rd != nil && rd.Prompt != "" {
-			cronCfg["prompt"] = rd.Prompt
-		}
-	}
-	cronJSON, _ := json.MarshalIndent(cronCfg, "", "  ")
 
 	// SOUL.md: roleData > spec.soul > empty
 	soul := agent.Spec.Soul
@@ -207,10 +201,9 @@ func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBase
 	}
 
 	return map[string]string{
-		"openclaw.json":    string(openclawJSON),
-		"SOUL.md":          soul,
-		"AGENTS.md":        agentsMD,
-		"cron-config.json": string(cronJSON),
+		"openclaw.json": string(openclawJSON),
+		"SOUL.md":       soul,
+		"AGENTS.md":     agentsMD,
 	}
 }
 
@@ -498,7 +491,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 		}
 	}
 
-	desired := buildDeployment(agent, r.roleData, cfgHash, r.GatewayURL)
+	desired := buildDeployment(agent, r.roleData, cfgHash, r.GatewayURL, r.RedisAddr, r.GiteaURL)
 	_ = controllerutil.SetControllerReference(agent, desired, r.Scheme)
 
 	existing := &appsv1.Deployment{}
@@ -520,7 +513,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 	return r.Client.Update(ctx, existing)
 }
 
-func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewayURL string) *appsv1.Deployment {
+func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewayURL string, redisAddr string, giteaURL string) *appsv1.Deployment {
 	replicas := int32(1)
 	if agent.Spec.Paused {
 		replicas = 0
@@ -530,6 +523,7 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 	configCMName := fmt.Sprintf("agent-%s-config", agent.Name)
 	skillsCMName := fmt.Sprintf("agent-%s-skills", agent.Name)
 	jwtSecretName := fmt.Sprintf("agent-%s-jwt-token", agent.Name)
+	giteaTokenSecretName := fmt.Sprintf("agent-%s-gitea-token", agent.Name)
 	pvcName := fmt.Sprintf("agent-%s-workspace", agent.Name)
 
 	model := ""
@@ -541,6 +535,7 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 		{Name: "config", MountPath: "/agent/config", ReadOnly: true},
 		{Name: "skills", MountPath: "/agent/skills", ReadOnly: true},
 		{Name: "jwt-token", MountPath: "/agent/secrets/jwt-token", SubPath: "token", ReadOnly: true},
+		{Name: "gitea-token", MountPath: "/agent/secrets/gitea-token", SubPath: "token", ReadOnly: true},
 		{Name: "workspace", MountPath: "/home/node/.openclaw/workspace"},
 	}
 
@@ -558,6 +553,9 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 		}},
 		{Name: "jwt-token", VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{SecretName: jwtSecretName},
+		}},
+		{Name: "gitea-token", VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{SecretName: giteaTokenSecretName},
 		}},
 		{Name: "workspace", VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -612,6 +610,8 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 							{Name: "AGENT_ROLE", Value: agent.Spec.Role},
 							{Name: "GATEWAY_URL", Value: gatewayURL},
 							{Name: "LLM_MODEL", Value: model},
+							{Name: "REDIS_ADDR", Value: redisAddr},
+							{Name: "GITEA_BASE_URL", Value: giteaURL},
 						},
 						LivenessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{

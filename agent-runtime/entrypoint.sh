@@ -2,42 +2,41 @@
 set -euo pipefail
 
 # Copy config files from read-only ConfigMap mount to writable home directory
-if [ -d /agent/config ]; then
-    cp -f /agent/config/openclaw.json ~/.openclaw/openclaw.json 2>/dev/null || true
-    cp -f /agent/config/SOUL.md ~/.openclaw/SOUL.md 2>/dev/null || true
-    cp -f /agent/config/AGENTS.md ~/.openclaw/AGENTS.md 2>/dev/null || true
-    cp -f /agent/config/cron-config.json ~/.openclaw/cron-config.json 2>/dev/null || true
-fi
+[ -d /agent/config ] && cp -f /agent/config/* ~/.openclaw/ 2>/dev/null || true
 
 # Copy skills from read-only ConfigMap mount
-if [ -d /agent/skills ]; then
-    mkdir -p ~/.openclaw/skills
-    cp -rf /agent/skills/* ~/.openclaw/skills/ 2>/dev/null || true
-fi
+[ -d /agent/skills ] && mkdir -p ~/.openclaw/skills && cp -rf /agent/skills/* ~/.openclaw/skills/ 2>/dev/null || true
 
 # Copy role-specific extra files
-if [ -d /agent/role ]; then
-    cp -f /agent/role/* ~/.openclaw/ 2>/dev/null || true
-fi
+[ -d /agent/role ] && cp -f /agent/role/* ~/.openclaw/ 2>/dev/null || true
 
 # Substitute template variables in SOUL.md
-if [ -f ~/.openclaw/SOUL.md ]; then
-    sed -i "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g" ~/.openclaw/SOUL.md
-    sed -i "s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g" ~/.openclaw/SOUL.md
+[ -f ~/.openclaw/SOUL.md ] && sed -i "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g" ~/.openclaw/SOUL.md
+
+# Configure git identity
+git config --global user.name "${AGENT_ID:-agent}"
+git config --global user.email "${AGENT_ID:-agent}@platform.local"
+
+# Configure git credentials for Gitea access
+# Uses git credential store with the agent's Gitea token for HTTP push/pull.
+if [ -f /agent/secrets/gitea-token ]; then
+    GITEA_TOKEN=$(cat /agent/secrets/gitea-token)
+    GITEA_URL="${GITEA_BASE_URL:-http://gitea.aidevops.svc:3000}"
+    GITEA_URL=$(echo "$GITEA_URL" | sed 's|/api/v1$||')
+
+    # Write credentials in git-credential-store format: http://user:pass@host
+    CRED_URL=$(echo "$GITEA_URL" | sed "s|://|://${AGENT_ID:-agent}:${GITEA_TOKEN}@|")
+    echo "$CRED_URL" > ~/.git-credentials
+    chmod 600 ~/.git-credentials
+    git config --global credential.helper store
 fi
 
-# Start openclaw gateway
-if command -v openclaw &> /dev/null; then
-    # Generate a random gateway token if not provided via env
-    OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 16 /dev/urandom | base64)}"
-    export OPENCLAW_GATEWAY_TOKEN
+# Generate gateway token
+OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(head -c 16 /dev/urandom | base64)}"
+export OPENCLAW_GATEWAY_TOKEN
 
-    exec openclaw gateway run \
-        --port 8080 \
-        --bind lan \
-        --allow-unconfigured \
-        --token "$OPENCLAW_GATEWAY_TOKEN"
-else
-    echo "openclaw not found, starting sleep for debugging"
-    exec sleep infinity
-fi
+# Start observer (message poller + session viewer) in background
+agent-observer &
+
+# Start openclaw gateway (cron is handled externally via observer)
+exec openclaw gateway run --port 8080 --bind lan --allow-unconfigured --token "$OPENCLAW_GATEWAY_TOKEN"

@@ -5,6 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 )
 
@@ -41,6 +47,38 @@ func (r *ResourceReconciler) DeleteGiteaUser(ctx context.Context, agent *agentap
 		return fmt.Errorf("delete gitea user %q: %w", username, err)
 	}
 	return nil
+}
+
+// EnsureGiteaToken creates a Gitea API token for the agent and stores it in a K8S Secret.
+// Secret name: agent-{name}-gitea-token
+// Idempotent: does nothing if the Secret already exists.
+func (r *ResourceReconciler) EnsureGiteaToken(ctx context.Context, agent *agentapi.Agent) error {
+	secretName := fmt.Sprintf("agent-%s-gitea-token", agent.Name)
+	existing := &corev1.Secret{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, existing)
+	if err == nil {
+		return nil // already exists
+	}
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("get gitea token secret %q: %w", secretName, err)
+	}
+
+	username := giteaUsername(agent)
+	password := generatePassword(agent.Name)
+	tokenValue, err := r.GiteaClient.CreateTokenWithPassword(ctx, username, password, "agent-api")
+	if err != nil {
+		return fmt.Errorf("create gitea token for %q: %w", username, err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: agent.Namespace,
+		},
+		StringData: map[string]string{"token": tokenValue},
+	}
+	_ = controllerutil.SetControllerReference(agent, secret, r.Scheme)
+	return r.Client.Create(ctx, secret)
 }
 
 func giteaUsername(agent *agentapi.Agent) string {

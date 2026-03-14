@@ -9,7 +9,8 @@ import (
 
 // Client wraps the Gitea SDK client with simplified admin operations.
 type Client struct {
-	inner *sdk.Client
+	inner   *sdk.Client
+	baseURL string
 }
 
 // New creates a new Gitea admin client.
@@ -20,7 +21,7 @@ func New(baseURL, adminToken string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gitea client init: %w", err)
 	}
-	return &Client{inner: inner}, nil
+	return &Client{inner: inner, baseURL: baseURL}, nil
 }
 
 // CreateUser creates a new Gitea user. Must be called with admin credentials.
@@ -40,9 +41,21 @@ func (c *Client) CreateUser(_ context.Context, username, email, password string)
 }
 
 // CreateToken creates an API token for the given user. Returns the raw token value.
+// Gitea requires BasicAuth (username+password) to create tokens, not admin token auth.
 func (c *Client) CreateToken(_ context.Context, username, tokenName string) (string, error) {
-	token, _, err := c.inner.CreateAccessToken(sdk.CreateAccessTokenOption{
-		Name: tokenName,
+	return "", fmt.Errorf("use CreateTokenWithPassword instead")
+}
+
+// CreateTokenWithPassword creates an API token by authenticating as the user with BasicAuth.
+func (c *Client) CreateTokenWithPassword(ctx context.Context, username, password, tokenName string) (string, error) {
+	userClient, err := sdk.NewClient(c.baseURL, sdk.SetBasicAuth(username, password))
+	if err != nil {
+		return "", fmt.Errorf("create user client for %q: %w", username, err)
+	}
+
+	token, _, err := userClient.CreateAccessToken(sdk.CreateAccessTokenOption{
+		Name:   tokenName,
+		Scopes: []sdk.AccessTokenScope{sdk.AccessTokenScopeAll},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create token for %q: %w", username, err)

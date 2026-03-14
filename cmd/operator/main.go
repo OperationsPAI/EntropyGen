@@ -15,6 +15,8 @@ import (
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 	"github.com/entropyGen/entropyGen/internal/operator/controller"
 	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
+	"github.com/entropyGen/entropyGen/internal/common/redisclient"
+	"github.com/entropyGen/entropyGen/internal/operator/scheduler"
 )
 
 func main() {
@@ -50,6 +52,9 @@ func main() {
 	}
 
 	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
+
+	streamWriter := redisclient.NewStreamWriter(rdb)
+	cronScheduler := scheduler.New(streamWriter)
 
 	leaseDur := 15 * time.Second
 	renewDeadline := 10 * time.Second
@@ -90,6 +95,9 @@ func main() {
 		DefaultStorageClass: defaultStorageClass,
 		LLMAPIKey:           llmAPIKey,
 		LLMBaseURL:          llmBaseURL,
+		CronScheduler:       cronScheduler,
+		RedisAddr:           redisAddr,
+		GiteaURL:            giteaURL,
 	}
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		log.Error(err, "setup reconciler")
@@ -97,6 +105,8 @@ func main() {
 	}
 
 	log.Info("starting operator")
+	cronScheduler.Start()
+	defer cronScheduler.Stop()
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Error(err, "manager exited")
 		os.Exit(1)

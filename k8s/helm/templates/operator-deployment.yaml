@@ -68,9 +68,9 @@ spec:
         - name: DEFAULT_STORAGE_CLASS
           value: {{ .Values.storage.className }}
         - name: LLM_API_KEY
-          value: {{ .Values.llm.apiKey | quote }}
+          value: {{ .Values.litellm.masterKey | quote }}
         - name: LLM_BASE_URL
-          value: {{ .Values.llm.baseURL | quote }}
+          value: "http://litellm.{{ .Release.Namespace }}.svc:4000/v1"
         resources:
           {{- toYaml .Values.operator.resources | nindent 10 }}
         livenessProbe:

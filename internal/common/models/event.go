@@ -21,6 +21,7 @@ const (
 	EventTypeIssueAssignedByAdmin = "issue.assigned_by_admin"
 	EventTypeOperatorAgentAlert  = "operator.agent_alert"
 	EventTypeK8SPodStatus        = "k8s.pod_status"
+	EventTypeCronTrigger         = "cron.trigger"
 )
 
 // Event is the unified event structure for all events in the system.
@@ -112,6 +113,11 @@ type K8SPodStatusPayload struct {
 	Namespace      string `json:"namespace"`
 	Status         string `json:"status"`
 	PreviousStatus string `json:"previous_status,omitempty"`
+}
+
+// CronTriggerPayload is the payload for cron.trigger events
+type CronTriggerPayload struct {
+	Prompt string `json:"prompt"`
 }
 
 // Alert type constants

@@ -7,7 +7,17 @@ COPY cmd/gitea-cli/ cmd/gitea-cli/
 COPY internal/gitea-cli/ internal/gitea-cli/
 RUN CGO_ENABLED=0 GOOS=linux go build -o gitea ./cmd/gitea-cli/
 
-# Stage 2: Agent Runtime image
+# Stage 2: Build observer
+FROM golang:1.25-alpine AS observer-builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/observer/ cmd/observer/
+COPY internal/observer/ internal/observer/
+COPY internal/common/ internal/common/
+RUN CGO_ENABLED=0 GOOS=linux go build -o agent-observer ./cmd/observer
+
+# Stage 3: Agent Runtime image
 FROM debian:bookworm-slim
 
 USER root
@@ -30,6 +40,9 @@ RUN curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-prompt --no-onbo
 
 # Copy gitea-cli binary
 COPY --from=gitea-cli-builder /app/gitea /usr/local/bin/gitea
+
+# Copy observer binary
+COPY --from=observer-builder /app/agent-observer /usr/local/bin/agent-observer
 
 # Copy entrypoint
 COPY agent-runtime/entrypoint.sh /entrypoint.sh

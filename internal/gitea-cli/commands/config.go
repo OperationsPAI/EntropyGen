@@ -20,10 +20,14 @@ func newClient() (*sdk.Client, error) {
 	}
 	token := strings.TrimSpace(string(tokenBytes))
 
+	// GITEA_BASE_URL should point to the Gitea server directly (not the gateway).
+	// The Gitea SDK appends /api/v1 internally, so strip it if present.
 	baseURL := os.Getenv("GITEA_BASE_URL")
 	if baseURL == "" {
-		baseURL = "http://agent-gateway.control-plane.svc"
+		baseURL = "http://gitea.aidevops.svc:3000"
 	}
+	baseURL = strings.TrimSuffix(baseURL, "/api/v1")
+	baseURL = strings.TrimSuffix(baseURL, "/")
 
 	return sdk.NewClient(baseURL, sdk.SetToken(token))
 }
