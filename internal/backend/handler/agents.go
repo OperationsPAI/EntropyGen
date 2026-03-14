@@ -1,24 +1,34 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 
 	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
+	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
+	"github.com/entropyGen/entropyGen/internal/common/models"
+	"github.com/entropyGen/entropyGen/internal/common/redisclient"
 )
 
 // AgentHandler handles Agent CR CRUD operations.
 type AgentHandler struct {
-	client *k8sclient.AgentClient
+	client       *k8sclient.AgentClient
+	giteaClient  *giteaclient.Client
+	streamWriter *redisclient.StreamWriter
 }
 
-func NewAgentHandler(client *k8sclient.AgentClient) *AgentHandler {
-	return &AgentHandler{client: client}
+func NewAgentHandler(client *k8sclient.AgentClient, giteaClient *giteaclient.Client, streamWriter *redisclient.StreamWriter) *AgentHandler {
+	return &AgentHandler{client: client, giteaClient: giteaClient, streamWriter: streamWriter}
 }
 
 func (h *AgentHandler) List(c *gin.Context) {
@@ -32,14 +42,21 @@ func (h *AgentHandler) List(c *gin.Context) {
 
 func (h *AgentHandler) Create(c *gin.Context) {
 	var body struct {
-		Name string            `json:"name" binding:"required"`
-		Spec agentapi.AgentSpec `json:"spec" binding:"required"`
+		Name string          `json:"name" binding:"required"`
+		Spec json.RawMessage `json:"spec" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, apiError("INVALID_REQUEST", err.Error(), ""))
 		return
 	}
-	agent, err := h.client.Create(c.Request.Context(), body.Name, body.Spec)
+
+	spec, err := unmarshalAgentSpec(body.Spec)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiError("INVALID_SPEC", err.Error(), ""))
+		return
+	}
+
+	agent, err := h.client.Create(c.Request.Context(), body.Name, spec)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, apiError("CREATE_FAILED", err.Error(), ""))
 		return
@@ -58,8 +75,9 @@ func (h *AgentHandler) Get(c *gin.Context) {
 }
 
 func (h *AgentHandler) Update(c *gin.Context) {
-	var spec agentapi.AgentSpec
-	if err := c.ShouldBindJSON(&spec); err != nil {
+	raw, _ := io.ReadAll(c.Request.Body)
+	spec, err := unmarshalAgentSpec(raw)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, apiError("INVALID_REQUEST", err.Error(), ""))
 		return
 	}
@@ -106,6 +124,18 @@ func (h *AgentHandler) Logs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": logs})
 }
 
+// ResetMemory clears the agent's workspace PVC and restarts the pod.
+// This is a high-risk operation that destroys all agent memory/state.
+func (h *AgentHandler) ResetMemory(c *gin.Context) {
+	name := c.Param("name")
+	if err := h.client.ResetMemory(c.Request.Context(), name); err != nil {
+		c.JSON(http.StatusInternalServerError,
+			apiError("RESET_MEMORY_FAILED", "failed to reset agent memory", err.Error()))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
 // RuntimeImages returns the list of available agent runtime images.
 // The default image comes from AGENT_RUNTIME_IMAGE env var.
 // Extra images can be added via AGENT_RUNTIME_IMAGES (comma-separated).
@@ -132,4 +162,181 @@ func (h *AgentHandler) RuntimeImages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": images})
+}
+
+// AssignIssue creates a Gitea issue and assigns it to the agent's Gitea user.
+// It then writes an issue.assigned_by_admin event to the events:gitea Redis stream.
+func (h *AgentHandler) AssignIssue(c *gin.Context) {
+	if h.giteaClient == nil {
+		c.JSON(http.StatusServiceUnavailable,
+			apiError("GITEA_UNAVAILABLE", "gitea client not configured", ""))
+		return
+	}
+
+	name := c.Param("name")
+	ctx := c.Request.Context()
+
+	var req struct {
+		Repo     string   `json:"repo" binding:"required"`
+		Title    string   `json:"title" binding:"required"`
+		Body     string   `json:"body" binding:"required"`
+		Labels   []string `json:"labels"`
+		Priority string   `json:"priority"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, apiError("INVALID_REQUEST", err.Error(), ""))
+		return
+	}
+
+	// Look up the Agent CR to find the Gitea username.
+	agent, err := h.client.Get(ctx, name)
+	if err != nil {
+		c.JSON(http.StatusNotFound,
+			apiError("AGENT_NOT_FOUND", "agent not found", fmt.Sprintf("agent %q not found", name)))
+		return
+	}
+
+	giteaUsername := resolveGiteaUsername(agent)
+	if giteaUsername == "" {
+		c.JSON(http.StatusBadRequest,
+			apiError("NO_GITEA_USER", "agent has no gitea user configured",
+				fmt.Sprintf("agent %q has no gitea username in spec or status", name)))
+		return
+	}
+
+	// Parse owner/repo.
+	parts := strings.SplitN(req.Repo, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		c.JSON(http.StatusBadRequest,
+			apiError("INVALID_REPO", "repo must be in owner/repo format", ""))
+		return
+	}
+
+	// Create the issue and assign to the agent.
+	result, err := h.giteaClient.CreateIssue(ctx, parts[0], parts[1], giteaclient.CreateIssueOpts{
+		Title:    req.Title,
+		Body:     req.Body,
+		Labels:   req.Labels,
+		Assignee: giteaUsername,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadGateway,
+			apiError("GITEA_CREATE_ISSUE_FAILED", "failed to create issue in gitea", err.Error()))
+		return
+	}
+
+	// Write event to Redis stream.
+	if h.streamWriter != nil {
+		payload, _ := json.Marshal(models.IssueAssignedByAdminPayload{
+			Repo:        req.Repo,
+			IssueNumber: result.Number,
+			IssueURL:    result.HTMLURL,
+			Title:       req.Title,
+			Labels:      req.Labels,
+			Priority:    req.Priority,
+			Assignee:    giteaUsername,
+		})
+
+		event := &models.Event{
+			EventID:   uuid.New().String(),
+			EventType: models.EventTypeIssueAssignedByAdmin,
+			Timestamp: time.Now().UTC(),
+			AgentID:   name,
+			AgentRole: agent.Spec.Role,
+			Payload:   payload,
+		}
+
+		// Fire-and-forget: log but don't fail the request if event write fails.
+		if err := h.streamWriter.Write(ctx, "events:gitea", event, redisclient.MaxLenGitea); err != nil {
+			c.Error(fmt.Errorf("write issue.assigned_by_admin event: %w", err)) //nolint:errcheck
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"issue_number": result.Number,
+			"issue_url":    result.HTMLURL,
+		},
+	})
+}
+
+// resolveGiteaUsername returns the Gitea username for an agent,
+// preferring status.giteaUser.username (actual provisioned name) over spec.gitea.username.
+// unmarshalAgentSpec converts the frontend DTO format into the CRD AgentSpec.
+// It handles the structural mismatch between the flat frontend fields and the
+// nested CRD types (resources, gitea).
+func unmarshalAgentSpec(raw json.RawMessage) (agentapi.AgentSpec, error) {
+	// First try direct CRD format (e.g. from kubectl or raw API calls).
+	var spec agentapi.AgentSpec
+	if err := json.Unmarshal(raw, &spec); err != nil {
+		return spec, fmt.Errorf("invalid spec: %w", err)
+	}
+
+	// Parse frontend-specific flat fields that don't match CRD structure.
+	var flat struct {
+		Resources *struct {
+			CPURequest    string `json:"cpuRequest"`
+			CPULimit      string `json:"cpuLimit"`
+			MemoryRequest string `json:"memoryRequest"`
+			MemoryLimit   string `json:"memoryLimit"`
+			WorkspaceSize string `json:"workspaceSize"`
+		} `json:"resources"`
+		Gitea *struct {
+			Repo        string   `json:"repo"`
+			Username    string   `json:"username"`
+			Email       string   `json:"email"`
+			Permissions []string `json:"permissions"`
+		} `json:"gitea"`
+	}
+	_ = json.Unmarshal(raw, &flat)
+
+	// Map flat resources → nested CRD format.
+	if flat.Resources != nil && flat.Resources.CPURequest != "" {
+		spec.Resources = &agentapi.AgentResources{
+			Requests: &agentapi.ResourceRequirements{
+				CPU:    flat.Resources.CPURequest,
+				Memory: flat.Resources.MemoryRequest,
+			},
+			Limits: &agentapi.ResourceRequirements{
+				CPU:    flat.Resources.CPULimit,
+				Memory: flat.Resources.MemoryLimit,
+			},
+		}
+		if flat.Resources.WorkspaceSize != "" {
+			if spec.Memory == nil {
+				spec.Memory = &agentapi.AgentMemory{}
+			}
+			spec.Memory.StorageSize = flat.Resources.WorkspaceSize
+		}
+	}
+
+	// Map flat gitea → CRD format (preserve permissions, add repo context).
+	if flat.Gitea != nil {
+		if spec.Gitea == nil {
+			spec.Gitea = &agentapi.AgentGitea{}
+		}
+		if flat.Gitea.Username != "" {
+			spec.Gitea.Username = flat.Gitea.Username
+		}
+		if flat.Gitea.Email != "" {
+			spec.Gitea.Email = flat.Gitea.Email
+		}
+		if len(flat.Gitea.Permissions) > 0 {
+			spec.Gitea.Permissions = flat.Gitea.Permissions
+		}
+	}
+
+	return spec, nil
+}
+
+func resolveGiteaUsername(agent *agentapi.Agent) string {
+	if agent.Status.GiteaUser != nil && agent.Status.GiteaUser.Username != "" {
+		return agent.Status.GiteaUser.Username
+	}
+	if agent.Spec.Gitea != nil && agent.Spec.Gitea.Username != "" {
+		return "agent-" + agent.Spec.Gitea.Username
+	}
+	// Default convention matches operator's giteaUsername() logic.
+	return "agent-" + agent.Name
 }

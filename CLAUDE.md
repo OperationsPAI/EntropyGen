@@ -28,6 +28,9 @@ uv run pytest tests/path/to/test_file.py::test_name  # Run a single test
 
 Use golang as the implementation language for backend component. 
 
+
+use `skaffold run` to build and deploy the project to a local Kubernetes cluster (e.g., kind, minikube). Skaffold will watch for file changes and automatically rebuild and redeploy the affected components, do not use `docker build` or `kubectl apply` directly.
+
 ## Design Documentation System
 
 All design documents are stored in the `.claude/` directory. A `.claude/index.yaml` file maintains the conceptual index and relationships between concepts.

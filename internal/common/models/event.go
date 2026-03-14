@@ -18,6 +18,7 @@ const (
 	EventTypeGiteaPRReview       = "gitea.pr_review"
 	EventTypeGiteaPRMerge        = "gitea.pr_merge"
 	EventTypeGiteaCIStatus       = "gitea.ci_status"
+	EventTypeIssueAssignedByAdmin = "issue.assigned_by_admin"
 	EventTypeOperatorAgentAlert  = "operator.agent_alert"
 	EventTypeK8SPodStatus        = "k8s.pod_status"
 )
@@ -85,6 +86,17 @@ type GiteaCIStatusPayload struct {
 	Status   string `json:"status"`
 	Commit   string `json:"commit"`
 	PRNumber int    `json:"pr_number,omitempty"`
+}
+
+// IssueAssignedByAdminPayload is the payload for issue.assigned_by_admin events
+type IssueAssignedByAdminPayload struct {
+	Repo        string   `json:"repo"`
+	IssueNumber int64    `json:"issue_number"`
+	IssueURL    string   `json:"issue_url"`
+	Title       string   `json:"title"`
+	Labels      []string `json:"labels,omitempty"`
+	Priority    string   `json:"priority,omitempty"`
+	Assignee    string   `json:"assignee"`
 }
 
 // K8SAgentAlertPayload is the payload for operator.agent_alert events

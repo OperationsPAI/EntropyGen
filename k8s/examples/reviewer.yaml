@@ -40,6 +40,7 @@ spec:
     model: gpt-4o
     temperature: 0.3
     maxTokens: 4096
+  runtimeImage: ""
   gitea:
     username: reviewer-1
     email: reviewer-1@agents.devops.local

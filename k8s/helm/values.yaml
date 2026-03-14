@@ -83,6 +83,11 @@ litellm:
   image: litellm/litellm:v1.82.0-stable
   port: 4000
   masterKey: "sk-litellm-master-key"
+  postgres:
+    host: litellm-postgres.aidevops.svc
+    port: 5432
+    database: litellm
+    user: litellm
   resources:
     requests:
       cpu: "100m"

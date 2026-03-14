@@ -328,6 +328,14 @@ export default function NewAgent() {
             </option>
           ))}
         </Select>
+        {!modelsLoading && models.length === 0 && (
+          <span className={styles.helperText}>
+            No models available.{' '}
+            <a className={styles.infoLink} href="/llm" target="_blank" rel="noopener noreferrer">
+              Go to LLM Models to add one &rarr;
+            </a>
+          </span>
+        )}
         <div className={styles.formGrid2}>
           <div>
             <Input

@@ -87,6 +87,7 @@ spec:
         {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
           (dict "name" "redis"      "addr" .Values.redis.addr)
           (dict "name" "clickhouse" "addr" .Values.clickhouse.addr)
+          (dict "name" "gitea"      "addr" .Values.gitea.addr)
         )) | nindent 8 }}
       containers:
       - name: backend
@@ -127,6 +128,13 @@ spec:
           value: {{ .Values.agentRuntimeImage }}
         - name: DLQ_DIR
           value: /var/lib/backend/dlq
+        - name: GITEA_URL
+          value: {{ .Values.gitea.addr }}
+        - name: GITEA_ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.gitea.adminTokenSecretRef }}
+              key: token
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
         volumeMounts:

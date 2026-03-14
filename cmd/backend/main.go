@@ -22,6 +22,7 @@ import (
 	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
 	"github.com/entropyGen/entropyGen/internal/backend/wspush"
 	"github.com/entropyGen/entropyGen/internal/common/chclient"
+	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
 	"github.com/entropyGen/entropyGen/internal/common/redisclient"
 )
 
@@ -39,6 +40,22 @@ func main() {
 	jwtSecret := []byte(mustEnv("JWT_SECRET"))
 	agentNS := envOr("AGENT_NAMESPACE", "agents")
 	dlqDir := envOr("DLQ_DIR", "/var/lib/backend/dlq")
+	giteaURL := envOr("GITEA_URL", "")
+	giteaToken := envOr("GITEA_ADMIN_TOKEN", "")
+
+	// Gitea (optional: assign-issue endpoint requires it)
+	var giteaCli *giteaclient.Client
+	if giteaURL != "" && giteaToken != "" {
+		var err error
+		giteaCli, err = giteaclient.New(giteaURL, giteaToken)
+		if err != nil {
+			slog.Error("gitea client init failed", "err", err)
+			os.Exit(1)
+		}
+		slog.Info("gitea client initialized", "url", giteaURL)
+	} else {
+		slog.Warn("GITEA_URL or GITEA_ADMIN_TOKEN not set, assign-issue endpoint disabled")
+	}
 
 	// ClickHouse
 	ch, err := chclient.New(chAddr, chDB, chUser, chPass)
@@ -78,7 +95,7 @@ func main() {
 			k8sClientset = cs
 		}
 		if k8sClient != nil {
-			agentCRClient = k8sclient.NewAgentClientWithKube(k8sClient, k8sClientset, agentNS)
+			agentCRClient = k8sclient.NewAgentClientWithKube(k8sClient, k8sClientset, k8sCfg, agentNS)
 		}
 	}
 	if agentCRClient == nil {
@@ -112,6 +129,8 @@ func main() {
 		RoleClient:        roleClient,
 		CHClient:          ch,
 		Pusher:            pusher,
+		GiteaClient:       giteaCli,
+		StreamWriter:      streamWriter,
 	})
 	slog.Info("backend starting", "addr", listenAddr)
 	if err := router.Run(listenAddr); err != nil {

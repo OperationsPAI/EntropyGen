@@ -77,7 +77,6 @@ concepts:
       - agent-runtime
     plans:
       - "plans/2026-03-11-phase6-frontend.md"
-      - "plans/2026-03-12-phase6-role-management.md"
     tasks:
       - "tasks/2026-03-12-frontend-remaining-issues.md"
 

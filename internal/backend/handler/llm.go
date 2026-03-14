@@ -2,6 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,31 +30,93 @@ func NewLLMHandler(litellmAddr, masterKey string) *LLMHandler {
 func (h *LLMHandler) ListModels(c *gin.Context) { h.proxy(c, "GET", "/model/info", nil) }
 func (h *LLMHandler) Health(c *gin.Context)      { h.proxy(c, "GET", "/health", nil) }
 
+// Chat proxies a chat completion request to LiteLLM for end-to-end testing.
+func (h *LLMHandler) Chat(c *gin.Context) {
+	body, _ := io.ReadAll(c.Request.Body)
+	h.proxy(c, "POST", "/chat/completions", body)
+}
+
+// createModelRequest is the frontend DTO for adding a model.
+type createModelRequest struct {
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+	APIKey   string `json:"apiKey"`
+	BaseURL  string `json:"baseUrl,omitempty"`
+	RPM      int    `json:"rpm"`
+	TPM      int    `json:"tpm"`
+}
+
 func (h *LLMHandler) CreateModel(c *gin.Context) {
 	body, _ := io.ReadAll(c.Request.Body)
-	h.proxy(c, "POST", "/model/new", body)
+
+	var req createModelRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		// Not our DTO format — pass through as-is (might be raw LiteLLM format).
+		h.proxy(c, "POST", "/model/new", body)
+		return
+	}
+
+	// Build the model identifier: provider/name (e.g. "openai/gpt-4o").
+	modelID := req.Name
+	if req.Provider != "" {
+		modelID = req.Provider + "/" + req.Name
+	}
+
+	litellmPayload := map[string]any{
+		"model_name": req.Name,
+		"litellm_params": map[string]any{
+			"model":   modelID,
+			"api_key": req.APIKey,
+		},
+		"model_info": map[string]any{
+			"rpm": req.RPM,
+			"tpm": req.TPM,
+		},
+	}
+
+	if req.BaseURL != "" {
+		litellmPayload["litellm_params"].(map[string]any)["api_base"] = req.BaseURL
+	}
+
+	out, _ := json.Marshal(litellmPayload)
+	h.proxy(c, "POST", "/model/new", out)
 }
 
-func (h *LLMHandler) UpdateModel(c *gin.Context) {
-	body, _ := io.ReadAll(c.Request.Body)
-	h.proxy(c, "POST", "/model/update", body)
+// HealthModel checks a single model by sending a minimal chat completion.
+func (h *LLMHandler) HealthModel(c *gin.Context) {
+	model := c.Param("id")
+	payload, _ := json.Marshal(map[string]any{
+		"model":      model,
+		"messages":   []map[string]string{{"role": "user", "content": "hi"}},
+		"max_tokens": 1,
+	})
+
+	start := time.Now()
+	resp, err := h.doLiteLLM(c.Request.Context(), "POST", "/chat/completions", payload)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"status": "unhealthy", "error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode >= 400 {
+		c.JSON(http.StatusOK, gin.H{"status": "unhealthy", "latency_ms": latency, "error": string(body)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "healthy", "latency_ms": latency})
 }
 
-func (h *LLMHandler) DeleteModel(c *gin.Context) {
-	body, _ := io.ReadAll(c.Request.Body)
-	h.proxy(c, "POST", "/model/delete", body)
-}
-
-func (h *LLMHandler) proxy(c *gin.Context, method, path string, body []byte) {
-	url := h.litellmAddr + path
+// doLiteLLM sends a request to LiteLLM and returns the raw response.
+func (h *LLMHandler) doLiteLLM(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
 	var bodyReader io.Reader
 	if len(body) > 0 {
 		bodyReader = bytes.NewReader(body)
 	}
-	req, err := http.NewRequestWithContext(c.Request.Context(), method, url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, h.litellmAddr+path, bodyReader)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, apiError("PROXY_ERROR", err.Error(), ""))
-		return
+		return nil, err
 	}
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
@@ -60,7 +124,27 @@ func (h *LLMHandler) proxy(c *gin.Context, method, path string, body []byte) {
 	if h.masterKey != "" {
 		req.Header.Set("Authorization", "Bearer "+h.masterKey)
 	}
-	resp, err := h.httpClient.Do(req)
+	return h.httpClient.Do(req)
+}
+
+func (h *LLMHandler) UpdateModel(c *gin.Context) {
+	body, _ := io.ReadAll(c.Request.Body)
+	h.proxy(c, "POST", "/model/update", body)
+}
+
+// deleteModelRequest is used to build the LiteLLM /model/delete payload.
+type deleteModelRequest struct {
+	ID string `json:"id"`
+}
+
+func (h *LLMHandler) DeleteModel(c *gin.Context) {
+	id := c.Param("id")
+	payload, _ := json.Marshal(deleteModelRequest{ID: id})
+	h.proxy(c, "POST", "/model/delete", payload)
+}
+
+func (h *LLMHandler) proxy(c *gin.Context, method, path string, body []byte) {
+	resp, err := h.doLiteLLM(c.Request.Context(), method, path, body)
 	if err != nil {
 		c.JSON(http.StatusBadGateway,
 			apiError("LITELLM_UNAVAILABLE", fmt.Sprintf("litellm unreachable: %v", err), ""))

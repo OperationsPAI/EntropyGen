@@ -72,6 +72,90 @@ func (c *Client) DeleteUser(_ context.Context, username string) error {
 	return nil
 }
 
+// IssueResult holds the data returned after creating an issue.
+type IssueResult struct {
+	Number  int64  // issue index (e.g. 17)
+	HTMLURL string // full URL to the issue page
+}
+
+// CreateIssue creates a new issue in the given repository and assigns it to the
+// specified user. Labels are resolved from names to IDs automatically.
+// owner is the repository organization/user, repo is the repository name.
+func (c *Client) CreateIssue(_ context.Context, owner, repo string, opts CreateIssueOpts) (*IssueResult, error) {
+	createOpt := sdk.CreateIssueOption{
+		Title:     opts.Title,
+		Body:      opts.Body,
+		Assignees: []string{opts.Assignee},
+	}
+
+	if len(opts.Labels) > 0 {
+		labelIDs, err := c.resolveLabelIDs(owner, repo, opts.Labels)
+		if err != nil {
+			return nil, err
+		}
+		createOpt.Labels = labelIDs
+	}
+
+	issue, _, err := c.inner.CreateIssue(owner, repo, createOpt)
+	if err != nil {
+		return nil, fmt.Errorf("create issue in %s/%s: %w", owner, repo, err)
+	}
+
+	return &IssueResult{
+		Number:  issue.Index,
+		HTMLURL: issue.HTMLURL,
+	}, nil
+}
+
+// CreateIssueOpts holds parameters for CreateIssue.
+type CreateIssueOpts struct {
+	Title    string
+	Body     string
+	Labels   []string
+	Assignee string
+}
+
+// resolveLabelIDs maps label names to their IDs for the given repository.
+func (c *Client) resolveLabelIDs(owner, repo string, names []string) ([]int64, error) {
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[n] = true
+	}
+
+	const pageSize = 50
+	var allLabels []*sdk.Label
+	page := 1
+	for {
+		labels, _, err := c.inner.ListRepoLabels(owner, repo, sdk.ListLabelsOptions{
+			ListOptions: sdk.ListOptions{Page: page, PageSize: pageSize},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list labels for %s/%s: %w", owner, repo, err)
+		}
+		allLabels = append(allLabels, labels...)
+		if len(labels) < pageSize {
+			break
+		}
+		page++
+	}
+
+	ids := make([]int64, 0, len(names))
+	found := make(map[string]bool, len(names))
+	for _, l := range allLabels {
+		if nameSet[l.Name] {
+			ids = append(ids, l.ID)
+			found[l.Name] = true
+		}
+	}
+
+	for _, name := range names {
+		if !found[name] {
+			return nil, fmt.Errorf("label %q not found in %s/%s", name, owner, repo)
+		}
+	}
+	return ids, nil
+}
+
 // Version returns the Gitea server version (useful for health checks).
 func (c *Client) Version(_ context.Context) (string, error) {
 	ver, _, err := c.inner.ServerVersion()

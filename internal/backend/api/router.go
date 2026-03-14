@@ -7,6 +7,8 @@ import (
 	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
 	"github.com/entropyGen/entropyGen/internal/backend/wspush"
 	"github.com/entropyGen/entropyGen/internal/common/chclient"
+	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
+	"github.com/entropyGen/entropyGen/internal/common/redisclient"
 )
 
 // Config holds all dependencies for the router.
@@ -21,6 +23,8 @@ type Config struct {
 	RoleClient        *k8sclient.RoleClient
 	CHClient          *chclient.Client
 	Pusher            *wspush.Pusher
+	GiteaClient       *giteaclient.Client
+	StreamWriter      *redisclient.StreamWriter
 }
 
 // NewRouter creates and configures the Gin router with all API routes.
@@ -29,7 +33,7 @@ func NewRouter(cfg Config) *gin.Engine {
 	r.Use(gin.Recovery())
 
 	authH := handler.NewAuthHandler(cfg.AdminUsername, cfg.AdminPasswordHash, cfg.JWTSecret)
-	agentH := handler.NewAgentHandler(cfg.AgentClient)
+	agentH := handler.NewAgentHandler(cfg.AgentClient, cfg.GiteaClient, cfg.StreamWriter)
 	roleH := handler.NewRoleHandler(cfg.RoleClient)
 	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr, cfg.LiteLLMMasterKey)
 	auditH := handler.NewAuditHandler(cfg.CHClient)
@@ -55,6 +59,8 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.DELETE("/agents/:name", agentH.Delete)
 	api.POST("/agents/:name/pause", agentH.Pause)
 	api.POST("/agents/:name/resume", agentH.Resume)
+	api.POST("/agents/:name/reset-memory", agentH.ResetMemory)
+	api.POST("/agents/:name/assign-issue", agentH.AssignIssue)
 	api.GET("/agents/:name/logs", agentH.Logs)
 
 	// Role management
@@ -75,6 +81,8 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.PUT("/llm/models/:id", llmH.UpdateModel)
 	api.DELETE("/llm/models/:id", llmH.DeleteModel)
 	api.GET("/llm/health", llmH.Health)
+	api.POST("/llm/health/:id", llmH.HealthModel)
+	api.POST("/llm/chat", llmH.Chat)
 
 	// Audit
 	api.GET("/audit/traces", auditH.ListTraces)

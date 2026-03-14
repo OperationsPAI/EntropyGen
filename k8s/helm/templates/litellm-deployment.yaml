@@ -14,6 +14,8 @@ data:
   config.yaml: |
     general_settings:
       master_key: {{ .Values.litellm.masterKey | quote }}
+      database_url: "os.environ/DATABASE_URL"
+      store_model_in_db: true
     model_list: []
 ---
 apiVersion: apps/v1
@@ -36,6 +38,10 @@ spec:
         app.kubernetes.io/component: litellm
         {{- include "aidevops-platform.selectorLabels" . | nindent 8 }}
     spec:
+      initContainers:
+        {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
+          (dict "name" "litellm-postgres" "addr" (printf "%s:%d" .Values.litellm.postgres.host (.Values.litellm.postgres.port | int)))
+        )) | nindent 8 }}
       containers:
       - name: litellm
         image: {{ .Values.litellm.image }}
@@ -47,6 +53,15 @@ spec:
         env:
         - name: LITELLM_MASTER_KEY
           value: {{ .Values.litellm.masterKey | quote }}
+        - name: LITELLM_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: litellm-postgres-secret
+              key: password
+        - name: DATABASE_URL
+          value: "postgresql://{{ .Values.litellm.postgres.user }}:$(LITELLM_PG_PASSWORD)@{{ .Values.litellm.postgres.host }}:{{ .Values.litellm.postgres.port }}/{{ .Values.litellm.postgres.database }}"
+        - name: STORE_MODEL_IN_DB
+          value: "True"
         resources:
           {{- toYaml .Values.litellm.resources | nindent 10 }}
         volumeMounts:
@@ -57,16 +72,16 @@ spec:
           httpGet:
             path: /health/liveliness
             port: {{ .Values.litellm.port }}
-          initialDelaySeconds: 15
+          initialDelaySeconds: 30
           periodSeconds: 30
-          failureThreshold: 3
+          failureThreshold: 5
         readinessProbe:
           httpGet:
             path: /health/readiness
             port: {{ .Values.litellm.port }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 10
-          failureThreshold: 2
+          failureThreshold: 5
       volumes:
       - name: config
         configMap:

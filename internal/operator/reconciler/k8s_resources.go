@@ -405,12 +405,23 @@ func (r *ResourceReconciler) EnsureServiceAccount(ctx context.Context, agent *ag
 	return r.Client.Create(ctx, newSA)
 }
 
-// EnsureRoleBinding creates the RoleBinding for the agent.
-// SRE agents get an additional RoleBinding in app-staging namespace.
+// EnsureRoleBinding creates RoleBindings for the agent.
+//   - Home namespace: binds to kubernetes.rbacRole (default: "agent-readonly-role" ClusterRole)
+//   - Extra namespaces: for each entry in kubernetes.namespaceAccess, creates a
+//     RoleBinding in that namespace (skipped if namespace doesn't exist yet).
+//     The rbacRole must exist as a Role in the target namespace.
 func (r *ResourceReconciler) EnsureRoleBinding(ctx context.Context, agent *agentapi.Agent) error {
 	saName := fmt.Sprintf("agent-%s", agent.Name)
 	rbName := fmt.Sprintf("agent-%s", agent.Name)
 
+	// Determine the RBAC role to bind (CRD field → default).
+	roleName := "agent-readonly-role"
+	roleKind := "ClusterRole"
+	if agent.Spec.Kubernetes != nil && agent.Spec.Kubernetes.RBACRole != "" {
+		roleName = agent.Spec.Kubernetes.RBACRole
+	}
+
+	// Home namespace RoleBinding (ClusterRole binding).
 	rb := &rbacv1.RoleBinding{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: rbName, Namespace: agent.Namespace}, rb)
 	if errors.IsNotFound(err) {
@@ -418,8 +429,8 @@ func (r *ResourceReconciler) EnsureRoleBinding(ctx context.Context, agent *agent
 			ObjectMeta: metav1.ObjectMeta{Name: rbName, Namespace: agent.Namespace},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     "ClusterRole",
-				Name:     "agent-readonly-role",
+				Kind:     roleKind,
+				Name:     roleName,
 			},
 			Subjects: []rbacv1.Subject{{
 				Kind:      "ServiceAccount",
@@ -435,18 +446,28 @@ func (r *ResourceReconciler) EnsureRoleBinding(ctx context.Context, agent *agent
 		return err
 	}
 
-	// SRE: extra RoleBinding in app-staging
-	if agent.Spec.Role == "sre" {
-		sreRBName := fmt.Sprintf("agent-%s-app-staging", agent.Name)
-		sreRB := &rbacv1.RoleBinding{}
-		err := r.Client.Get(ctx, types.NamespacedName{Name: sreRBName, Namespace: "app-staging"}, sreRB)
-		if errors.IsNotFound(err) {
-			newSreRB := &rbacv1.RoleBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: sreRBName, Namespace: "app-staging"},
+	// Extra namespace RoleBindings (driven by kubernetes.namespaceAccess).
+	if agent.Spec.Kubernetes == nil {
+		return nil
+	}
+	for _, ns := range agent.Spec.Kubernetes.NamespaceAccess {
+		// Skip if target namespace doesn't exist yet.
+		nsObj := &corev1.Namespace{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: ns}, nsObj); errors.IsNotFound(err) {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		extraRBName := fmt.Sprintf("agent-%s-%s", agent.Name, ns)
+		extraRB := &rbacv1.RoleBinding{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: extraRBName, Namespace: ns}, extraRB); errors.IsNotFound(err) {
+			newRB := &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: extraRBName, Namespace: ns},
 				RoleRef: rbacv1.RoleRef{
 					APIGroup: "rbac.authorization.k8s.io",
 					Kind:     "Role",
-					Name:     "sre-agent-role",
+					Name:     roleName,
 				},
 				Subjects: []rbacv1.Subject{{
 					Kind:      "ServiceAccount",
@@ -454,9 +475,12 @@ func (r *ResourceReconciler) EnsureRoleBinding(ctx context.Context, agent *agent
 					Namespace: agent.Namespace,
 				}},
 			}
-			return r.Client.Create(ctx, newSreRB)
+			if err := r.Client.Create(ctx, newRB); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
 		}
-		return err
 	}
 	return nil
 }

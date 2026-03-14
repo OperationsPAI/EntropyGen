@@ -53,6 +53,7 @@ func IssueAgentJWT(agentID, agentRole string, signingSecret []byte) (string, err
 		"agent_id":   agentID,
 		"agent_role": agentRole,
 		"iat":        time.Now().Unix(),
+		"exp":        int64(0), // never expires
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(signingSecret)

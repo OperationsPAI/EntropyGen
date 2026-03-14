@@ -40,8 +40,11 @@ func TestIssueAgentJWT(t *testing.T) {
 	if claims["sub"] != "agent-developer-1" {
 		t.Errorf("sub: got %v, want agent-developer-1", claims["sub"])
 	}
-	// No exp field (never expires)
-	if _, hasExp := claims["exp"]; hasExp {
-		t.Error("token should not have exp claim")
+	// exp=0 means never expires (design spec: operator.md §3)
+	expVal, hasExp := claims["exp"]
+	if !hasExp {
+		t.Error("token should have exp claim set to 0")
+	} else if expVal != float64(0) {
+		t.Errorf("exp: got %v, want 0", expVal)
 	}
 }
