@@ -49,23 +49,23 @@ export default function SessionHistory({
             const isActive = activeSessionId === session.id
             return (
               <div
-                key={session.id}
+                key={session.id || session.filename}
                 className={`${styles.sessionItem} ${isActive ? styles.sessionItemActive : ''}`}
-                onClick={() => onSessionSelect(session.active ? null : session.id)}
+                onClick={() => onSessionSelect(session.is_current ? null : (session.id || session.filename))}
               >
-                <span className={styles.sessionId}>{session.id.slice(0, 8)}</span>
+                <span className={styles.sessionId}>{(session.id || session.filename).slice(0, 8)}</span>
                 <span className={styles.sessionTime}>
-                  {formatSessionTime(session.startTime)}
+                  {formatSessionTime(session.started_at)}
                 </span>
                 <span className={styles.sessionMsgCount}>
-                  {session.messageCount} messages
+                  {session.message_count} messages
                 </span>
                 <span
                   className={`${styles.sessionStatus} ${
-                    session.active ? styles.sessionStatusActive : styles.sessionStatusDone
+                    session.is_current ? styles.sessionStatusActive : styles.sessionStatusDone
                   }`}
                 >
-                  {session.active ? 'running' : 'completed'}
+                  {session.is_current ? 'running' : 'completed'}
                 </span>
               </div>
             )
@@ -77,6 +77,7 @@ export default function SessionHistory({
 }
 
 function formatSessionTime(iso: string): string {
+  if (!iso) return '—'
   const d = new Date(iso)
   const now = new Date()
   const isToday = d.toDateString() === now.toDateString()

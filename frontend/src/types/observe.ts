@@ -81,16 +81,16 @@ export type JsonlMessage =
 
 export interface SessionInfo {
   id: string
-  startTime: string
-  messageCount: number
-  active: boolean
+  started_at: string
+  message_count: number
+  is_current: boolean
+  filename: string
 }
 
 export interface FileTreeNode {
   name: string
-  path: string
-  isDir: boolean
-  status?: 'modified' | 'added' | 'deleted' | 'untracked'
+  type: 'file' | 'dir'
+  modified: boolean
   children?: FileTreeNode[]
 }
 

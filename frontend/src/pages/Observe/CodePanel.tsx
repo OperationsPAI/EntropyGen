@@ -189,18 +189,19 @@ interface FlatFile {
   depth: number
 }
 
-function flattenTree(nodes: FileTreeNode[], depth = 0): FlatFile[] {
+function flattenTree(nodes: FileTreeNode[], depth = 0, parentPath = ''): FlatFile[] {
   const result: FlatFile[] = []
   for (const node of nodes) {
+    const path = parentPath ? `${parentPath}/${node.name}` : node.name
     result.push({
       name: node.name,
-      path: node.path,
-      isDir: node.isDir,
-      status: node.status,
+      path,
+      isDir: node.type === 'dir',
+      status: node.modified ? 'modified' : undefined,
       depth,
     })
     if (node.children) {
-      result.push(...flattenTree(node.children, depth + 1))
+      result.push(...flattenTree(node.children, depth + 1, path))
     }
   }
   return result
