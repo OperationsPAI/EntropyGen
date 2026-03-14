@@ -19,7 +19,7 @@ import (
 func main() {
 	port := envOr("OBSERVER_PORT", "8081")
 	openClawHome := expandHome(envOr("OPENCLAW_HOME", "~/.openclaw"))
-	completionsDir := envOr("COMPLETIONS_DIR", filepath.Join(openClawHome, "completions"))
+	completionsDir := envOr("COMPLETIONS_DIR", filepath.Join(openClawHome, "agents", "main", "sessions"))
 	workspaceDir := envOr("WORKSPACE_DIR", filepath.Join(openClawHome, "workspace"))
 
 	// Ensure directories exist

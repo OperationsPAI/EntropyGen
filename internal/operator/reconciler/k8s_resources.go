@@ -380,6 +380,31 @@ func (r *ResourceReconciler) EnsurePVC(ctx context.Context, agent *agentapi.Agen
 	return r.Client.Create(ctx, newPVC)
 }
 
+// EnsureService creates a ClusterIP Service for the agent pod so the backend
+// can proxy observe requests to the observer sidecar on port 8081.
+func (r *ResourceReconciler) EnsureService(ctx context.Context, agent *agentapi.Agent) error {
+	name := fmt.Sprintf("agent-%s", agent.Name)
+	svc := &corev1.Service{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: agent.Namespace}, svc)
+	if err == nil {
+		return nil
+	}
+	if !errors.IsNotFound(err) {
+		return err
+	}
+	newSvc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: agent.Namespace},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{"app": name},
+			Ports: []corev1.ServicePort{
+				{Name: "observe", Port: 8081, Protocol: corev1.ProtocolTCP},
+			},
+		},
+	}
+	_ = controllerutil.SetControllerReference(agent, newSvc, r.Scheme)
+	return r.Client.Create(ctx, newSvc)
+}
+
 // EnsureServiceAccount creates the agent ServiceAccount.
 func (r *ResourceReconciler) EnsureServiceAccount(ctx context.Context, agent *agentapi.Agent) error {
 	name := fmt.Sprintf("agent-%s", agent.Name)

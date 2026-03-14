@@ -55,6 +55,7 @@ func (r *ResourceReconciler) ReconcileAll(ctx context.Context, agent *agentapi.A
 		{"skills-configmap", r.EnsureSkillsConfigMap},
 		{"role-files-configmap", r.EnsureRoleFilesConfigMap},
 		{"pvc", r.EnsurePVC},
+		{"service", r.EnsureService},
 		{"serviceaccount", r.EnsureServiceAccount},
 		{"rolebinding", r.EnsureRoleBinding},
 		{"deployment", r.EnsureDeployment},
