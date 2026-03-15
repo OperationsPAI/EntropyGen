@@ -29,13 +29,7 @@ spec:
     - gitea-api
   cron:
     schedule: "*/5 * * * *"
-    prompt: |
-      Check for open Pull Requests awaiting review.
-      1. Query all open PRs that have not been reviewed yet
-      2. For each PR, review the diff carefully
-      3. Leave inline comments for specific issues
-      4. Submit an overall review: Approve or Request Changes
-      5. If requesting changes, provide clear guidance on what needs to be fixed
+    # Cron prompt is now defined in the Role's PROMPT.md file
   llm:
     model: gpt-4o
     temperature: 0.3

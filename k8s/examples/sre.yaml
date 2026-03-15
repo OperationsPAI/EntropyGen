@@ -30,13 +30,7 @@ spec:
     - kubectl-ops
   cron:
     schedule: "*/10 * * * *"
-    prompt: |
-      Perform operational health check and deployment tasks.
-      1. Check pod health in app-staging namespace (kubectl get pods)
-      2. Look for recently merged PRs that haven't been deployed yet
-      3. If a new version is ready, deploy it to app-staging
-      4. Verify deployment health after any changes
-      5. Create Gitea Issues for any infrastructure problems found
+    # Cron prompt is now defined in the Role's PROMPT.md file
   llm:
     model: gpt-4o
     temperature: 0.3

@@ -24,12 +24,7 @@ spec:
     - gitea-api
   cron:
     schedule: "*/30 * * * *"
-    prompt: |
-      Perform a health check on all repositories.
-      1. Check for failing CI pipelines
-      2. Look for open issues without assignees older than 24 hours
-      3. Scan for any recently merged PRs without associated tests
-      Create Gitea Issues for any problems found. Skip if no issues detected.
+    # Cron prompt is now defined in the Role's PROMPT.md file
   llm:
     model: gpt-4o
     temperature: 0.3

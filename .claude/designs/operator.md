@@ -27,8 +27,9 @@ Operator (`devops-operator`) 是平台的 K8S 控制面核心，负责将 `agent
 
 | 变更类型 | Reconcile 行为 | 是否重启 Pod |
 |----------|---------------|-------------|
-| `spec.soul` / Role ConfigMap 变更 | 更新 ConfigMap（SOUL.md / SKILL.md），触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
-| `spec.cron.schedule` | 更新 ConfigMap（cron 配置），触发 Pod 滚动重启 | **是**（Cron 在 OpenClaw 启动时注册） |
+| Role ConfigMap 变更（SOUL.md / AGENTS.md / Skills） | 自动触发使用该 Role 的所有 Agent reconcile，更新 ConfigMap，触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
+| Role ConfigMap 变更（PROMPT.md） | 自动触发 reconcile，更新 ConfigMap + 同步 cron scheduler 的 prompt | **是**（config hash 变化触发重启） |
+| `spec.cron.schedule` | 更新 cron scheduler | **否**（通过 scheduler.Sync 动态更新） |
 | `spec.llm.model` | 更新 ConfigMap（openclaw.json 中 model 字段），触发 Pod 滚动重启 | **是**（模型配置在启动时加载） |
 | `spec.resources` | 更新 Deployment 资源 limits/requests | 否（K8S 原地更新） |
 | `spec.paused = true` | Scale Deployment replicas = 0 | 否（优雅停机） |
@@ -69,18 +70,18 @@ Operator Reconcile 新 Agent 时，按以下顺序创建资源（每步失败则
   - AGENTS.md / agents.md → roleData.AgentsMD
   - skills__* → roleData.Skills
   - 其他文件 → roleData.ExtraFiles
-  ConfigMap 不存在时优雅降级（继续使用 spec 字段和模板）
+  ConfigMap 不存在时优雅降级（Role 是唯一的内容来源，不再回退到 spec 字段或模板）
 
 步骤 4: 创建主 ConfigMap（agent-{name}-config）
-  写入 openclaw.json / SOUL.md / AGENTS.md / cron-config.json
-  优先级链：
-  - SOUL.md: roleData > spec.soul > 空
-  - AGENTS.md: roleData > buildAgentsMD() 模板
-  - cron prompt: spec.cron.prompt > roleData.Prompt > 空
+  写入 openclaw.json / SOUL.md / AGENTS.md / PROMPT.md
+  所有内容直接来自 Role ConfigMap，不做优先级合并：
+  - SOUL.md: roleData.Soul（Role 是唯一来源）
+  - AGENTS.md: roleData.AgentsMD（Role 是唯一来源）
+  - PROMPT.md: roleData.Prompt（Role 是唯一来源，cron prompt 也从此读取）
 
 步骤 5: 创建 Skills ConfigMap（agent-{name}-skills）
-  内置 skills（按 spec.role 选择）+ Role ConfigMap 中的自定义 skills
-  合并规则：内置 skill 不被覆盖
+  直接使用 Role ConfigMap 中的 skills__* 条目
+  （不再有 Operator 内置 embed 的 builtin skills，所有 skills 在 Role 创建时由 Backend 注入）
 
 步骤 6: 创建 Role Files ConfigMap（agent-{name}-role-files）
   仅当 roleData.ExtraFiles 非空时创建
@@ -170,15 +171,12 @@ agent CR: developer-1
 │
 ├── ConfigMap: agent-developer-1-config
 │   ├── openclaw.json   ← OpenClaw 主配置（model、gateway URL 等）
-│   ├── SOUL.md         ← Role ConfigMap > spec.soul > 空
-│   ├── AGENTS.md       ← Role ConfigMap > 角色模板
-│   └── cron-config.json ← spec.cron + Role PROMPT.md fallback
+│   ├── SOUL.md         ← 来自 Role ConfigMap
+│   ├── AGENTS.md       ← 来自 Role ConfigMap
+│   └── PROMPT.md       ← 来自 Role ConfigMap（cron prompt 也从此读取）
 │
 ├── ConfigMap: agent-developer-1-skills
-│   ├── gitea-api/SKILL.md    ← 所有角色均有（内置）
-│   ├── git-ops/SKILL.md      ← developer / sre 角色（内置）
-│   ├── kubectl-ops/SKILL.md  ← 仅 sre 角色（内置）
-│   └── {custom}/SKILL.md     ← Role ConfigMap 中的自定义 skills（不覆盖内置）
+│   └── {skill}/SKILL.md  ← 来自 Role ConfigMap（Role 创建时由 Backend 注入 builtin skills）
 │
 ├── ConfigMap: agent-developer-1-role-files（可选）
 │   └── {filename}     ← Role ConfigMap 中的非 well-known 文件
@@ -208,10 +206,8 @@ agent CR: developer-1
 | `openclaw.json` | `/agent/config/openclaw.json` → `~/.openclaw/openclaw.json` |
 | `SOUL.md` | `/agent/config/SOUL.md` → `~/.openclaw/SOUL.md` |
 | `AGENTS.md` | `/agent/config/AGENTS.md` → `~/.openclaw/AGENTS.md` |
-| `cron-config.json` | `/agent/config/cron-config.json` → `~/.openclaw/cron-config.json` |
-| `gitea-api/SKILL.md` | `/agent/skills/gitea-api/SKILL.md` → `~/.openclaw/skills/gitea-api/SKILL.md` |
-| `git-ops/SKILL.md` | `/agent/skills/git-ops/SKILL.md` → `~/.openclaw/skills/git-ops/SKILL.md` |
-| `kubectl-ops/SKILL.md` | `/agent/skills/kubectl-ops/SKILL.md` → `~/.openclaw/skills/kubectl-ops/SKILL.md` |
+| `PROMPT.md` | `/agent/config/PROMPT.md` → `~/.openclaw/PROMPT.md` |
+| `{skill}/SKILL.md` | `/agent/skills/{skill}/SKILL.md` → `~/.openclaw/skills/{skill}/SKILL.md` |
 | Role extra files | `/agent/role/*` → `~/.openclaw/*`（由 entrypoint.sh 复制） |
 
 > 注：ConfigMap 挂载到 `/agent/config` 和 `/agent/skills` 为只读卷，entrypoint.sh 在启动时复制到可写的 `~/.openclaw/` 目录。

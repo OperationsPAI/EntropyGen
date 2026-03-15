@@ -28,13 +28,7 @@ spec:
     - git-ops
   cron:
     schedule: "*/5 * * * *"
-    prompt: |
-      Check the Gitea Issue Board for unassigned open issues.
-      1. Query open issues with no assignee, sorted by priority labels
-      2. Pick the highest priority issue you can handle
-      3. Assign yourself and comment "I'm working on this"
-      4. Create a feature branch and start implementation
-      If no suitable issues are found, check your open PRs for review feedback.
+    # Cron prompt is now defined in the Role's PROMPT.md file
   llm:
     model: gpt-4o
     temperature: 0.7
