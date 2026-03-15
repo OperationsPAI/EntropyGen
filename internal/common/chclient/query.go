@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+// agentOnlyFilter is a WHERE clause fragment that restricts results to real agent pods,
+// excluding infrastructure components (gateway, operator, backend, frontend, etc.).
+const agentOnlyFilter = `agent_id LIKE 'agent-%'
+  AND agent_id NOT IN ('agent-gateway')`
+
 // HeartbeatTimeout contains an agent with a missing or stale heartbeat.
 type HeartbeatTimeout struct {
 	AgentID       string    `ch:"agent_id"`
@@ -157,9 +162,10 @@ SELECT agent_id,
        if(model = '', 'unknown', model) AS model
 FROM audit.traces
 WHERE created_at >= today() - INTERVAL ? DAY
+  AND %s
   %s
 GROUP BY agent_id, date, model
-ORDER BY date DESC, agent_id`, where)
+ORDER BY date DESC, agent_id`, agentOnlyFilter, where)
 	args = append([]any{days}, args...)
 
 	rows, err := c.conn.Query(ctx, query, args...)
@@ -205,9 +211,10 @@ SELECT agent_id,
        count() AS count
 FROM audit.traces
 WHERE created_at >= today() - INTERVAL ? DAY
+  AND %s
   %s
 GROUP BY agent_id, hour
-ORDER BY agent_id, hour`, where)
+ORDER BY agent_id, hour`, agentOnlyFilter, where)
 	args = append([]any{days}, args...)
 
 	rows, err := c.conn.Query(ctx, query, args...)
@@ -239,14 +246,15 @@ func (c *Client) GetModelDistribution(ctx context.Context, days int) ([]ModelDis
 		days = 30
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 SELECT if(model = '', 'unknown', model) AS model,
        count() AS count
 FROM audit.traces
 WHERE created_at >= today() - INTERVAL ? DAY
+  AND %s
   AND request_type NOT IN ('heartbeat', 'pod_status')
 GROUP BY model
-ORDER BY count DESC`
+ORDER BY count DESC`, agentOnlyFilter)
 
 	rows, err := c.conn.Query(ctx, query, days)
 	if err != nil {
@@ -278,16 +286,17 @@ func (c *Client) GetLatencyTrend(ctx context.Context, days int) ([]LatencyPoint,
 		days = 30
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 SELECT toDate(created_at) AS date,
        avg(latency_ms) AS avg_ms,
        quantile(0.95)(latency_ms) AS p95_ms
 FROM audit.traces
 WHERE created_at >= today() - INTERVAL ? DAY
+  AND %s
   AND request_type NOT IN ('heartbeat', 'pod_status')
   AND latency_ms > 0
 GROUP BY date
-ORDER BY date`
+ORDER BY date`, agentOnlyFilter)
 
 	rows, err := c.conn.Query(ctx, query, days)
 	if err != nil {
@@ -312,15 +321,16 @@ type AgentRanking struct {
 	TotalUsage uint64 `json:"total_usage"`
 }
 
-// GetAgentRanking returns agents ranked by token usage today.
+// GetAgentRanking returns agents ranked by request count today.
 func (c *Client) GetAgentRanking(ctx context.Context) ([]AgentRanking, error) {
-	query := `
+	query := fmt.Sprintf(`
 SELECT agent_id,
-       sum(tokens_in + tokens_out) AS total_usage
+       count() AS total_usage
 FROM audit.traces
 WHERE created_at >= today()
+  AND %s
 GROUP BY agent_id
-ORDER BY total_usage DESC`
+ORDER BY total_usage DESC`, agentOnlyFilter)
 
 	rows, err := c.conn.Query(ctx, query)
 	if err != nil {
