@@ -30,17 +30,30 @@ type Role struct {
 type CreateRoleRequest struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
+	Role         string   `json:"role,omitempty"`          // developer | reviewer | sre | observer | custom
 	InitialFiles []string `json:"initial_files,omitempty"`
+}
+
+// BuiltinContentProvider supplies default content for role files.
+// Injected by the handler layer to avoid circular dependencies.
+type BuiltinContentProvider interface {
+	ReadSOUL() string
+	ReadPrompt() string
+	BuildAgentsMD(role string) string
+	BuiltinSkillsForRole(role string) []string
+	ReadSkill(name string) string
+	SkillKey(path string) string
 }
 
 type RoleClient struct {
 	k8s         kubernetes.Interface
 	agentClient *AgentClient
 	namespace   string
+	builtin     BuiltinContentProvider
 }
 
-func NewRoleClient(k8s kubernetes.Interface, agentClient *AgentClient, namespace string) *RoleClient {
-	return &RoleClient{k8s: k8s, agentClient: agentClient, namespace: namespace}
+func NewRoleClient(k8s kubernetes.Interface, agentClient *AgentClient, namespace string, builtin BuiltinContentProvider) *RoleClient {
+	return &RoleClient{k8s: k8s, agentClient: agentClient, namespace: namespace, builtin: builtin}
 }
 
 func (r *RoleClient) ensureClient() error {
@@ -92,10 +105,24 @@ func (r *RoleClient) Create(ctx context.Context, req CreateRoleRequest) (*Role, 
 	if err := r.ensureClient(); err != nil {
 		return nil, err
 	}
-	data := make(map[string]string, len(req.InitialFiles))
+
+	data := make(map[string]string, len(req.InitialFiles)+4)
+
+	// Inject builtin content for each initial file based on the role type
 	for _, f := range req.InitialFiles {
-		data[f] = ""
+		data[f] = r.builtinContentFor(f, req.Role)
 	}
+
+	// Inject builtin skills for the role type
+	if r.builtin != nil && req.Role != "" && req.Role != "custom" {
+		for _, skill := range r.builtin.BuiltinSkillsForRole(req.Role) {
+			key := r.builtin.SkillKey(skill + "/SKILL.md")
+			if _, exists := data[key]; !exists {
+				data[key] = r.builtin.ReadSkill(skill)
+			}
+		}
+	}
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName(req.Name),
@@ -118,6 +145,23 @@ func (r *RoleClient) Create(ctx context.Context, req CreateRoleRequest) (*Role, 
 	}
 	role := r.cmToRole(created, 0)
 	return &role, nil
+}
+
+// builtinContentFor returns default builtin content for a well-known file.
+func (r *RoleClient) builtinContentFor(filename, role string) string {
+	if r.builtin == nil {
+		return ""
+	}
+	switch filename {
+	case "SOUL.md":
+		return r.builtin.ReadSOUL()
+	case "PROMPT.md":
+		return r.builtin.ReadPrompt()
+	case "AGENTS.md":
+		return r.builtin.BuildAgentsMD(role)
+	default:
+		return ""
+	}
 }
 
 func (r *RoleClient) UpdateDescription(ctx context.Context, name, description string) (*Role, error) {

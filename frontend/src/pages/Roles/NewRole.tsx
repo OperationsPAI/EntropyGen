@@ -1,24 +1,39 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { rolesApi } from '../../api/roles'
-import { PageHeader, Card, Button, Input, Textarea } from '../../components/ui'
+import { PageHeader, Card, Button, Input, Textarea, Select } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
 import styles from './Roles.module.css'
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
 
+const ROLE_TYPES = [
+  { value: '', label: 'Custom (no template)' },
+  { value: 'developer', label: 'Developer' },
+  { value: 'reviewer', label: 'Reviewer' },
+  { value: 'sre', label: 'SRE' },
+  { value: 'observer', label: 'Observer' },
+] as const
+
 const INITIAL_FILES = [
   { name: 'SOUL.md', defaultChecked: true },
   { name: 'PROMPT.md', defaultChecked: true },
-  { name: 'AGENTS.md', defaultChecked: false },
+  { name: 'AGENTS.md', defaultChecked: true },
   { name: 'MEMORY.md', defaultChecked: false },
 ]
+
+const ROLE_SKILLS: Record<string, string[]> = {
+  developer: ['gitea-api', 'git-ops'],
+  reviewer: ['gitea-api'],
+  sre: ['gitea-api', 'git-ops', 'kubectl-ops'],
+  observer: ['gitea-api'],
+}
 
 export default function NewRole() {
   const navigate = useNavigate()
   const toast = useToast()
-  const [form, setForm] = useState({ name: '', description: '' })
-  const [selectedFiles, setSelectedFiles] = useState(['SOUL.md', 'PROMPT.md'])
+  const [form, setForm] = useState({ name: '', description: '', roleType: '' })
+  const [selectedFiles, setSelectedFiles] = useState(['SOUL.md', 'PROMPT.md', 'AGENTS.md'])
   const [creating, setCreating] = useState(false)
 
   const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
@@ -36,6 +51,7 @@ export default function NewRole() {
       await rolesApi.createRole({
         name: form.name,
         description: form.description,
+        role: form.roleType || undefined,
         initial_files: selectedFiles,
       })
       toast.success('Role created', form.name)
@@ -46,6 +62,8 @@ export default function NewRole() {
       setCreating(false)
     }
   }
+
+  const builtinSkills = form.roleType ? (ROLE_SKILLS[form.roleType] ?? []) : []
 
   return (
     <div className={styles.page}>
@@ -79,6 +97,19 @@ export default function NewRole() {
             rows={3}
           />
 
+          <Select
+            label="Role Type"
+            value={form.roleType}
+            onChange={(e) => setForm((p) => ({ ...p, roleType: e.target.value }))}
+          >
+            {ROLE_TYPES.map((rt) => (
+              <option key={rt.value} value={rt.value}>{rt.label}</option>
+            ))}
+          </Select>
+          <div className={styles.hint}>
+            Selecting a role type auto-populates files with builtin templates and skills
+          </div>
+
           <div className={styles.filesSection}>
             <div className={styles.filesSectionTitle}>Initial Files</div>
             <div className={styles.checkboxGroup}>
@@ -93,8 +124,22 @@ export default function NewRole() {
                 </label>
               ))}
             </div>
-            <div className={styles.filesHint}>Checked files are created with templates</div>
+            <div className={styles.filesHint}>Checked files are created with builtin templates</div>
           </div>
+
+          {builtinSkills.length > 0 && (
+            <div className={styles.filesSection}>
+              <div className={styles.filesSectionTitle}>Builtin Skills (auto-injected)</div>
+              <div className={styles.checkboxGroup}>
+                {builtinSkills.map((skill) => (
+                  <label key={skill} className={styles.checkboxLabel}>
+                    <input type="checkbox" checked disabled />
+                    {skill}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className={styles.formActions}>
             <Button variant="secondary" onClick={() => navigate('/roles')}>

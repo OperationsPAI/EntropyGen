@@ -103,5 +103,6 @@ export interface Role {
 export interface CreateRoleDto {
   name: string
   description: string
+  role?: string // developer | reviewer | sre | observer | custom
   initial_files?: string[]
 }

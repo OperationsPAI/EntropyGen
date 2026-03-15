@@ -17,6 +17,7 @@ import (
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 
 	"github.com/entropyGen/entropyGen/internal/backend/api"
+	"github.com/entropyGen/entropyGen/internal/backend/builtin"
 	"github.com/entropyGen/entropyGen/internal/backend/chwriter"
 	"github.com/entropyGen/entropyGen/internal/backend/heartbeat"
 	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
@@ -102,7 +103,7 @@ func main() {
 		slog.Warn("k8s unavailable, agent API disabled")
 		agentCRClient = k8sclient.NewAgentClient(nil, agentNS)
 	}
-	roleClient := k8sclient.NewRoleClient(k8sClientset, agentCRClient, agentNS)
+	roleClient := k8sclient.NewRoleClient(k8sClientset, agentCRClient, agentNS, &builtin.Provider{})
 
 	// Background services
 	pusher := wspush.NewPusher()
