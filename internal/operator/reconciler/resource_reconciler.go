@@ -3,6 +3,7 @@ package reconciler
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -77,8 +78,15 @@ func (r *ResourceReconciler) DeleteAll(ctx context.Context, agent *agentapi.Agen
 // CronPrompt resolves the cron prompt for the agent.
 // Prompt is defined entirely by the Role's PROMPT.md.
 func (r *ResourceReconciler) CronPrompt(agent *agentapi.Agent) string {
-	if r.roleData != nil && r.roleData.Prompt != "" {
-		return r.roleData.Prompt
+	if r.roleData == nil || r.roleData.Prompt == "" {
+		return ""
 	}
-	return ""
+	prompt := r.roleData.Prompt
+	// Replace template variables so the agent receives a fully resolved prompt
+	if agent.Spec.Gitea != nil && len(agent.Spec.Gitea.Repos) > 0 {
+		prompt = strings.ReplaceAll(prompt, "{{REPOS}}", strings.Join(agent.Spec.Gitea.Repos, ","))
+	}
+	prompt = strings.ReplaceAll(prompt, "{{AGENT_ID}}", "agent-"+agent.Name)
+	prompt = strings.ReplaceAll(prompt, "{{AGENT_ROLE}}", agent.Spec.Role)
+	return prompt
 }
