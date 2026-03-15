@@ -2,26 +2,17 @@ package reconciler
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 )
 
-func TestBuildConfigMapData_SoulContent(t *testing.T) {
+func TestBuildConfigMapData_OpencalwModel(t *testing.T) {
 	agent := &agentapi.Agent{}
-	agent.Spec.Soul = "You are a test agent."
 	agent.Spec.Role = "developer"
 	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
 
 	data := buildConfigMapData(agent, nil, "http://agent-gateway.test.svc:80", "https://llm.example.com/v1", "sk-test-key")
-
-	if data["SOUL.md"] != "You are a test agent." {
-		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "You are a test agent.")
-	}
-	if !strings.Contains(data["AGENTS.md"], "Developer Role") {
-		t.Errorf("AGENTS.md missing 'Developer Role', got: %s", data["AGENTS.md"])
-	}
 
 	// Verify openclaw.json model field
 	var cfg map[string]interface{}
@@ -38,7 +29,6 @@ func TestBuildConfigMapData_SoulContent(t *testing.T) {
 
 func TestBuildConfigMapData_CustomModel(t *testing.T) {
 	agent := &agentapi.Agent{}
-	agent.Spec.Soul = "soul"
 	agent.Spec.Role = "observer"
 	agent.Spec.LLM = &agentapi.AgentLLM{Model: "litellm/MiniMax-M2.5"}
 
@@ -67,37 +57,88 @@ func TestBuildConfigMapData_CustomModel(t *testing.T) {
 	}
 }
 
-func TestBuildSkillsData_Roles(t *testing.T) {
-	tests := []struct {
-		role          string
-		expectGitOps  bool
-		expectKubectl bool
-	}{
-		{"observer", false, false},
-		{"developer", true, false},
-		{"reviewer", false, false},
-		{"sre", true, true},
+func TestBuildConfigMapData_RoleDataUsed(t *testing.T) {
+	agent := &agentapi.Agent{}
+	agent.Spec.Role = "developer"
+	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
+
+	rd := &roleData{
+		Soul:     "role soul content",
+		Prompt:   "role prompt content",
+		AgentsMD: "# Custom Agents\nCustom role agents.",
 	}
-	for _, tt := range tests {
-		t.Run(tt.role, func(t *testing.T) {
-			agent := &agentapi.Agent{}
-			agent.Spec.Role = tt.role
-			data := buildSkillsData(agent, nil)
 
-			_, hasGitOps := data[skillKey("git-ops/SKILL.md")]
-			_, hasKubectl := data[skillKey("kubectl-ops/SKILL.md")]
-			_, hasGiteaAPI := data[skillKey("gitea-api/SKILL.md")]
+	data := buildConfigMapData(agent, rd, "http://gw:80", "https://llm.example.com/v1", "sk-key")
 
-			if !hasGiteaAPI {
-				t.Error("all roles should have gitea-api skill")
-			}
-			if hasGitOps != tt.expectGitOps {
-				t.Errorf("git-ops: got %v, want %v", hasGitOps, tt.expectGitOps)
-			}
-			if hasKubectl != tt.expectKubectl {
-				t.Errorf("kubectl-ops: got %v, want %v", hasKubectl, tt.expectKubectl)
-			}
-		})
+	// Role data is the single source of truth
+	if data["SOUL.md"] != "role soul content" {
+		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "role soul content")
+	}
+	if data["AGENTS.md"] != "# Custom Agents\nCustom role agents." {
+		t.Errorf("AGENTS.md: got %q, want custom agents", data["AGENTS.md"])
+	}
+	// PROMPT.md is included for observability
+	if data["PROMPT.md"] != "role prompt content" {
+		t.Errorf("PROMPT.md: got %q, want %q", data["PROMPT.md"], "role prompt content")
+	}
+}
+
+func TestBuildConfigMapData_NilRoleData(t *testing.T) {
+	agent := &agentapi.Agent{}
+	agent.Spec.Role = "developer"
+	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
+
+	data := buildConfigMapData(agent, nil, "http://gw:80", "https://llm.example.com/v1", "sk-key")
+
+	// Without roleData, content is empty (no fallback to spec or template)
+	if data["SOUL.md"] != "" {
+		t.Errorf("SOUL.md should be empty without roleData, got %q", data["SOUL.md"])
+	}
+	if data["AGENTS.md"] != "" {
+		t.Errorf("AGENTS.md should be empty without roleData, got %q", data["AGENTS.md"])
+	}
+	if _, exists := data["PROMPT.md"]; exists {
+		t.Errorf("PROMPT.md should not exist without roleData")
+	}
+}
+
+func TestBuildSkillsData_FromRole(t *testing.T) {
+	agent := &agentapi.Agent{}
+	agent.Spec.Role = "developer"
+
+	rd := &roleData{
+		Skills: map[string]string{
+			skillKey("gitea-api/SKILL.md"):  "# Gitea API\nContent.",
+			skillKey("git-ops/SKILL.md"):    "# Git Ops\nContent.",
+			skillKey("my-custom/SKILL.md"):  "# Custom Skill\nDo custom things.",
+		},
+	}
+
+	data := buildSkillsData(agent, rd)
+
+	if len(data) != 3 {
+		t.Errorf("expected 3 skills, got %d", len(data))
+	}
+	if _, ok := data[skillKey("gitea-api/SKILL.md")]; !ok {
+		t.Error("missing gitea-api skill from role")
+	}
+	if _, ok := data[skillKey("git-ops/SKILL.md")]; !ok {
+		t.Error("missing git-ops skill from role")
+	}
+	if _, ok := data[skillKey("my-custom/SKILL.md")]; !ok {
+		t.Error("missing custom skill from role")
+	}
+}
+
+func TestBuildSkillsData_NilRoleData(t *testing.T) {
+	agent := &agentapi.Agent{}
+	agent.Spec.Role = "developer"
+
+	data := buildSkillsData(agent, nil)
+
+	// No role data = no skills (skills come from Role now)
+	if len(data) != 0 {
+		t.Errorf("expected 0 skills without roleData, got %d", len(data))
 	}
 }
 
@@ -115,11 +156,11 @@ func TestComputeHash_Deterministic(t *testing.T) {
 
 func TestParseRoleData_WellKnownFiles(t *testing.T) {
 	data := map[string]string{
-		"SOUL.md":                     "soul content upper",
-		"PROMPT.md":                   "prompt content upper",
-		"AGENTS.md":                   "agents content upper",
-		"skills__my-skill__SKILL.md":  "custom skill",
-		"CUSTOM.yaml":                 "custom file",
+		"SOUL.md":                    "soul content upper",
+		"PROMPT.md":                  "prompt content upper",
+		"AGENTS.md":                  "agents content upper",
+		"skills__my-skill__SKILL.md": "custom skill",
+		"CUSTOM.yaml":               "custom file",
 	}
 	rd := parseRoleData(data)
 
@@ -159,114 +200,40 @@ func TestParseRoleData_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestBuildConfigMapData_WithRoleData(t *testing.T) {
-	agent := &agentapi.Agent{}
-	agent.Spec.Soul = "spec soul"
-	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
-
-	rd := &roleData{
-		Soul:     "role soul content",
-		Prompt:   "role prompt content",
-		AgentsMD: "# Custom Agents\nCustom role agents.",
-	}
-
-	data := buildConfigMapData(agent, rd, "http://gw:80", "https://llm.example.com/v1", "sk-key")
-
-	// roleData.Soul should override spec.soul
-	if data["SOUL.md"] != "role soul content" {
-		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "role soul content")
-	}
-	// roleData.AgentsMD should override template
-	if data["AGENTS.md"] != "# Custom Agents\nCustom role agents." {
-		t.Errorf("AGENTS.md: got %q, want custom agents", data["AGENTS.md"])
-	}
-	// roleData.Prompt should be used when cron prompt is empty
-	var cronCfg map[string]interface{}
-	json.Unmarshal([]byte(data["cron-config.json"]), &cronCfg)
-	if cronCfg["prompt"] != "role prompt content" {
-		t.Errorf("cron prompt: got %v, want %q", cronCfg["prompt"], "role prompt content")
-	}
-}
-
-func TestBuildConfigMapData_RoleDataNil(t *testing.T) {
-	agent := &agentapi.Agent{}
-	agent.Spec.Soul = "spec soul"
-	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
-
-	data := buildConfigMapData(agent, nil, "http://gw:80", "https://llm.example.com/v1", "sk-key")
-
-	// Without roleData, spec.soul is used
-	if data["SOUL.md"] != "spec soul" {
-		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "spec soul")
-	}
-	// Without roleData, template is used
-	if !strings.Contains(data["AGENTS.md"], "Developer Role") {
-		t.Errorf("AGENTS.md should contain template content")
-	}
-}
-
-func TestBuildConfigMapData_CronPromptPriority(t *testing.T) {
-	agent := &agentapi.Agent{}
-	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
-	agent.Spec.Cron = &agentapi.AgentCron{
-		Schedule: "*/5 * * * *",
-		Prompt:   "spec cron prompt",
-	}
-
-	rd := &roleData{Prompt: "role prompt content"}
-
-	data := buildConfigMapData(agent, rd, "http://gw:80", "https://llm.example.com/v1", "sk-key")
-
-	// spec.cron.prompt should take priority over roleData.Prompt
-	var cronCfg map[string]interface{}
-	json.Unmarshal([]byte(data["cron-config.json"]), &cronCfg)
-	if cronCfg["prompt"] != "spec cron prompt" {
-		t.Errorf("cron prompt: got %v, want %q", cronCfg["prompt"], "spec cron prompt")
-	}
-}
-
-func TestBuildSkillsData_MergeRoleSkills(t *testing.T) {
+func TestBuildSkillItems_FromRole(t *testing.T) {
 	agent := &agentapi.Agent{}
 	agent.Spec.Role = "developer"
 
 	rd := &roleData{
 		Skills: map[string]string{
-			skillKey("my-custom/SKILL.md"): "# Custom Skill\nDo custom things.\n",
+			skillKey("gitea-api/SKILL.md"): "content",
+			skillKey("git-ops/SKILL.md"):   "content",
 		},
 	}
 
-	data := buildSkillsData(agent, rd)
+	items := buildSkillItems(agent, rd)
 
-	// Builtin should still exist
-	if _, ok := data[skillKey("gitea-api/SKILL.md")]; !ok {
-		t.Error("missing builtin gitea-api skill")
+	if len(items) != 2 {
+		t.Errorf("expected 2 skill items, got %d", len(items))
 	}
-	if _, ok := data[skillKey("git-ops/SKILL.md")]; !ok {
-		t.Error("missing builtin git-ops skill")
-	}
-	// Custom skill should be merged
-	if _, ok := data[skillKey("my-custom/SKILL.md")]; !ok {
-		t.Error("missing custom skill from roleData")
+	// Items should be sorted
+	if len(items) >= 2 {
+		if items[0].Path != "git-ops/SKILL.md" {
+			t.Errorf("first item path: got %q, want %q", items[0].Path, "git-ops/SKILL.md")
+		}
+		if items[1].Path != "gitea-api/SKILL.md" {
+			t.Errorf("second item path: got %q, want %q", items[1].Path, "gitea-api/SKILL.md")
+		}
 	}
 }
 
-func TestBuildSkillsData_NoOverrideBuiltin(t *testing.T) {
+func TestBuildSkillItems_NilRoleData(t *testing.T) {
 	agent := &agentapi.Agent{}
 	agent.Spec.Role = "developer"
 
-	builtinContent := "# Gitea API Skill\nUse the Gitea REST API to manage issues, PRs, and repositories.\n"
-	rd := &roleData{
-		Skills: map[string]string{
-			skillKey("gitea-api/SKILL.md"): "# Overridden Gitea Skill\nShould not replace builtin.\n",
-		},
-	}
+	items := buildSkillItems(agent, nil)
 
-	data := buildSkillsData(agent, rd)
-
-	if data[skillKey("gitea-api/SKILL.md")] != builtinContent {
-		t.Errorf("builtin skill was overridden: got %q", data[skillKey("gitea-api/SKILL.md")])
+	if len(items) != 0 {
+		t.Errorf("expected 0 skill items without roleData, got %d", len(items))
 	}
 }

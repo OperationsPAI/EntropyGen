@@ -188,38 +188,30 @@ func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBase
 	}
 	openclawJSON, _ := json.MarshalIndent(openclawCfg, "", "  ")
 
-	// SOUL.md: roleData > spec.soul > empty
-	soul := agent.Spec.Soul
+	// SOUL.md: Role data is the single source of truth
+	soul := ""
 	if rd != nil && rd.Soul != "" {
 		soul = rd.Soul
 	}
 
-	// AGENTS.md: roleData > template
-	agentsMD := buildAgentsMD(agent.Spec.Role)
+	// AGENTS.md: Role data is the single source of truth
+	agentsMD := ""
 	if rd != nil && rd.AgentsMD != "" {
 		agentsMD = rd.AgentsMD
 	}
 
-	return map[string]string{
+	result := map[string]string{
 		"openclaw.json": string(openclawJSON),
 		"SOUL.md":       soul,
 		"AGENTS.md":     agentsMD,
 	}
-}
 
-func buildAgentsMD(role string) string {
-	base := "# Agent Behavior Constraints\n\nYou are an AI agent operating within the AI DevOps Platform.\nAlways follow the instructions in SOUL.md.\n"
-	switch role {
-	case "developer":
-		base += "\n## Developer Role\nFocus on code quality, testing, and CI green state.\n"
-	case "reviewer":
-		base += "\n## Reviewer Role\nReview PRs thoroughly for bugs, security, and quality. Approve or request changes.\n"
-	case "sre":
-		base += "\n## SRE Role\nMonitor deployments, handle incidents, and maintain system reliability.\n"
-	case "observer":
-		base += "\n## Observer Role\nScan repositories, monitor CI, and create Gitea Issues for problems found.\n"
+	// PROMPT.md: include for observability (cron reads from roleData directly)
+	if rd != nil && rd.Prompt != "" {
+		result["PROMPT.md"] = rd.Prompt
 	}
-	return base
+
+	return result
 }
 
 func computeHash(data map[string]string) string {
@@ -283,50 +275,29 @@ func (r *ResourceReconciler) EnsureRoleFilesConfigMap(ctx context.Context, agent
 }
 
 func buildSkillsData(agent *agentapi.Agent, rd *roleData) map[string]string {
-	data := map[string]string{
-		skillKey("gitea-api/SKILL.md"): "# Gitea API Skill\nUse the Gitea REST API to manage issues, PRs, and repositories.\n",
-	}
-	if agent.Spec.Role == "developer" || agent.Spec.Role == "sre" {
-		data[skillKey("git-ops/SKILL.md")] = "# Git Ops Skill\nClone, branch, commit and push code changes using Git.\n"
-	}
-	if agent.Spec.Role == "sre" {
-		data[skillKey("kubectl-ops/SKILL.md")] = "# Kubectl Ops Skill\nManage Kubernetes deployments in the app-staging namespace using kubectl.\n"
-	}
-	// Merge role skills (do not override builtins)
+	data := map[string]string{}
+
+	// Skills come entirely from the Role ConfigMap
 	if rd != nil {
 		for k, v := range rd.Skills {
-			if _, exists := data[k]; !exists {
-				data[k] = v
-			}
+			data[k] = v
 		}
 	}
+
 	return data
 }
 
 // buildSkillItems returns the ConfigMap items mapping for the skills volume,
 // translating "git-ops__SKILL.md" keys back to "git-ops/SKILL.md" paths.
 func buildSkillItems(agent *agentapi.Agent, rd *roleData) []corev1.KeyToPath {
-	skillPaths := []string{"gitea-api/SKILL.md"}
-	if agent.Spec.Role == "developer" || agent.Spec.Role == "sre" {
-		skillPaths = append(skillPaths, "git-ops/SKILL.md")
-	}
-	if agent.Spec.Role == "sre" {
-		skillPaths = append(skillPaths, "kubectl-ops/SKILL.md")
-	}
-	// Collect builtin keys for dedup
-	builtinKeys := map[string]bool{}
-	for _, p := range skillPaths {
-		builtinKeys[skillKey(p)] = true
-	}
-	// Add role skill paths (do not override builtins)
+	var skillPaths []string
+
 	if rd != nil {
 		for k := range rd.Skills {
-			if !builtinKeys[k] {
-				// Key is already in skillKey format from ConfigMap
-				skillPaths = append(skillPaths, strings.ReplaceAll(k, "__", "/"))
-			}
+			skillPaths = append(skillPaths, strings.ReplaceAll(k, "__", "/"))
 		}
 	}
+
 	sort.Strings(skillPaths)
 	items := make([]corev1.KeyToPath, 0, len(skillPaths))
 	for _, p := range skillPaths {

@@ -74,11 +74,8 @@ func (r *ResourceReconciler) DeleteAll(ctx context.Context, agent *agentapi.Agen
 }
 
 // CronPrompt resolves the cron prompt for the agent.
-// Falls back to PROMPT.md from role data if spec.cron.prompt is empty.
+// Prompt is defined entirely by the Role's PROMPT.md.
 func (r *ResourceReconciler) CronPrompt(agent *agentapi.Agent) string {
-	if agent.Spec.Cron != nil && agent.Spec.Cron.Prompt != "" {
-		return agent.Spec.Cron.Prompt
-	}
 	if r.roleData != nil && r.roleData.Prompt != "" {
 		return r.roleData.Prompt
 	}

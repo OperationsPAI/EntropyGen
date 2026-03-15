@@ -41,7 +41,7 @@ type AgentSpec struct {
 
 type AgentCron struct {
 	Schedule string `json:"schedule,omitempty"`
-	Prompt   string `json:"prompt,omitempty"`
+	// Prompt field removed — cron prompt is now defined entirely by the Role's PROMPT.md
 }
 
 type AgentLLM struct {
