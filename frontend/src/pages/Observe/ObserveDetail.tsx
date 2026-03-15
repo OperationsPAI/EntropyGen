@@ -249,9 +249,9 @@ export default function ObserveDetail() {
           }
           right={
             <SplitPane
-              defaultLeftWidth={45}
+              defaultLeftWidth={55}
               minLeftWidth={300}
-              minRightWidth={350}
+              minRightWidth={280}
               left={
                 <EditorPanel
                   agentName={name ?? ''}
