@@ -21,6 +21,7 @@ type Role struct {
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	Files       []RoleFile `json:"files"`
+	FileCount   int        `json:"file_count"`
 	AgentCount  int        `json:"agent_count"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -38,6 +39,7 @@ type CreateRoleRequest struct {
 type BuiltinContentProvider interface {
 	ReadSOUL() string
 	ReadPrompt() string
+	ReadPromptForRole(role string) string
 	BuildAgentsMD(role string) string
 	BuiltinSkillsForRole(role string) []string
 	ReadSkill(name string) string
@@ -128,9 +130,11 @@ func (r *RoleClient) List(ctx context.Context) ([]Role, error) {
 			continue // skip directories without valid metadata
 		}
 		agentCount, _ := r.countAgentsForRole(ctx, name)
+		fileCount := r.countFiles(name)
 		roles = append(roles, Role{
 			Name:        name,
 			Description: m.Description,
+			FileCount:   fileCount,
 			AgentCount:  agentCount,
 			CreatedAt:   m.CreatedAt,
 			UpdatedAt:   m.UpdatedAt,
@@ -159,6 +163,7 @@ func (r *RoleClient) Get(ctx context.Context, name string) (*Role, error) {
 		Name:        name,
 		Description: m.Description,
 		Files:       files,
+		FileCount:   len(files),
 		AgentCount:  agentCount,
 		CreatedAt:   m.CreatedAt,
 		UpdatedAt:   m.UpdatedAt,
@@ -247,7 +252,7 @@ func (r *RoleClient) builtinContentFor(filename, role string) string {
 	case "SOUL.md":
 		return r.builtin.ReadSOUL()
 	case "PROMPT.md":
-		return r.builtin.ReadPrompt()
+		return r.builtin.ReadPromptForRole(role)
 	case "AGENTS.md":
 		return r.builtin.BuildAgentsMD(role)
 	default:
@@ -476,4 +481,21 @@ func (r *RoleClient) countAgentsForRole(ctx context.Context, roleName string) (i
 		}
 	}
 	return count, nil
+}
+
+// countFiles returns the number of non-metadata files in a role directory.
+func (r *RoleClient) countFiles(roleName string) int {
+	roleDir := r.roleDir(roleName)
+	count := 0
+	_ = filepath.WalkDir(roleDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(roleDir, path)
+		if filepath.ToSlash(rel) != metadataFile {
+			count++
+		}
+		return nil
+	})
+	return count
 }

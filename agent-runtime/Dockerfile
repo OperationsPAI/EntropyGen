@@ -57,4 +57,7 @@ USER node
 # Copy skills (owned by non-root user)
 COPY --chown=node:node agent-runtime/skills/ /home/node/.openclaw/skills/
 
+# Copy workspace templates for overriding openclaw defaults
+COPY --chown=node:node agent-runtime/builtin-role/workspace-templates/ /agent/workspace-templates/
+
 ENTRYPOINT ["/entrypoint.sh"]

@@ -223,7 +223,14 @@ func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBase
 
 	// PROMPT.md: include for observability (cron reads from roleData directly)
 	if rd != nil && rd.Prompt != "" {
-		result["PROMPT.md"] = rd.Prompt
+		prompt := rd.Prompt
+		// Replace template variables in PROMPT.md
+		if agent.Spec.Gitea != nil && len(agent.Spec.Gitea.Repos) > 0 {
+			prompt = strings.ReplaceAll(prompt, "{{REPOS}}", strings.Join(agent.Spec.Gitea.Repos, ","))
+		}
+		prompt = strings.ReplaceAll(prompt, "{{AGENT_ID}}", "agent-"+agent.Name)
+		prompt = strings.ReplaceAll(prompt, "{{AGENT_ROLE}}", agent.Spec.Role)
+		result["PROMPT.md"] = prompt
 	}
 
 	return result
@@ -545,6 +552,11 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 		model = agent.Spec.LLM.Model
 	}
 
+	agentRepos := ""
+	if agent.Spec.Gitea != nil && len(agent.Spec.Gitea.Repos) > 0 {
+		agentRepos = strings.Join(agent.Spec.Gitea.Repos, ",")
+	}
+
 	volumeMounts := []corev1.VolumeMount{
 		{Name: "config", MountPath: "/agent/config", ReadOnly: true},
 		{Name: "skills", MountPath: "/agent/skills", ReadOnly: true},
@@ -622,6 +634,7 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 						Env: []corev1.EnvVar{
 							{Name: "AGENT_ID", Value: "agent-" + agent.Name},
 							{Name: "AGENT_ROLE", Value: agent.Spec.Role},
+							{Name: "AGENT_REPOS", Value: agentRepos},
 							{Name: "GATEWAY_URL", Value: gatewayURL},
 							{Name: "LLM_MODEL", Value: model},
 							{Name: "REDIS_ADDR", Value: redisAddr},

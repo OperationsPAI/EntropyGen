@@ -54,6 +54,11 @@ spec:
                       items:
                         type: string
                       description: "read/write/admin/review/merge"
+                    repos:
+                      type: array
+                      items:
+                        type: string
+                      description: "Gitea repositories in org/repo format"
                 kubernetes:
                   type: object
                   properties:

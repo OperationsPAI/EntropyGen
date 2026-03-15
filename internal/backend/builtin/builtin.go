@@ -8,9 +8,10 @@ package builtin
 
 import (
 	"embed"
+	"io/fs"
 )
 
-//go:embed builtin-role/*
+//go:embed all:builtin-role
 var builtinFS embed.FS
 
 //go:embed skills/**/SKILL.md
@@ -63,6 +64,8 @@ func BuiltinSkillsForRole(role string) []string {
 		skills = append(skills, "git-ops")
 	case "sre":
 		skills = append(skills, "git-ops", "kubectl-ops")
+	case "pm":
+		skills = append(skills, "git-ops")
 	}
 	return skills
 }
@@ -86,7 +89,42 @@ func roleTemplateFile(role string) string {
 		return "sre.md"
 	case "observer":
 		return "observer.md"
+	case "pm":
+		return "pm.md"
 	default:
 		return ""
 	}
+}
+
+// ReadPromptForRole returns the role-specific PROMPT.md if it exists,
+// otherwise falls back to the default PROMPT.md.
+func ReadPromptForRole(role string) string {
+	if role != "" {
+		data, err := builtinFS.ReadFile("builtin-role/prompts/" + role + ".md")
+		if err == nil {
+			return string(data)
+		}
+	}
+	return ReadPrompt()
+}
+
+// ReadWorkspaceTemplates returns all workspace template files as a map of filename → content.
+func ReadWorkspaceTemplates() map[string]string {
+	result := map[string]string{}
+	dir := "builtin-role/workspace-templates"
+	entries, err := fs.ReadDir(builtinFS, dir)
+	if err != nil {
+		return result
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		data, err := builtinFS.ReadFile(dir + "/" + e.Name())
+		if err != nil {
+			continue
+		}
+		result[e.Name()] = string(data)
+	}
+	return result
 }

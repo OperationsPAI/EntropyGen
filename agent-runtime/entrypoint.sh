@@ -10,8 +10,37 @@ set -euo pipefail
 # Copy role-specific extra files
 [ -d /agent/role ] && cp -f /agent/role/* ~/.openclaw/ 2>/dev/null || true
 
+# Override openclaw workspace files with platform templates
+# This prevents openclaw defaults (SOUL.md, AGENTS.md, USER.md, etc.) from
+# conflicting with our injected prompt system.
+if [ -d /agent/workspace-templates ]; then
+    mkdir -p ~/.openclaw/workspace
+    for f in /agent/workspace-templates/*; do
+        [ -f "$f" ] && cp -f "$f" ~/.openclaw/workspace/
+    done
+    # Template substitution for workspace files
+    for f in ~/.openclaw/workspace/*.md; do
+        [ -f "$f" ] && sed -i \
+            "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; \
+             s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g; \
+             s/{{REPOS}}/${AGENT_REPOS:-}/g; \
+             s|{{GITEA_URL}}|${GITEA_BASE_URL:-http://gitea.aidevops.svc:3000}|g" \
+            "$f"
+    done
+    # Remove BOOTSTRAP.md to skip openclaw onboarding flow
+    rm -f ~/.openclaw/workspace/BOOTSTRAP.md
+fi
+
 # Substitute template variables in SOUL.md
 [ -f ~/.openclaw/SOUL.md ] && sed -i "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g" ~/.openclaw/SOUL.md
+
+# Substitute template variables in PROMPT.md
+[ -f ~/.openclaw/PROMPT.md ] && sed -i \
+    "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; \
+     s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g; \
+     s/{{REPOS}}/${AGENT_REPOS:-}/g; \
+     s|{{GITEA_URL}}|${GITEA_BASE_URL:-http://gitea.aidevops.svc:3000}|g" \
+    ~/.openclaw/PROMPT.md
 
 # Configure git identity
 git config --global user.name "${AGENT_ID:-agent}"

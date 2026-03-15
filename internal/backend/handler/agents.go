@@ -15,9 +15,11 @@ import (
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 
 	"github.com/entropyGen/entropyGen/internal/backend/k8sclient"
+	"github.com/entropyGen/entropyGen/internal/common/chclient"
 	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
 	"github.com/entropyGen/entropyGen/internal/common/models"
 	"github.com/entropyGen/entropyGen/internal/common/redisclient"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // AgentHandler handles Agent CR CRUD operations.
@@ -25,10 +27,16 @@ type AgentHandler struct {
 	client       *k8sclient.AgentClient
 	giteaClient  *giteaclient.Client
 	streamWriter *redisclient.StreamWriter
+	ch           *chclient.Client
 }
 
 func NewAgentHandler(client *k8sclient.AgentClient, giteaClient *giteaclient.Client, streamWriter *redisclient.StreamWriter) *AgentHandler {
 	return &AgentHandler{client: client, giteaClient: giteaClient, streamWriter: streamWriter}
+}
+
+// SetClickHouse sets the ClickHouse client for enriching agent data with audit metrics.
+func (h *AgentHandler) SetClickHouse(ch *chclient.Client) {
+	h.ch = ch
 }
 
 func (h *AgentHandler) List(c *gin.Context) {
@@ -37,6 +45,8 @@ func (h *AgentHandler) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, apiError("LIST_FAILED", err.Error(), ""))
 		return
 	}
+	// Enrich with ClickHouse audit data (token usage, last action)
+	h.enrichAgents(c, agents)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agents})
 }
 
@@ -71,7 +81,9 @@ func (h *AgentHandler) Get(c *gin.Context) {
 			apiError("AGENT_NOT_FOUND", "agent not found", "agent '"+c.Param("name")+"' not found"))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": agent})
+	agents := []agentapi.Agent{*agent}
+	h.enrichAgents(c, agents)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": agents[0]})
 }
 
 func (h *AgentHandler) Update(c *gin.Context) {
@@ -284,6 +296,7 @@ func unmarshalAgentSpec(raw json.RawMessage) (agentapi.AgentSpec, error) {
 		} `json:"resources"`
 		Gitea *struct {
 			Repo        string   `json:"repo"`
+			Repos       []string `json:"repos"`
 			Username    string   `json:"username"`
 			Email       string   `json:"email"`
 			Permissions []string `json:"permissions"`
@@ -325,6 +338,12 @@ func unmarshalAgentSpec(raw json.RawMessage) (agentapi.AgentSpec, error) {
 		if len(flat.Gitea.Permissions) > 0 {
 			spec.Gitea.Permissions = flat.Gitea.Permissions
 		}
+		if flat.Gitea.Repo != "" {
+			spec.Gitea.Repos = []string{flat.Gitea.Repo}
+		}
+		if len(flat.Gitea.Repos) > 0 {
+			spec.Gitea.Repos = flat.Gitea.Repos
+		}
 	}
 
 	return spec, nil
@@ -339,4 +358,34 @@ func resolveGiteaUsername(agent *agentapi.Agent) string {
 	}
 	// Default convention matches operator's giteaUsername() logic.
 	return "agent-" + agent.Name
+}
+
+// enrichAgents populates tokenUsage and lastAction from ClickHouse audit data.
+// This is best-effort: if ClickHouse is unavailable, agents are returned without enrichment.
+func (h *AgentHandler) enrichAgents(c *gin.Context, agents []agentapi.Agent) {
+	if h.ch == nil || len(agents) == 0 {
+		return
+	}
+	summaries, err := h.ch.GetAgentSummaries(c.Request.Context())
+	if err != nil || len(summaries) == 0 {
+		return
+	}
+	for i := range agents {
+		// Agent audit traces use "agent-<name>" as agent_id
+		agentID := "agent-" + agents[i].Name
+		s, ok := summaries[agentID]
+		if !ok {
+			continue
+		}
+		agents[i].Status.TokenUsage = &agentapi.AgentTokenUsage{
+			Today: int64(s.TodayTokens),
+			Total: int64(s.TotalTokens),
+		}
+		if s.LastDescription != "" {
+			agents[i].Status.LastAction = &agentapi.AgentLastAction{
+				Description: s.LastDescription,
+				Timestamp:   metav1.NewTime(s.LastTimestamp),
+			}
+		}
+	}
 }

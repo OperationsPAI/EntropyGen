@@ -51,6 +51,7 @@ type AgentGitea struct {
 	Username    string   `json:"username,omitempty"`
 	Email       string   `json:"email,omitempty"`
 	Permissions []string `json:"permissions,omitempty"`
+	Repos       []string `json:"repos,omitempty"`
 }
 
 type AgentKubernetes struct {
@@ -103,8 +104,8 @@ type AgentLastAction struct {
 }
 
 type AgentTokenUsage struct {
-	Today int64 `json:"today,omitempty"`
-	Total int64 `json:"total,omitempty"`
+	Today int64 `json:"today"`
+	Total int64 `json:"total"`
 }
 
 // +kubebuilder:object:root=true

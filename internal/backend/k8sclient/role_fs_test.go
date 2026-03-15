@@ -11,6 +11,7 @@ type testBuiltin struct{}
 
 func (b *testBuiltin) ReadSOUL() string                          { return "# Default Soul" }
 func (b *testBuiltin) ReadPrompt() string                        { return "# Default Prompt" }
+func (b *testBuiltin) ReadPromptForRole(role string) string      { return "# Prompt for " + role }
 func (b *testBuiltin) BuildAgentsMD(role string) string          { return "# Agents for " + role }
 func (b *testBuiltin) BuiltinSkillsForRole(role string) []string { return []string{"gitea-api"} }
 func (b *testBuiltin) ReadSkill(name string) string              { return "# " + name + " Skill" }
