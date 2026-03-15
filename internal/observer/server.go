@@ -109,7 +109,7 @@ func (s *Server) handleWorkspaceFile(c *gin.Context) {
 		return
 	}
 
-	content, err := ReadFile(s.cfg.OpenClawHome, reqPath)
+	content, err := ReadFile(s.cfg.WorkspaceDir, reqPath)
 	if err != nil {
 		if strings.Contains(err.Error(), "path traversal denied") {
 			c.JSON(http.StatusForbidden, apiError("PATH_TRAVERSAL", "access denied"))

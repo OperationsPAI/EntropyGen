@@ -1,40 +1,21 @@
-/* === Observe Detail (Live Room) === */
+/* === Observe Detail (Live Room) — VSCode-style 3-panel === */
 
+/* Fill all available space from the parent flex container (AppShell main) */
 .detailContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  height: calc(100vh - 140px);
-}
-
-/* Status banner */
-.statusBanner {
-  background-color: var(--bg-surface);
-  border-radius: var(--radius-md);
-  padding: var(--space-md) var(--space-lg);
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-.statusIcon {
-  font-size: 1rem;
-}
-
-.statusText {
-  font-weight: 500;
-  font-size: 0.9375rem;
   flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 
-.statusMeta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  display: flex;
-  gap: var(--space-md);
+/* Compact header for observe — override PageHeader's default margin */
+.detailContainer > div:first-child {
+  margin-bottom: var(--space-xs, 4px);
+  flex-shrink: 0;
 }
 
-/* Main content area (conversation + code) */
+/* Main 3-panel area */
 .mainArea {
   flex: 1;
   min-height: 0;
@@ -44,90 +25,118 @@
   background-color: var(--bg-surface);
 }
 
-/* Conversation flow (left) */
-.conversationPanel {
+/* === FileExplorer (left sidebar) === */
+
+.fileExplorer {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  border-right: 1px solid var(--line-subtle);
+  background-color: var(--bg-surface);
 }
 
-.conversationScroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.scrollToBottom {
-  position: sticky;
-  bottom: var(--space-md);
-  align-self: center;
-  background-color: var(--text-main);
-  color: white;
-  border: none;
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  opacity: 0.9;
-  transition: opacity 0.15s;
-  z-index: 2;
-}
-
-.scrollToBottom:hover {
-  opacity: 1;
-}
-
-/* History banner */
-.historyBanner {
-  background-color: var(--status-blue-bg);
-  color: var(--status-blue);
-  padding: 8px var(--space-lg);
-  font-size: 0.8125rem;
+.explorerToolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.historyBannerLink {
-  color: var(--status-blue);
-  font-weight: 600;
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-size: 0.8125rem;
-  text-decoration: underline;
-}
-
-/* Code panel (right) */
-.codePanel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border-left: 1px solid var(--line-subtle);
-}
-
-.codePanelToolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) var(--space-sm);
   border-bottom: 1px solid var(--line-subtle);
 }
 
+.explorerTitle {
+  font-weight: 600;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.explorerTree {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xs) 0;
+  font-size: 0.8125rem;
+}
+
+.explorerEmpty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+
+.explorerSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--space-sm);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--line-subtle);
+  cursor: pointer;
+  user-select: none;
+}
+
+.explorerSectionHeader:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.explorerSectionCount {
+  font-weight: 400;
+  font-size: 0.625rem;
+}
+
+.explorerSessions {
+  overflow-y: auto;
+  max-height: 180px;
+  padding: 0 var(--space-xs);
+}
+
+.explorerSessionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px var(--space-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.1s;
+}
+
+.explorerSessionItem:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.explorerSessionItemActive {
+  background-color: rgba(0, 0, 0, 0.06);
+  font-weight: 500;
+}
+
+.explorerSessionId {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.explorerSessionStatus {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+/* Follow toggle (shared between old CodePanel and new FileExplorer) */
 .followToggle {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: none;
   border: 1px solid var(--line-subtle);
   border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.6875rem;
+  padding: 2px 8px;
+  font-size: 0.625rem;
   font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
@@ -146,8 +155,8 @@
 
 .followDot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background-color: var(--status-green);
   animation: pulse 1.5s ease-in-out infinite;
@@ -155,38 +164,22 @@
 
 .browseDot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background-color: var(--text-muted);
 }
 
-.fileTree {
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--line-subtle);
-  overflow-y: auto;
-  max-height: 200px;
-  font-size: 0.8125rem;
-}
-
-.fileTreeTitle {
-  font-weight: 600;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: var(--space-xs);
-}
-
+/* File tree items (used by FileExplorer) */
 .fileTreeItem {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  gap: 5px;
+  padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   transition: background-color 0.1s;
 }
@@ -201,9 +194,17 @@
   font-weight: 500;
 }
 
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .fileStatus {
-  font-size: 0.625rem;
+  margin-left: auto;
+  font-size: 0.5625rem;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .fileStatusModified {
@@ -214,84 +215,241 @@
   color: var(--status-green);
 }
 
-.codeEditor {
+/* === EditorPanel (center) === */
+
+.editorPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editorTabs {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line-subtle);
+  background-color: var(--bg-surface);
+  min-height: 32px;
+}
+
+.editorTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.editorTab:hover {
+  color: var(--text-main);
+}
+
+.editorTabActive {
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
+}
+
+.diffTabStats {
+  font-size: 0.625rem;
+  margin-left: 4px;
+}
+
+.diffTabAdd {
+  color: var(--status-green);
+}
+
+.diffTabDel {
+  color: var(--status-red);
+  margin-left: 2px;
+}
+
+.editorContent {
   flex: 1;
   min-height: 0;
-}
-
-.diffSummary {
-  padding: 8px var(--space-md);
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  border-top: 1px solid var(--line-subtle);
-}
-
-/* Session history (bottom) */
-.sessionHistory {
-  background-color: var(--bg-surface);
-  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
-.sessionHistoryHeader {
-  padding: var(--space-sm) var(--space-lg);
+/* === DiffView === */
+
+.diffView {
+  height: 100%;
+  overflow: auto;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+.diffLineContent {
+  display: inline;
+  white-space: pre;
+}
+
+.diffFileHeader {
+  background-color: rgba(0, 100, 200, 0.08);
+  padding: 2px 12px;
   font-weight: 600;
-  font-size: 0.8125rem;
-  border-bottom: 1px solid var(--line-subtle);
+  color: var(--text-main);
+  border-top: 1px solid var(--line-subtle);
+  margin-top: 4px;
+}
+
+.diffFileHeaderPath {
+  padding: 1px 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.diffHunkHeader {
+  background-color: rgba(0, 100, 200, 0.05);
+  padding: 1px 12px;
+  color: var(--status-blue);
+  font-style: italic;
+}
+
+.diffLineAdded {
+  background-color: rgba(40, 167, 69, 0.12);
+  padding: 1px 12px;
+  color: var(--text-main);
+}
+
+.diffLineRemoved {
+  background-color: rgba(220, 53, 69, 0.12);
+  padding: 1px 12px;
+  color: var(--text-main);
+}
+
+.diffLineContext {
+  padding: 1px 12px;
+  color: var(--text-muted);
+}
+
+/* === StatusFooter (bottom bar) === */
+
+.statusFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px var(--space-md);
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  margin-top: 4px;
+  font-size: 0.75rem;
+  min-height: 24px;
+  flex-shrink: 0;
+}
+
+.statusFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.statusFooterIcon {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.statusFooterText {
+  font-weight: 500;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusFooterRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.statusFooterItem {
+  white-space: nowrap;
+}
+
+.statusFooterTokenDetail {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.statusFooterSep {
+  color: var(--line-subtle);
+}
+
+/* === Conversation flow (right panel) === */
+
+.conversationPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-left: 1px solid var(--line-subtle);
+}
+
+.conversationScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.scrollToBottom {
+  position: sticky;
+  bottom: var(--space-sm);
+  align-self: center;
+  background-color: var(--text-main);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.scrollToBottom:hover {
+  opacity: 1;
+}
+
+/* History banner */
+.historyBanner {
+  background-color: var(--status-blue-bg);
+  color: var(--status-blue);
+  padding: 6px var(--space-md);
+  font-size: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.sessionList {
-  max-height: 160px;
-  overflow-y: auto;
-}
-
-.sessionItem {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: 8px var(--space-lg);
-  font-size: 0.8125rem;
-  cursor: pointer;
-  transition: background-color 0.1s;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.sessionItem:hover {
-  background-color: rgba(0, 0, 0, 0.03);
-}
-
-.sessionItemActive {
-  background-color: rgba(0, 0, 0, 0.05);
-  font-weight: 500;
-}
-
-.sessionId {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.sessionTime {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.sessionMsgCount {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.sessionStatus {
-  margin-left: auto;
-  font-size: 0.6875rem;
+.historyBannerLink {
+  color: var(--status-blue);
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  text-decoration: underline;
 }
 
+/* Session status badges */
 .sessionStatusActive {
   background-color: var(--status-green-bg);
   color: var(--status-green);
@@ -306,75 +464,75 @@
 
 .sessionDivider {
   text-align: center;
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .sessionDividerLine {
   background-color: var(--status-blue-bg);
   color: var(--status-blue);
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 500;
   display: inline-block;
 }
 
 .badge {
   text-align: center;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 .badgeTag {
   background-color: rgba(0, 0, 0, 0.05);
   color: var(--text-muted);
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 500;
   display: inline-block;
 }
 
 .userBubble {
   align-self: flex-start;
-  max-width: 85%;
+  max-width: 95%;
 }
 
 .userBubbleInner {
   background-color: rgba(0, 0, 0, 0.04);
-  border-radius: 12px 12px 12px 2px;
-  padding: 10px 14px;
-  font-size: 0.8125rem;
-  line-height: 1.6;
+  border-radius: 10px 10px 10px 2px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .userLabel {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .assistantBubble {
   align-self: flex-end;
-  max-width: 85%;
+  max-width: 95%;
 }
 
 .assistantBubbleInner {
   background-color: var(--text-main);
   color: white;
-  border-radius: 12px 12px 2px 12px;
-  padding: 10px 14px;
-  font-size: 0.8125rem;
-  line-height: 1.6;
+  border-radius: 10px 10px 2px 10px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 .assistantLabel {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   text-align: right;
 }
 
@@ -385,7 +543,7 @@
 
 .assistantText code {
   background-color: rgba(255, 255, 255, 0.15);
-  padding: 1px 4px;
+  padding: 1px 3px;
   border-radius: 3px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.8em;
@@ -394,24 +552,24 @@
 .assistantText pre {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   overflow-x: auto;
-  margin: 6px 0;
-  font-size: 0.75rem;
+  margin: 4px 0;
+  font-size: 0.6875rem;
 }
 
 .assistantMeta {
   display: flex;
-  gap: var(--space-sm);
-  margin-top: 6px;
-  font-size: 0.625rem;
+  gap: var(--space-xs);
+  margin-top: 4px;
+  font-size: 0.5625rem;
   opacity: 0.7;
   justify-content: flex-end;
 }
 
 /* Thinking block (collapsible) */
 .thinkingBlock {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .thinkingToggle {
@@ -421,9 +579,9 @@
   background-color: rgba(255, 255, 255, 0.1);
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 6px;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   cursor: pointer;
   font-weight: 500;
   width: 100%;
@@ -435,24 +593,24 @@
 }
 
 .thinkingContent {
-  margin-top: 4px;
-  padding: 8px 10px;
+  margin-top: 3px;
+  padding: 6px 8px;
   background-color: rgba(255, 255, 255, 0.06);
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   white-space: pre-wrap;
   word-break: break-word;
   color: rgba(255, 255, 255, 0.8);
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
 }
 
 /* Tool call card */
 .toolCallCard {
-  margin: 6px 0;
-  padding: 8px 12px;
+  margin: 4px 0;
+  padding: 6px 10px;
   background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 6px;
   border-left: 3px solid rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition: background-color 0.1s;
@@ -463,15 +621,15 @@
 }
 
 .toolCallName {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .toolCallArgs {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 2px;
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -483,14 +641,14 @@
 /* Tool result card */
 .toolResult {
   align-self: flex-end;
-  max-width: 85%;
-  margin-top: -8px;
+  max-width: 95%;
+  margin-top: -4px;
 }
 
 .toolResultInner {
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 0.75rem;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.6875rem;
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
@@ -509,46 +667,29 @@
 .toolResultToggle {
   background: none;
   border: none;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   cursor: pointer;
   padding: 0;
-  margin-top: 4px;
+  margin-top: 3px;
   font-weight: 500;
 }
 
 .toolResultContent {
-  margin-top: 4px;
+  margin-top: 3px;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 150px;
+  max-height: 120px;
   overflow-y: auto;
 }
 
-/* Inline diff */
+/* Inline diff (used in MessageBubble) */
 .inlineDiff {
-  margin: 6px 0;
+  margin: 4px 0;
   border-radius: 6px;
   overflow: hidden;
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   background-color: rgba(0, 0, 0, 0.15);
-}
-
-.diffLineAdded {
-  background-color: rgba(42, 64, 42, 0.3);
-  padding: 1px 8px;
-  color: #a0d8a0;
-}
-
-.diffLineRemoved {
-  background-color: rgba(64, 42, 42, 0.3);
-  padding: 1px 8px;
-  color: #d8a0a0;
-}
-
-.diffLineContext {
-  padding: 1px 8px;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Loading / empty states */
@@ -558,16 +699,16 @@
   justify-content: center;
   padding: var(--space-xl);
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .waitingDot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background-color: var(--status-green);
-  margin-right: 8px;
+  margin-right: 6px;
   animation: pulse 1.5s ease-in-out infinite;
 }
 

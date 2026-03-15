@@ -1,0 +1,36 @@
+/* AppShell — fully adaptive flex layout, no fixed sizes */
+
+.shell {
+  display: flex;
+  height: 100vh;
+  padding: var(--shell-pad, 12px);
+  gap: var(--shell-gap, 12px);
+  background-color: var(--bg-canvas);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* When viewport is narrow, reduce shell padding */
+@media (max-width: 1200px) {
+  .shell {
+    --shell-pad: 8px;
+    --shell-gap: 8px;
+  }
+}

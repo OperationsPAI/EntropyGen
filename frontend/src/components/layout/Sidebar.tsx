@@ -1,5 +1,6 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconLive } from '@douyinfe/semi-icons'
+import { useState, useEffect } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconLive, IconChevronLeft, IconChevronRight } from '@douyinfe/semi-icons'
 import { authApi } from '../../api/auth'
 import styles from './Sidebar.module.css'
 
@@ -14,8 +15,19 @@ const NAV_ITEMS = [
   { path: '/export', label: 'Export', icon: <IconExport size="small" /> },
 ]
 
+/** Routes that auto-collapse the sidebar for maximum content space */
+const AUTO_COLLAPSE_ROUTES = ['/observe/']
+
 export default function Sidebar() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [collapsed, setCollapsed] = useState(false)
+
+  // Auto-collapse when entering observe detail pages, auto-expand when leaving
+  useEffect(() => {
+    const shouldCollapse = AUTO_COLLAPSE_ROUTES.some((r) => location.pathname.startsWith(r))
+    setCollapsed(shouldCollapse)
+  }, [location.pathname])
 
   const handleLogout = async () => {
     try { await authApi.logout() } catch { /* ignore */ }
@@ -24,40 +36,39 @@ export default function Sidebar() {
   }
 
   return (
-    <aside style={{
-      width: '220px',
-      flexShrink: 0,
-      backgroundColor: 'var(--bg-surface)',
-      borderRadius: '24px',
-      padding: '24px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '32px',
-    }}>
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.02em' }}>
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+      {/* Logo row */}
+      <div className={styles.logoRow}>
         <div className={styles.logo}>
-          <div style={{ width: '10px', height: '10px', backgroundColor: 'white', borderRadius: '50%' }} />
+          <div className={styles.logoDot} />
         </div>
-        EntropyGen
+        {!collapsed && <span className={styles.logoText}>EntropyGen</span>}
+        <button
+          className={styles.collapseBtn}
+          onClick={() => setCollapsed((p) => !p)}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <IconChevronRight size="extra-small" /> : <IconChevronLeft size="extra-small" />}
+        </button>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1 }}>
-        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <nav className={styles.nav}>
+        <ul className={styles.navList}>
           {NAV_ITEMS.map(({ path, label, icon }) => (
             <li key={path}>
               <NavLink
                 to={path}
                 className={({ isActive }) =>
-                  `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+                  `${styles.navItem} ${isActive ? styles.navItemActive : ''} ${collapsed ? styles.navItemCollapsed : ''}`
                 }
+                title={collapsed ? label : undefined}
               >
                 {({ isActive }) => (
                   <>
                     {isActive && <span className={styles.activeBar} />}
-                    <span style={{ display: 'flex', opacity: 0.6 }}>{icon}</span>
-                    {label}
+                    <span className={styles.navIcon}>{icon}</span>
+                    {!collapsed && label}
                   </>
                 )}
               </NavLink>
@@ -66,21 +77,18 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* User info + Sign Out */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          padding: '8px 12px',
-        }}>
+      {/* User + Sign Out */}
+      <div className={styles.userSection}>
+        <div className={`${styles.userRow} ${collapsed ? styles.userRowCollapsed : ''}`}>
           <div className={styles.avatar}>AG</div>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Agent Admin
-          </span>
+          {!collapsed && <span className={styles.userName}>Agent Admin</span>}
         </div>
-        <button onClick={handleLogout} className={styles.signOutBtn}>
-          Sign Out
+        <button
+          onClick={handleLogout}
+          className={`${styles.signOutBtn} ${collapsed ? styles.signOutBtnCollapsed : ''}`}
+          title={collapsed ? 'Sign Out' : undefined}
+        >
+          {collapsed ? <span className={styles.signOutShort}>Out</span> : 'Sign Out'}
         </button>
       </div>
     </aside>

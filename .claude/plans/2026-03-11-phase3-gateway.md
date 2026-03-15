@@ -149,7 +149,7 @@ gateway.llm_inference:
 
 - [ ] Gateway 完全无状态（JWT 验签只需密钥，Redis 写入 fire-and-forget）
 - [ ] 填充 `k8s/helm/templates/gateway-deployment.yaml`：
-  - `replicas: 2`，RollingUpdate（maxUnavailable=0，maxSurge=1）
+  - `replicas: 1`，RollingUpdate（maxUnavailable=0，maxSurge=1）
   - 挂载 `agent-gateway-jwt-secret`
   - ConfigMap 挂载路由配置
 - [ ] 健康检查端点：`GET /healthz`（200 即可）

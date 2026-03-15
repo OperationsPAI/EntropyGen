@@ -86,7 +86,7 @@
     image: operator
 
   gateway:
-    replicas: 2
+    replicas: 1
     image: gateway
     jwtSecretRef: agent-gateway-jwt-secret
 

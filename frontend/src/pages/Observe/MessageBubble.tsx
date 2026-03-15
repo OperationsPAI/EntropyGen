@@ -1,12 +1,12 @@
 import { useState } from 'react'
+import { IconWrench, IconTickCircle, IconMinusCircle, IconTreeTriangleDown, IconTreeTriangleRight } from '@douyinfe/semi-icons'
 import type {
   JsonlMessage,
-  UserMessage,
-  AssistantMessage,
-  ToolResultMessage,
+  MessageEnvelope,
+  UserMessagePayload,
+  AssistantMessagePayload,
+  ToolResultMessagePayload,
   SessionMessage,
-  ModelChangeMessage,
-  ThinkingLevelChangeMessage,
   ContentBlock,
 } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
@@ -21,14 +21,18 @@ export default function MessageBubble({ message, onToolCallClick }: MessageBubbl
     case 'session':
       return <SessionDivider message={message} />
     case 'model_change':
-      return <BadgeMessage text={`Model: ${(message as ModelChangeMessage).modelId}`} />
+      return <BadgeMessage text={`Model: ${message.modelId}`} />
     case 'thinking_level_change':
-      return <BadgeMessage text={`Thinking: ${(message as ThinkingLevelChangeMessage).level}`} />
-    case 'message':
-      if (message.role === 'user') return <UserBubble message={message as UserMessage} />
-      if (message.role === 'assistant') return <AssistantBubble message={message as AssistantMessage} onToolCallClick={onToolCallClick} />
-      if (message.role === 'toolResult') return <ToolResultBubble message={message as ToolResultMessage} />
+      return <BadgeMessage text={`Thinking: ${message.thinkingLevel}`} />
+    case 'custom':
       return null
+    case 'message': {
+      const { message: payload } = message as MessageEnvelope
+      if (payload.role === 'user') return <UserBubble payload={payload} />
+      if (payload.role === 'assistant') return <AssistantBubble payload={payload} onToolCallClick={onToolCallClick} />
+      if (payload.role === 'toolResult') return <ToolResultBubble payload={payload} />
+      return null
+    }
     default:
       return null
   }
@@ -53,33 +57,31 @@ function BadgeMessage({ text }: { text: string }) {
   )
 }
 
-function UserBubble({ message }: { message: UserMessage }) {
-  const content = typeof message.content === 'string'
-    ? message.content
-    : JSON.stringify(message.content)
+function UserBubble({ payload }: { payload: UserMessagePayload }) {
+  const text = extractText(payload.content)
   return (
     <div className={styles.userBubble}>
       <div className={styles.userLabel}>User</div>
       <div className={styles.userBubbleInner}>
-        {truncateText(content, 500)}
+        {truncateText(text, 500)}
       </div>
     </div>
   )
 }
 
 function AssistantBubble({
-  message,
+  payload,
   onToolCallClick,
 }: {
-  message: AssistantMessage
+  payload: AssistantMessagePayload
   onToolCallClick?: (toolName: string, args: Record<string, unknown>) => void
 }) {
   return (
     <div className={styles.assistantBubble}>
       <div className={styles.assistantLabel}>Assistant</div>
       <div className={styles.assistantBubbleInner}>
-        {Array.isArray(message.content) ? (
-          message.content.map((block, i) => (
+        {Array.isArray(payload.content) ? (
+          payload.content.map((block, i) => (
             <ContentBlockView
               key={i}
               block={block}
@@ -88,14 +90,14 @@ function AssistantBubble({
           ))
         ) : (
           <div className={styles.assistantText}>
-            {String(message.content)}
+            {String(payload.content)}
           </div>
         )}
-        {message.usage && (
+        {payload.usage && (
           <div className={styles.assistantMeta}>
-            {message.model && <span>{message.model}</span>}
+            {payload.model && <span>{payload.model}</span>}
             <span>
-              {message.usage.inputTokens}+{message.usage.outputTokens} tokens
+              {payload.usage.input}+{payload.usage.output} tokens
             </span>
           </div>
         )}
@@ -120,7 +122,7 @@ function ContentBlockView({
           className={styles.thinkingToggle}
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? '▾' : '▸'} Thinking...
+          {expanded ? <IconTreeTriangleDown size="small" /> : <IconTreeTriangleRight size="small" />} Thinking...
         </button>
         {expanded && (
           <div className={styles.thinkingContent}>{block.thinking}</div>
@@ -146,7 +148,7 @@ function ContentBlockView({
         }}
       >
         <div className={styles.toolCallName}>
-          <span>🔧</span> {block.name}
+          <IconWrench size="small" /> {block.name}
         </div>
         {argsSummary && (
           <div className={styles.toolCallArgs}>{argsSummary}</div>
@@ -158,27 +160,28 @@ function ContentBlockView({
   return null
 }
 
-function ToolResultBubble({ message }: { message: ToolResultMessage }) {
-  const [expanded, setExpanded] = useState(!!message.isError)
-  const isError = !!message.isError
+function ToolResultBubble({ payload }: { payload: ToolResultMessagePayload }) {
+  const [expanded, setExpanded] = useState(!!payload.isError)
+  const isError = !!payload.isError
+  const text = extractText(payload.content)
   return (
     <div className={styles.toolResult}>
       <div
         className={`${styles.toolResultInner} ${isError ? styles.toolResultError : styles.toolResultSuccess}`}
       >
-        <div>{isError ? '✗' : '✓'} {message.name ?? 'tool result'}</div>
-        {message.content && (
+        <div>{isError ? <IconMinusCircle size="small" /> : <IconTickCircle size="small" />} {payload.toolName ?? 'tool result'}</div>
+        {text && (
           <>
             <button
               className={styles.toolResultToggle}
               onClick={() => setExpanded(!expanded)}
               style={{ color: isError ? 'var(--status-red)' : 'var(--status-green)' }}
             >
-              {expanded ? '▾ Collapse' : '▸ Expand'}
+              {expanded ? <><IconTreeTriangleDown size="small" /> Collapse</> : <><IconTreeTriangleRight size="small" /> Expand</>}
             </button>
             {expanded && (
               <div className={styles.toolResultContent}>
-                {truncateText(message.content, 1000)}
+                {truncateText(text, 1000)}
               </div>
             )}
           </>
@@ -188,18 +191,23 @@ function ToolResultBubble({ message }: { message: ToolResultMessage }) {
   )
 }
 
+/** Extract plain text from a ContentBlock array. */
+function extractText(blocks: ContentBlock[]): string {
+  if (!Array.isArray(blocks)) return String(blocks)
+  return blocks
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n')
+}
+
 function summarizeToolArgs(name: string, args: Record<string, unknown>): string {
   if (!args) return ''
-  // Show file path for file operations
   const filePath = args.file_path ?? args.path ?? args.filePath
   if (filePath && typeof filePath === 'string') return filePath
-  // Show command for bash
   if (name.toLowerCase().includes('bash') && args.command) {
     return truncateText(String(args.command), 60)
   }
-  // Show pattern for search
   if (args.pattern && typeof args.pattern === 'string') return args.pattern
-  // Fallback: first string arg
   const firstVal = Object.values(args).find((v) => typeof v === 'string')
   return firstVal ? truncateText(String(firstVal), 60) : ''
 }

@@ -1,0 +1,54 @@
+import type { ReactNode } from 'react'
+import type { AggregatedTokenUsage } from './tokenUtils'
+import styles from './ObserveDetail.module.css'
+
+interface StatusFooterProps {
+  statusIcon: ReactNode
+  statusText: string
+  tokenUsage: AggregatedTokenUsage
+  sessionCount: number
+  repo?: string
+}
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
+export default function StatusFooter({
+  statusIcon,
+  statusText,
+  tokenUsage,
+  sessionCount,
+  repo,
+}: StatusFooterProps) {
+  return (
+    <div className={styles.statusFooter}>
+      <div className={styles.statusFooterLeft}>
+        <span className={styles.statusFooterIcon}>{statusIcon}</span>
+        <span className={styles.statusFooterText}>{statusText}</span>
+      </div>
+      <div className={styles.statusFooterRight}>
+        {repo && (
+          <>
+            <span className={styles.statusFooterItem}>{repo}</span>
+            <span className={styles.statusFooterSep}>|</span>
+          </>
+        )}
+        <span className={styles.statusFooterItem}>
+          Token: {formatTokenCount(tokenUsage.totalTokens)}
+          {tokenUsage.totalTokens > 0 && (
+            <span className={styles.statusFooterTokenDetail}>
+              {' '}(in:{formatTokenCount(tokenUsage.inputTokens)} / out:{formatTokenCount(tokenUsage.outputTokens)})
+            </span>
+          )}
+        </span>
+        <span className={styles.statusFooterSep}>|</span>
+        <span className={styles.statusFooterItem}>
+          {sessionCount} session{sessionCount !== 1 ? 's' : ''}
+        </span>
+      </div>
+    </div>
+  )
+}

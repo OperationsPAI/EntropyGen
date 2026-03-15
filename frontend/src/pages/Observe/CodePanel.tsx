@@ -1,230 +1,104 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import MonacoEditor from '../../components/editor/MonacoEditor'
+import EditorTabs from './EditorTabs'
+import DiffView from './DiffView'
 import { observeApi } from '../../api/observe'
-import type { FileTreeNode } from '../../types/observe'
+import type { DiffResultResponse } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
 
-interface CodePanelProps {
+interface EditorPanelProps {
   agentName: string
-  selectedFile?: string
-  onFileSelected?: (path: string) => void
+  activePath: string
+  activeTab: 'code' | 'diff'
+  onTabChange: (tab: 'code' | 'diff') => void
+  diffData: DiffResultResponse | null
+  followMode: boolean
+  contentRefreshKey: number
 }
 
-export default function CodePanel({ agentName, selectedFile, onFileSelected }: CodePanelProps) {
-  const [tree, setTree] = useState<FileTreeNode[]>([])
+export default function EditorPanel({
+  agentName,
+  activePath,
+  activeTab,
+  onTabChange,
+  diffData,
+  followMode,
+  contentRefreshKey,
+}: EditorPanelProps) {
   const [fileContent, setFileContent] = useState('')
-  const [diff, setDiff] = useState('')
-  const [activePath, setActivePath] = useState(selectedFile ?? '')
+  const [language, setLanguage] = useState('plaintext')
   const [loading, setLoading] = useState(false)
-  const [followMode, setFollowMode] = useState(true)
-  const autoFollowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Load file tree
-  useEffect(() => {
-    let cancelled = false
-    const loadTree = async () => {
-      try {
-        const data = await observeApi.getWorkspaceTree(agentName)
-        if (!cancelled) setTree(data ?? [])
-      } catch {
-        // sidecar may not be reachable
-      }
-    }
-    loadTree()
-    const timer = setInterval(loadTree, 15_000)
-    return () => { cancelled = true; clearInterval(timer) }
-  }, [agentName])
-
-  // Load diff summary
-  useEffect(() => {
-    let cancelled = false
-    const loadDiff = async () => {
-      try {
-        const d = await observeApi.getWorkspaceDiff(agentName)
-        if (!cancelled) setDiff(d)
-      } catch {
-        // ignore
-      }
-    }
-    loadDiff()
-    const timer = setInterval(loadDiff, 15_000)
-    return () => { cancelled = true; clearInterval(timer) }
-  }, [agentName])
-
-  // Respond to external file selection only in follow mode
-  useEffect(() => {
-    if (followMode && selectedFile && selectedFile !== activePath) {
-      setActivePath(selectedFile)
-    }
-  }, [selectedFile, activePath, followMode])
-
-  // Load file content when path changes
+  // Load file content when path or refresh key changes
   useEffect(() => {
     if (!activePath) return
     let cancelled = false
     setLoading(true)
     observeApi.getWorkspaceFile(agentName, activePath)
-      .then((content) => {
-        if (!cancelled) setFileContent(content)
+      .then((res) => {
+        if (!cancelled) {
+          setFileContent(res.content)
+          setLanguage(res.language || guessLanguage(activePath))
+        }
       })
       .catch(() => {
-        if (!cancelled) setFileContent('// Unable to load file')
+        if (!cancelled) {
+          setFileContent('// Unable to load file')
+          setLanguage(guessLanguage(activePath))
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [agentName, activePath])
+  }, [agentName, activePath, contentRefreshKey])
 
-  // In follow mode, auto-reload current file every 5s to pick up agent edits
+  // In follow mode, auto-reload current file every 5s
   useEffect(() => {
     if (!followMode || !activePath) return
     const timer = setInterval(() => {
       observeApi.getWorkspaceFile(agentName, activePath)
-        .then(setFileContent)
+        .then((res) => {
+          setFileContent(res.content)
+          setLanguage(res.language || guessLanguage(activePath))
+        })
         .catch(() => {})
     }, 5_000)
     return () => clearInterval(timer)
   }, [followMode, agentName, activePath])
 
-  const handleFileClick = useCallback((path: string) => {
-    setActivePath(path)
-    onFileSelected?.(path)
-  }, [onFileSelected])
-
-  const handleToggleFollow = useCallback(() => {
-    setFollowMode((prev) => {
-      const next = !prev
-      // When switching back to follow mode, jump to the latest external selection
-      if (next && selectedFile && selectedFile !== activePath) {
-        setActivePath(selectedFile)
-      }
-      return next
-    })
-    // Clear any pending auto-resume timer
-    if (autoFollowTimerRef.current) {
-      clearTimeout(autoFollowTimerRef.current)
-      autoFollowTimerRef.current = null
-    }
-  }, [selectedFile, activePath])
-
-  const flatFiles = flattenTree(tree)
-  const diffStats = parseDiffStats(diff)
-  const language = guessLanguage(activePath)
+  const diffStats = diffData
+    ? { filesChanged: diffData.files_changed, insertions: diffData.insertions, deletions: diffData.deletions }
+    : null
 
   return (
-    <div className={styles.codePanel}>
-      <div className={styles.codePanelToolbar}>
-        <span className={styles.fileTreeTitle}>Workspace</span>
-        <button
-          className={`${styles.followToggle} ${followMode ? styles.followToggleActive : ''}`}
-          onClick={handleToggleFollow}
-          title={followMode ? 'Following agent edits — click to browse freely' : 'Browse mode — click to follow agent'}
-        >
-          <span className={followMode ? styles.followDot : styles.browseDot} />
-          {followMode ? 'Following' : 'Browse'}
-        </button>
-      </div>
-
-      <div className={styles.fileTree}>
-        {flatFiles.length === 0 ? (
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '4px 8px' }}>
-            No files available
-          </div>
+    <div className={styles.editorPanel}>
+      <EditorTabs
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        filePath={activePath}
+        diffStats={diffStats}
+      />
+      <div className={styles.editorContent}>
+        {activeTab === 'code' ? (
+          loading ? (
+            <div className={styles.loadingState}>Loading file...</div>
+          ) : activePath ? (
+            <MonacoEditor
+              value={fileContent}
+              language={language}
+              readOnly
+              height="100%"
+            />
+          ) : (
+            <div className={styles.loadingState}>Select a file to view</div>
+          )
         ) : (
-          flatFiles.map((f) => (
-            <div
-              key={f.path}
-              className={`${styles.fileTreeItem} ${f.path === activePath ? styles.fileTreeItemActive : ''}`}
-              onClick={() => handleFileClick(f.path)}
-              style={{ paddingLeft: `${8 + f.depth * 12}px` }}
-            >
-              <span>{f.isDir ? '📁' : '📄'}</span>
-              <span>{f.name}</span>
-              {f.status && (
-                <span
-                  className={`${styles.fileStatus} ${
-                    f.status === 'modified' ? styles.fileStatusModified :
-                    f.status === 'added' ? styles.fileStatusAdded : ''
-                  }`}
-                >
-                  {f.status === 'modified' ? '●' : f.status === 'added' ? '+' : ''}
-                </span>
-              )}
-            </div>
-          ))
+          <DiffView diff={diffData?.diff ?? ''} />
         )}
       </div>
-
-      <div className={styles.codeEditor}>
-        {loading ? (
-          <div className={styles.loadingState}>Loading file...</div>
-        ) : activePath ? (
-          <MonacoEditor
-            value={fileContent}
-            language={language}
-            readOnly
-            height="100%"
-          />
-        ) : (
-          <div className={styles.loadingState}>Select a file to view</div>
-        )}
-      </div>
-
-      {diffStats && (
-        <div className={styles.diffSummary}>
-          git diff: {diffStats.filesChanged} file{diffStats.filesChanged !== 1 ? 's' : ''} changed,
-          +{diffStats.additions} -{diffStats.deletions} lines
-        </div>
-      )}
     </div>
   )
-}
-
-interface FlatFile {
-  name: string
-  path: string
-  isDir: boolean
-  status?: string
-  depth: number
-}
-
-function flattenTree(nodes: FileTreeNode[], depth = 0, parentPath = ''): FlatFile[] {
-  const result: FlatFile[] = []
-  for (const node of nodes) {
-    const path = parentPath ? `${parentPath}/${node.name}` : node.name
-    result.push({
-      name: node.name,
-      path,
-      isDir: node.type === 'dir',
-      status: node.modified ? 'modified' : undefined,
-      depth,
-    })
-    if (node.children) {
-      result.push(...flattenTree(node.children, depth + 1, path))
-    }
-  }
-  return result
-}
-
-function parseDiffStats(diff: string): { filesChanged: number; additions: number; deletions: number } | null {
-  if (!diff) return null
-  const lines = diff.split('\n')
-  let additions = 0
-  let deletions = 0
-  const files = new Set<string>()
-  for (const line of lines) {
-    if (line.startsWith('diff --git')) {
-      const match = line.match(/b\/(.+)$/)
-      if (match) files.add(match[1])
-    } else if (line.startsWith('+') && !line.startsWith('+++')) {
-      additions++
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
-      deletions++
-    }
-  }
-  if (files.size === 0 && additions === 0 && deletions === 0) return null
-  return { filesChanged: files.size, additions, deletions }
 }
 
 function guessLanguage(path: string): string {

@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 .env.local
+
+# Playwright
+e2e/.auth/
+e2e/test-results/
+playwright-report/

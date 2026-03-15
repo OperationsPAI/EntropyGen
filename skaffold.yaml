@@ -45,8 +45,9 @@ deploy:
         global.tag: dev
         global.imagePullPolicy: Always
         platformInit.image: "bitnami/kubectl:latest"
-        agentRuntimeImage: "10.10.10.240/library/agent-runtime:latest"
         backend.port: "8081"
         ingress.enabled: "false"
         llm.apiKey: "sk-nTS4PVnmc24hYSCkAuYZSRY9aXcbfxHLQAJ9zrOpiovV3kvQ"
         llm.baseURL: "https://bobdong.cn/v1"
+      setValueTemplates:
+        agentRuntimeImage: "{{.IMAGE_FULLY_QUALIFIED_10_10_10_240_library_agent_runtime}}"

@@ -3,6 +3,7 @@ import Sidebar from './Sidebar'
 import AlertBanner from '../alert/AlertBanner'
 import ToastContainer from '../ui/Toast'
 import { useWebSocket } from '../../hooks/useWebSocket'
+import styles from './AppShell.module.css'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('jwt_token')
@@ -15,17 +16,11 @@ export default function AppShell() {
 
   return (
     <AuthGuard>
-      <div style={{
-        display: 'flex',
-        minHeight: '100vh',
-        padding: '16px',
-        gap: '16px',
-        backgroundColor: 'var(--bg-canvas)',
-      }}>
+      <div className={styles.shell}>
         <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: 0 }}>
+        <div className={styles.content}>
           <AlertBanner />
-          <main style={{ flex: 1 }}>
+          <main className={styles.main}>
             <Outlet />
           </main>
         </div>

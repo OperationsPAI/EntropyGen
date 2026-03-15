@@ -257,7 +257,7 @@ Gateway 完全无状态（JWT 验证只需密钥，Redis 写入为 fire-and-forg
 
 ```yaml
 # Gateway Deployment
-replicas: 2                         # 生产建议 2 副本
+replicas: 1                         
 strategy:
   type: RollingUpdate
   rollingUpdate:

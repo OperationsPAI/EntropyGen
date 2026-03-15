@@ -1,22 +1,37 @@
 // --- JSONL message types from OpenClaw completions ---
+// Aligned with actual backend NDJSON structure.
 
-export interface SessionMessage {
-  type: 'session'
-  id: string
-  cwd: string
+// Every JSONL line has these common envelope fields.
+interface BaseEnvelope {
+  id?: string
+  parentId?: string | null
   timestamp: string
 }
 
-export interface ModelChangeMessage {
+export interface SessionMessage extends BaseEnvelope {
+  type: 'session'
+  version?: number
+  cwd: string
+}
+
+export interface ModelChangeMessage extends BaseEnvelope {
   type: 'model_change'
   provider: string
   modelId: string
 }
 
-export interface ThinkingLevelChangeMessage {
+export interface ThinkingLevelChangeMessage extends BaseEnvelope {
   type: 'thinking_level_change'
-  level: string
+  thinkingLevel: string
 }
+
+export interface CustomMessage extends BaseEnvelope {
+  type: 'custom'
+  customType: string
+  data: Record<string, unknown>
+}
+
+// --- Content blocks inside assistant messages ---
 
 export interface ThinkingBlock {
   type: 'thinking'
@@ -30,52 +45,75 @@ export interface TextBlock {
 
 export interface ToolCallBlock {
   type: 'toolCall'
+  id?: string
   name: string
   arguments: Record<string, unknown>
 }
 
 export type ContentBlock = ThinkingBlock | TextBlock | ToolCallBlock
 
+// --- Usage (backend shape) ---
+
 export interface TokenUsage {
-  inputTokens: number
-  outputTokens: number
-  cacheReadInputTokens?: number
-  cacheCreationInputTokens?: number
+  input: number
+  output: number
+  cacheRead?: number
+  cacheWrite?: number
+  totalTokens?: number
+  cost?: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+    total: number
+  }
 }
 
-export interface UserMessage {
-  type: 'message'
+// --- Message envelope: type="message", inner payload in .message ---
+
+export interface UserMessagePayload {
   role: 'user'
-  content: string
-  parentId?: string
+  content: ContentBlock[]
+  timestamp?: number
 }
 
-export interface AssistantMessage {
-  type: 'message'
+export interface AssistantMessagePayload {
   role: 'assistant'
   content: ContentBlock[]
   model?: string
+  provider?: string
   usage?: TokenUsage
   stopReason?: string
-  parentId?: string
+  timestamp?: number
 }
 
-export interface ToolResultMessage {
-  type: 'message'
+export interface ToolResultMessagePayload {
   role: 'toolResult'
-  name: string
-  content: string
+  toolCallId?: string
+  toolName: string
+  content: ContentBlock[]
   isError?: boolean
-  parentId?: string
+  timestamp?: number
 }
+
+export type MessagePayload =
+  | UserMessagePayload
+  | AssistantMessagePayload
+  | ToolResultMessagePayload
+
+export interface MessageEnvelope extends BaseEnvelope {
+  type: 'message'
+  message: MessagePayload
+}
+
+// --- Union of all JSONL line types ---
 
 export type JsonlMessage =
   | SessionMessage
   | ModelChangeMessage
   | ThinkingLevelChangeMessage
-  | UserMessage
-  | AssistantMessage
-  | ToolResultMessage
+  | CustomMessage
+  | MessageEnvelope
 
 // --- Sidecar API types ---
 
@@ -92,6 +130,19 @@ export interface FileTreeNode {
   type: 'file' | 'dir'
   modified: boolean
   children?: FileTreeNode[]
+}
+
+export interface FileContentResponse {
+  path: string
+  content: string
+  language: string
+}
+
+export interface DiffResultResponse {
+  diff: string
+  files_changed: number
+  insertions: number
+  deletions: number
 }
 
 // --- WebSocket events from sidecar ---

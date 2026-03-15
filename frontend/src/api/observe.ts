@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { SessionInfo, FileTreeNode, JsonlMessage } from '../types/observe'
+import type { SessionInfo, FileTreeNode, FileContentResponse, DiffResultResponse, JsonlMessage } from '../types/observe'
 
 const observeBase = (agentName: string) => `/agents/${agentName}/observe`
 
@@ -25,22 +25,22 @@ export const observeApi = {
 
   getWorkspaceTree: (agentName: string) =>
     apiClient
-      .get<FileTreeNode[]>(`${observeBase(agentName)}/workspace/tree`)
-      .then((r) => r.data),
+      .get<FileTreeNode>(`${observeBase(agentName)}/workspace/tree`)
+      .then((r) => {
+        const root = r.data
+        return root?.children ?? []
+      }),
 
   getWorkspaceFile: (agentName: string, path: string) =>
     apiClient
-      .get<string>(`${observeBase(agentName)}/workspace/file`, {
+      .get<FileContentResponse>(`${observeBase(agentName)}/workspace/file`, {
         params: { path },
-        transformResponse: [(data: string) => data],
       })
       .then((r) => r.data),
 
   getWorkspaceDiff: (agentName: string) =>
     apiClient
-      .get<string>(`${observeBase(agentName)}/workspace/diff`, {
-        transformResponse: [(data: string) => data],
-      })
+      .get<DiffResultResponse>(`${observeBase(agentName)}/workspace/diff`)
       .then((r) => r.data),
 }
 
