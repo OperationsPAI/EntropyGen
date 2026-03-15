@@ -35,6 +35,9 @@ export function useWebSocket() {
       try {
         const event: RealtimeEvent = JSON.parse(evt.data as string)
 
+        // Add all events to the live stream
+        addEvent(event)
+
         if (event.event_type === 'gateway.llm_inference') {
           const payload = event.payload as unknown as LLMInferencePayload
           updateAgentTokens(event.agent_id, payload.tokens_in + payload.tokens_out)
@@ -49,8 +52,6 @@ export function useWebSocket() {
           }
           addAlert(alertEvent)
           updateAgentPhase(event.agent_id, 'Error' as AgentPhase)
-        } else if (event.event_type.startsWith('gitea.')) {
-          addEvent(event)
         }
       } catch {
         // ignore malformed messages

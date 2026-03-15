@@ -95,6 +95,7 @@ export interface Role {
   name: string
   description: string
   files: RoleFile[]
+  file_count: number
   agent_count: number
   created_at: string
   updated_at: string

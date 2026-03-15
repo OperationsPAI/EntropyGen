@@ -24,7 +24,6 @@ func NewAuditHandler(ch *chclient.Client) *AuditHandler {
 }
 
 func (h *AuditHandler) ListTraces(c *gin.Context) {
-	agentID := c.Query("agent_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit > 200 {
 		limit = 200
@@ -32,15 +31,34 @@ func (h *AuditHandler) ListTraces(c *gin.Context) {
 	if limit < 1 {
 		limit = 1
 	}
-	traces, err := h.ch.GetRecentTraces(c.Request.Context(), agentID, limit)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+
+	f := chclient.TraceFilter{
+		AgentID:     c.Query("agent_id"),
+		RequestType: c.Query("request_type"),
+		Status:      c.Query("status"),
+		StartTime:   c.Query("start_time"),
+		EndTime:     c.Query("end_time"),
+		Limit:       limit,
+		Page:        page,
+	}
+
+	result, err := h.ch.QueryTraces(c.Request.Context(), f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
 		return
 	}
+	items := result.Items
+	if items == nil {
+		items = []chclient.AuditTrace{}
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    traces,
-		"meta":    gin.H{"limit": limit, "count": len(traces)},
+		"data":    items,
+		"meta":    gin.H{"limit": limit, "count": result.Total, "page": page},
 	})
 }
 
@@ -49,15 +67,73 @@ func (h *AuditHandler) GetTrace(c *gin.Context) {
 }
 
 func (h *AuditHandler) TokenUsage(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
+	agentID := c.Query("agent_id")
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	results, err := h.ch.GetTokenUsage(c.Request.Context(), agentID, days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
+		return
+	}
+	if results == nil {
+		results = []chclient.TokenUsageSummary{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
 func (h *AuditHandler) AgentActivity(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
+	agentID := c.Query("agent_id")
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
+	results, err := h.ch.GetAgentActivity(c.Request.Context(), agentID, days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
+		return
+	}
+	if results == nil {
+		results = []chclient.AgentActivitySummary{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
 func (h *AuditHandler) Operations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
+}
+
+func (h *AuditHandler) ModelDistribution(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	results, err := h.ch.GetModelDistribution(c.Request.Context(), days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
+		return
+	}
+	if results == nil {
+		results = []chclient.ModelDistribution{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+}
+
+func (h *AuditHandler) LatencyTrend(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	results, err := h.ch.GetLatencyTrend(c.Request.Context(), days)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
+		return
+	}
+	if results == nil {
+		results = []chclient.LatencyPoint{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
+}
+
+func (h *AuditHandler) AgentRanking(c *gin.Context) {
+	results, err := h.ch.GetAgentRanking(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError("QUERY_FAILED", err.Error(), ""))
+		return
+	}
+	if results == nil {
+		results = []chclient.AgentRanking{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
 // Export streams audit traces as JSONL (training data format).

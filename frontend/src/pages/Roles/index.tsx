@@ -88,7 +88,7 @@ export default function RoleList() {
                 </Link>
               </td>
               <td className={styles.mutedCell}>{role.description || '\u2014'}</td>
-              <td className={styles.mutedCell}>{(role.files ?? []).length}</td>
+              <td className={styles.mutedCell}>{role.file_count ?? (role.files ?? []).length}</td>
               <td className={styles.mutedCell} title={`${role.agent_count} agents using this role`}>
                 {role.agent_count}
               </td>

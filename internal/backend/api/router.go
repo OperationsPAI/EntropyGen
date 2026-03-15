@@ -34,6 +34,7 @@ func NewRouter(cfg Config) *gin.Engine {
 
 	authH := handler.NewAuthHandler(cfg.AdminUsername, cfg.AdminPasswordHash, cfg.JWTSecret)
 	agentH := handler.NewAgentHandler(cfg.AgentClient, cfg.GiteaClient, cfg.StreamWriter)
+	agentH.SetClickHouse(cfg.CHClient)
 	roleH := handler.NewRoleHandler(cfg.RoleClient)
 	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr, cfg.LiteLLMMasterKey)
 	auditH := handler.NewAuditHandler(cfg.CHClient)
@@ -91,6 +92,13 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.GET("/audit/stats/agent-activity", auditH.AgentActivity)
 	api.GET("/audit/stats/operations", auditH.Operations)
 	api.GET("/audit/export", auditH.Export)
+
+	// Monitor (analytics endpoints backed by ClickHouse)
+	api.GET("/monitor/token-trend", auditH.TokenUsage)
+	api.GET("/monitor/activity-heatmap", auditH.AgentActivity)
+	api.GET("/monitor/model-distribution", auditH.ModelDistribution)
+	api.GET("/monitor/latency-trend", auditH.LatencyTrend)
+	api.GET("/monitor/agent-ranking", auditH.AgentRanking)
 
 	// Agent observation (reverse proxy to sidecar)
 	observeH := handler.NewObserveHandler(cfg.AgentNamespace)

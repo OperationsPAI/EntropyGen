@@ -1,6 +1,8 @@
 import { useEffect, useCallback, useState } from 'react'
 import ReactECharts from '../../components/ReactECharts'
 import { agentsApi } from '../../api/agents'
+import { monitorApi } from '../../api/monitor'
+import type { AgentActivityPoint } from '../../api/monitor'
 import { useAgentStore } from '../../stores/agentStore'
 import { useEventStore } from '../../stores/eventStore'
 import { useAlertStore } from '../../stores/alertStore'
@@ -89,6 +91,12 @@ function AgentStatusTable({ agents }: { agents: Agent[] }) {
 }
 
 function TokenTrendChart({ agents }: { agents: Agent[] }) {
+  const [activityData, setActivityData] = useState<AgentActivityPoint[]>([])
+
+  useEffect(() => {
+    monitorApi.getActivityHeatmap(1).then(setActivityData).catch(() => {})
+  }, [])
+
   if (agents.length === 0) {
     return (
       <Card title="Token Trend (Today)">
@@ -98,6 +106,21 @@ function TokenTrendChart({ agents }: { agents: Agent[] }) {
   }
 
   const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+
+  // Build hourly data per agent from activity data
+  const agentHours = new Map<string, number[]>()
+  for (const agent of agents) {
+    agentHours.set(agent.name, new Array(24).fill(0))
+  }
+  for (const pt of activityData) {
+    // Audit traces use "agent-<name>" as agent_id; strip prefix for matching
+    const name = pt.agent_id.startsWith('agent-') ? pt.agent_id.slice(6) : pt.agent_id
+    const arr = agentHours.get(name)
+    if (arr && pt.hour >= 0 && pt.hour < 24) {
+      arr[pt.hour] = pt.count
+    }
+  }
+
   const chartOption = {
     tooltip: { trigger: 'axis' as const },
     legend: { data: agents.map((a) => a.name), bottom: 0 },
@@ -119,14 +142,14 @@ function TokenTrendChart({ agents }: { agents: Agent[] }) {
       name: a.name,
       type: 'line' as const,
       smooth: true,
-      data: hours.map(() => 0),
+      data: agentHours.get(a.name) ?? hours.map(() => 0),
       symbol: 'none',
       lineStyle: { width: 2 },
     })),
   }
 
   return (
-    <Card title="Token Trend (Today)">
+    <Card title="Activity Trend (Today)">
       <ReactECharts option={chartOption} style={{ height: '180px' }} />
     </Card>
   )
@@ -237,7 +260,6 @@ export default function Dashboard() {
 
   const running = agents.filter((a) => a.status.phase === 'Running').length
   const todayTokens = agents.reduce((s, a) => s + (a.status.tokenUsage?.today ?? 0), 0)
-  const giteaEventCount = events.filter((e) => e.event_type.startsWith('gitea.')).length
 
   return (
     <div className={styles.page}>
@@ -245,7 +267,7 @@ export default function Dashboard() {
       <div className={styles.statsGrid}>
         <StatCard label="Running Agents" value={`${running}/${agents.length}`} />
         <StatCard label="Today's Tokens" value={todayTokens.toLocaleString()} />
-        <StatCard label="Gitea Events" value={giteaEventCount || '\u2014'} />
+        <StatCard label="Live Events" value={events.length || '\u2014'} sub={events.length > 0 ? 'in current session' : undefined} />
         <StatCard
           label="Alerts"
           value={alerts.length}
