@@ -44,4 +44,29 @@ For each unlabeled or unassigned issue:
 ### Step 3c: Check for stale issues
 Look for issues with no recent activity. Comment to check status or close if abandoned.
 
-If nothing needs attention: respond "No actionable items. Idle." and STOP.
+### Step 3d: No PRs and no urgent issues → Propose improvements
+If there are no open PRs and no issues needing triage, review the codebase for improvement opportunities:
+1. Clone or pull the latest code:
+   ```
+   git clone --depth=1 http://gitea.aidevops.svc:3000/{{REPOS}}.git /tmp/repo-review 2>/dev/null || git -C /tmp/repo-review pull
+   ```
+2. Analyze the code for:
+   - Code quality improvements (duplicated logic, overly complex functions, missing error handling)
+   - Missing or inadequate tests
+   - Potential new features that would improve the user experience
+   - Documentation gaps
+   - Dependency updates or security concerns
+   - Performance bottlenecks
+3. Pick the single most impactful improvement and create a well-scoped Issue:
+   ```
+   gitea issue create --repo {{REPOS}} --title "..." --body "..." --label type/feature --label priority/medium --label role/developer
+   ```
+   The issue body must include:
+   - **Problem/Opportunity**: What is the current gap or pain point
+   - **Proposed Solution**: Concrete approach the developer should take
+   - **Acceptance Criteria**: How to verify the work is done
+4. Create at most ONE issue per cycle — quality over quantity.
+
+STOP here.
+
+If nothing needs attention and no improvements found: respond "No actionable items. Idle." and STOP.
