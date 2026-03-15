@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,9 +11,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/redis/go-redis/v9"
 
@@ -165,6 +171,8 @@ func (r *AgentReconciler) setCondition(agent *agentapi.Agent, condType, status, 
 }
 
 // SetupWithManager registers the reconciler and owned resource types.
+// Also watches Role ConfigMaps (role-*) so that role changes
+// automatically trigger reconciliation of all agents using that role.
 func (r *AgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&agentapi.Agent{}).
@@ -175,5 +183,35 @@ func (r *AgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&rbacv1.RoleBinding{}).
+		Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(r.mapRoleToAgents),
+			builder.WithPredicates(predicate.NewPredicateFuncs(isRoleConfigMap)),
+		).
 		Complete(r)
+}
+
+// isRoleConfigMap returns true for ConfigMaps labeled as role components.
+func isRoleConfigMap(obj client.Object) bool {
+	return obj.GetLabels()["entropygen.io/component"] == "role"
+}
+
+// mapRoleToAgents returns reconcile requests for all agents using a given role.
+// Called when a role-* ConfigMap changes.
+func (r *AgentReconciler) mapRoleToAgents(ctx context.Context, obj client.Object) []reconcile.Request {
+	roleName := strings.TrimPrefix(obj.GetName(), "role-")
+	var agents agentapi.AgentList
+	if err := r.Client.List(ctx, &agents, client.InNamespace(obj.GetNamespace())); err != nil {
+		return nil
+	}
+
+	var reqs []reconcile.Request
+	for _, a := range agents.Items {
+		if a.Spec.Role == roleName {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: a.Name, Namespace: a.Namespace},
+			})
+		}
+	}
+	return reqs
 }
