@@ -42,6 +42,7 @@ func main() {
 	redisAddr := envOr("REDIS_ADDR", "redis.storage.svc:6379")
 	gatewayURL := envOr("GATEWAY_URL", fmt.Sprintf("http://agent-gateway.%s.svc:80", controlPlaneNS))
 	defaultStorageClass := envOr("DEFAULT_STORAGE_CLASS", "")
+	rolesDataPath := envOr("ROLES_DATA_PATH", "/data/roles")
 	llmAPIKey := envOr("LLM_API_KEY", "")
 	llmBaseURL := envOr("LLM_BASE_URL", "")
 
@@ -98,6 +99,7 @@ func main() {
 		CronScheduler:       cronScheduler,
 		RedisAddr:           redisAddr,
 		GiteaURL:            giteaURL,
+		RolesDataPath:       rolesDataPath,
 	}
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		log.Error(err, "setup reconciler")

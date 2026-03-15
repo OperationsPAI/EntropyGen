@@ -158,6 +158,8 @@ agentRuntimeImage: "10.10.10.240/library/agent-runtime:latest"
 
 storage:
   className: juicefs-sc
+  rolesData:
+    size: 5Gi
 
 llm:
   apiKey: ""

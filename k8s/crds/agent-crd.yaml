@@ -14,35 +14,19 @@ spec:
           properties:
             spec:
               type: object
-              required: [role, soul]
+              required: [role]
               properties:
                 role:
                   type: string
-                  enum: [observer, developer, reviewer, sre, custom]
+                  description: "References a Role directory on the roles-data PVC"
                 displayName:
                   type: string
-                soul:
-                  type: string
-                  description: "SOUL.md content, defines Agent personality"
-                skills:
-                  type: array
-                  items:
-                    type: string
-                  description: "SKILL name list"
-                skillContents:
-                  type: object
-                  additionalProperties:
-                    type: string
-                  description: "Custom SKILL.md content map"
                 cron:
                   type: object
                   properties:
                     schedule:
                       type: string
                       description: "Cron expression"
-                    prompt:
-                      type: string
-                      description: "Prompt injected on schedule"
                 llm:
                   type: object
                   properties:

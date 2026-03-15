@@ -24,19 +24,16 @@ type Agent struct {
 }
 
 type AgentSpec struct {
-	Role          string            `json:"role"`
-	DisplayName   string            `json:"displayName,omitempty"`
-	Soul          string            `json:"soul"`
-	Skills        []string          `json:"skills,omitempty"`
-	SkillContents map[string]string `json:"skillContents,omitempty"`
-	Cron          *AgentCron        `json:"cron,omitempty"`
-	LLM           *AgentLLM         `json:"llm,omitempty"`
-	Gitea         *AgentGitea       `json:"gitea,omitempty"`
-	Kubernetes    *AgentKubernetes  `json:"kubernetes,omitempty"`
-	Resources     *AgentResources   `json:"resources,omitempty"`
-	Memory        *AgentMemory      `json:"memory,omitempty"`
-	RuntimeImage  string            `json:"runtimeImage,omitempty"`
-	Paused        bool              `json:"paused,omitempty"`
+	Role         string           `json:"role"`
+	DisplayName  string           `json:"displayName,omitempty"`
+	Cron         *AgentCron       `json:"cron,omitempty"`
+	LLM          *AgentLLM        `json:"llm,omitempty"`
+	Gitea        *AgentGitea      `json:"gitea,omitempty"`
+	Kubernetes   *AgentKubernetes `json:"kubernetes,omitempty"`
+	Resources    *AgentResources  `json:"resources,omitempty"`
+	Memory       *AgentMemory     `json:"memory,omitempty"`
+	RuntimeImage string           `json:"runtimeImage,omitempty"`
+	Paused       bool             `json:"paused,omitempty"`
 }
 
 type AgentCron struct {

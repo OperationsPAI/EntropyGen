@@ -2,6 +2,8 @@ package reconciler
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
@@ -108,9 +110,9 @@ func TestBuildSkillsData_FromRole(t *testing.T) {
 
 	rd := &roleData{
 		Skills: map[string]string{
-			skillKey("gitea-api/SKILL.md"):  "# Gitea API\nContent.",
-			skillKey("git-ops/SKILL.md"):    "# Git Ops\nContent.",
-			skillKey("my-custom/SKILL.md"):  "# Custom Skill\nDo custom things.",
+			"skills/gitea-api/SKILL.md": "# Gitea API\nContent.",
+			"skills/git-ops/SKILL.md":   "# Git Ops\nContent.",
+			"skills/my-custom/SKILL.md": "# Custom Skill\nDo custom things.",
 		},
 	}
 
@@ -119,14 +121,15 @@ func TestBuildSkillsData_FromRole(t *testing.T) {
 	if len(data) != 3 {
 		t.Errorf("expected 3 skills, got %d", len(data))
 	}
-	if _, ok := data[skillKey("gitea-api/SKILL.md")]; !ok {
-		t.Error("missing gitea-api skill from role")
+	// Skills should be stored with __ keys in ConfigMap
+	if _, ok := data[skillKey("skills/gitea-api/SKILL.md")]; !ok {
+		t.Error("missing gitea-api skill")
 	}
-	if _, ok := data[skillKey("git-ops/SKILL.md")]; !ok {
-		t.Error("missing git-ops skill from role")
+	if _, ok := data[skillKey("skills/git-ops/SKILL.md")]; !ok {
+		t.Error("missing git-ops skill")
 	}
-	if _, ok := data[skillKey("my-custom/SKILL.md")]; !ok {
-		t.Error("missing custom skill from role")
+	if _, ok := data[skillKey("skills/my-custom/SKILL.md")]; !ok {
+		t.Error("missing custom skill")
 	}
 }
 
@@ -154,15 +157,20 @@ func TestComputeHash_Deterministic(t *testing.T) {
 	}
 }
 
-func TestParseRoleData_WellKnownFiles(t *testing.T) {
-	data := map[string]string{
-		"SOUL.md":                    "soul content upper",
-		"PROMPT.md":                  "prompt content upper",
-		"AGENTS.md":                  "agents content upper",
-		"skills__my-skill__SKILL.md": "custom skill",
-		"CUSTOM.yaml":               "custom file",
+func TestReadRoleDataFromDir_WellKnownFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	writeFile(t, dir, "SOUL.md", "soul content upper")
+	writeFile(t, dir, "PROMPT.md", "prompt content upper")
+	writeFile(t, dir, "AGENTS.md", "agents content upper")
+	writeFile(t, dir, "skills/my-skill/SKILL.md", "custom skill")
+	writeFile(t, dir, "CUSTOM.yaml", "custom file")
+	writeFile(t, dir, ".metadata.json", `{"description":"test","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`)
+
+	rd, err := readRoleDataFromDir(dir)
+	if err != nil {
+		t.Fatalf("readRoleDataFromDir: %v", err)
 	}
-	rd := parseRoleData(data)
 
 	if rd.Soul != "soul content upper" {
 		t.Errorf("Soul: got %q, want %q", rd.Soul, "soul content upper")
@@ -173,21 +181,29 @@ func TestParseRoleData_WellKnownFiles(t *testing.T) {
 	if rd.AgentsMD != "agents content upper" {
 		t.Errorf("AgentsMD: got %q, want %q", rd.AgentsMD, "agents content upper")
 	}
-	if rd.Skills["skills__my-skill__SKILL.md"] != "custom skill" {
+	if rd.Skills["skills/my-skill/SKILL.md"] != "custom skill" {
 		t.Errorf("Skills: missing expected skill entry")
 	}
 	if rd.ExtraFiles["CUSTOM.yaml"] != "custom file" {
 		t.Errorf("ExtraFiles: missing expected extra file")
 	}
+	// .metadata.json should be excluded
+	if _, ok := rd.ExtraFiles[".metadata.json"]; ok {
+		t.Error(".metadata.json should be skipped")
+	}
 }
 
-func TestParseRoleData_CaseInsensitive(t *testing.T) {
-	data := map[string]string{
-		"soul.md":   "lowercase soul",
-		"prompt.md": "lowercase prompt",
-		"agents.md": "lowercase agents",
+func TestReadRoleDataFromDir_CaseInsensitive(t *testing.T) {
+	dir := t.TempDir()
+
+	writeFile(t, dir, "soul.md", "lowercase soul")
+	writeFile(t, dir, "prompt.md", "lowercase prompt")
+	writeFile(t, dir, "agents.md", "lowercase agents")
+
+	rd, err := readRoleDataFromDir(dir)
+	if err != nil {
+		t.Fatalf("readRoleDataFromDir: %v", err)
 	}
-	rd := parseRoleData(data)
 
 	if rd.Soul != "lowercase soul" {
 		t.Errorf("Soul: got %q, want %q", rd.Soul, "lowercase soul")
@@ -206,8 +222,8 @@ func TestBuildSkillItems_FromRole(t *testing.T) {
 
 	rd := &roleData{
 		Skills: map[string]string{
-			skillKey("gitea-api/SKILL.md"): "content",
-			skillKey("git-ops/SKILL.md"):   "content",
+			"skills/gitea-api/SKILL.md": "content",
+			"skills/git-ops/SKILL.md":   "content",
 		},
 	}
 
@@ -216,13 +232,16 @@ func TestBuildSkillItems_FromRole(t *testing.T) {
 	if len(items) != 2 {
 		t.Errorf("expected 2 skill items, got %d", len(items))
 	}
-	// Items should be sorted
+	// Items should be sorted by path
 	if len(items) >= 2 {
-		if items[0].Path != "git-ops/SKILL.md" {
-			t.Errorf("first item path: got %q, want %q", items[0].Path, "git-ops/SKILL.md")
+		if items[0].Path != "skills/git-ops/SKILL.md" {
+			t.Errorf("first item path: got %q, want %q", items[0].Path, "skills/git-ops/SKILL.md")
 		}
-		if items[1].Path != "gitea-api/SKILL.md" {
-			t.Errorf("second item path: got %q, want %q", items[1].Path, "gitea-api/SKILL.md")
+		if items[0].Key != "skills__git-ops__SKILL.md" {
+			t.Errorf("first item key: got %q, want %q", items[0].Key, "skills__git-ops__SKILL.md")
+		}
+		if items[1].Path != "skills/gitea-api/SKILL.md" {
+			t.Errorf("second item path: got %q, want %q", items[1].Path, "skills/gitea-api/SKILL.md")
 		}
 	}
 }
@@ -235,5 +254,16 @@ func TestBuildSkillItems_NilRoleData(t *testing.T) {
 
 	if len(items) != 0 {
 		t.Errorf("expected 0 skill items without roleData, got %d", len(items))
+	}
+}
+
+func writeFile(t *testing.T, baseDir, relPath, content string) {
+	t.Helper()
+	fullPath := filepath.Join(baseDir, relPath)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
 	}
 }

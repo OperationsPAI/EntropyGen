@@ -13,7 +13,7 @@ concepts:
       - "plans/2026-03-11-phase1-infra.md"
 
   operator:
-    description: "K8S Operator，负责 agent CR Reconcile，管理 Agent 生命周期、读取 Role ConfigMap 注入配置、管理 Gitea 用户。Watch role-* ConfigMap 变更自动传播到使用该 Role 的所有 Agent"
+    description: "K8S Operator，负责 agent CR Reconcile，管理 Agent 生命周期、从共享 PVC 读取 Role 数据注入配置、管理 Gitea 用户。每 10 秒扫描 roles-data PVC 的 .metadata.json 变更自动传播到使用该 Role 的所有 Agent"
     design: "designs/operator.md"
     related_concepts:
       - system-overview
@@ -25,6 +25,7 @@ concepts:
       - "plans/2026-03-11-phase1-infra.md"
       - "plans/2026-03-11-phase2-operator.md"
       - "plans/2026-03-15-role-config-refactor.md"
+      - "plans/2026-03-15-role-pvc-migration.md"
     tasks: []
 
   agent-runtime:

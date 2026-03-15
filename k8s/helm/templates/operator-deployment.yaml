@@ -67,12 +67,18 @@ spec:
           value: "http://agent-gateway.{{ .Release.Namespace }}.svc:80"
         - name: DEFAULT_STORAGE_CLASS
           value: {{ .Values.storage.className }}
+        - name: ROLES_DATA_PATH
+          value: /data/roles
         - name: LLM_API_KEY
           value: {{ .Values.litellm.masterKey | quote }}
         - name: LLM_BASE_URL
           value: "http://litellm.{{ .Release.Namespace }}.svc:4000/v1"
         resources:
           {{- toYaml .Values.operator.resources | nindent 10 }}
+        volumeMounts:
+        - name: roles-data
+          mountPath: /data/roles
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /healthz
@@ -85,3 +91,8 @@ spec:
             port: {{ .Values.operator.healthPort }}
           initialDelaySeconds: 5
           periodSeconds: 10
+      volumes:
+      - name: roles-data
+        persistentVolumeClaim:
+          claimName: roles-data
+          readOnly: true

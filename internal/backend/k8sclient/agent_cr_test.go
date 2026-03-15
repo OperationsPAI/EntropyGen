@@ -27,7 +27,6 @@ func TestAgentClient_CreateAndList(t *testing.T) {
 
 	_, err := c.Create(ctx, "developer-1", agentapi.AgentSpec{
 		Role: "developer",
-		Soul: "You are a developer agent.",
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -49,14 +48,17 @@ func TestAgentClient_Update(t *testing.T) {
 	c := newTestAgentClient(t)
 	ctx := context.Background()
 
-	c.Create(ctx, "test-agent", agentapi.AgentSpec{Role: "observer", Soul: "original soul"})
+	c.Create(ctx, "test-agent", agentapi.AgentSpec{Role: "observer"})
 
-	updated, err := c.Update(ctx, "test-agent", agentapi.AgentSpec{Role: "observer", Soul: "new soul"})
+	updated, err := c.Update(ctx, "test-agent", agentapi.AgentSpec{
+		Role:        "observer",
+		DisplayName: "Updated Agent",
+	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.Spec.Soul != "new soul" {
-		t.Errorf("soul: got %q, want 'new soul'", updated.Spec.Soul)
+	if updated.Spec.DisplayName != "Updated Agent" {
+		t.Errorf("displayName: got %q, want 'Updated Agent'", updated.Spec.DisplayName)
 	}
 }
 
@@ -64,7 +66,7 @@ func TestAgentClient_SetPaused(t *testing.T) {
 	c := newTestAgentClient(t)
 	ctx := context.Background()
 
-	c.Create(ctx, "test-agent", agentapi.AgentSpec{Role: "observer", Soul: "soul"})
+	c.Create(ctx, "test-agent", agentapi.AgentSpec{Role: "observer"})
 
 	agent, err := c.SetPaused(ctx, "test-agent", true)
 	if err != nil {
@@ -87,7 +89,7 @@ func TestAgentClient_Delete(t *testing.T) {
 	c := newTestAgentClient(t)
 	ctx := context.Background()
 
-	c.Create(ctx, "to-delete", agentapi.AgentSpec{Role: "observer", Soul: "soul"})
+	c.Create(ctx, "to-delete", agentapi.AgentSpec{Role: "observer"})
 
 	if err := c.Delete(ctx, "to-delete"); err != nil {
 		t.Fatalf("Delete: %v", err)

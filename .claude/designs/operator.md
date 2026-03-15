@@ -27,8 +27,8 @@ Operator (`devops-operator`) 是平台的 K8S 控制面核心，负责将 `agent
 
 | 变更类型 | Reconcile 行为 | 是否重启 Pod |
 |----------|---------------|-------------|
-| Role ConfigMap 变更（SOUL.md / AGENTS.md / Skills） | 自动触发使用该 Role 的所有 Agent reconcile，更新 ConfigMap，触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
-| Role ConfigMap 变更（PROMPT.md） | 自动触发 reconcile，更新 ConfigMap + 同步 cron scheduler 的 prompt | **是**（config hash 变化触发重启） |
+| Role PVC 文件变更（SOUL.md / AGENTS.md / Skills） | Operator 每 10 秒扫描 .metadata.json，检测到 updated_at 变化时自动触发使用该 Role 的所有 Agent reconcile，更新 ConfigMap，触发 Pod 滚动重启 | **是**（OpenClaw 在启动时加载，需重启生效） |
+| Role PVC 文件变更（PROMPT.md） | 同上，更新 ConfigMap + 同步 cron scheduler 的 prompt | **是**（config hash 变化触发重启） |
 | `spec.cron.schedule` | 更新 cron scheduler | **否**（通过 scheduler.Sync 动态更新） |
 | `spec.llm.model` | 更新 ConfigMap（openclaw.json 中 model 字段），触发 Pod 滚动重启 | **是**（模型配置在启动时加载） |
 | `spec.resources` | 更新 Deployment 资源 limits/requests | 否（K8S 原地更新） |
@@ -63,14 +63,15 @@ Operator Reconcile 新 Agent 时，按以下顺序创建资源（每步失败则
   →  存入 Secret: agent-{name}-jwt-token
   （步骤 1 完成后立即执行，不依赖其他资源）
 
-步骤 3: 读取 Role ConfigMap
-  读取 role-{spec.role} ConfigMap，解析 well-known 文件：
+步骤 3: 读取 Role 数据（从共享 PVC）
+  读取 /data/roles/{spec.role}/ 目录，解析 well-known 文件：
   - SOUL.md / soul.md → roleData.Soul
   - PROMPT.md / prompt.md → roleData.Prompt
   - AGENTS.md / agents.md → roleData.AgentsMD
-  - skills__* → roleData.Skills
+  - skills/** → roleData.Skills（使用 / 路径分隔符）
+  - .metadata.json → 跳过
   - 其他文件 → roleData.ExtraFiles
-  ConfigMap 不存在时优雅降级（Role 是唯一的内容来源，不再回退到 spec 字段或模板）
+  目录不存在时优雅降级（Role 是唯一的内容来源，不再回退到 spec 字段或模板）
 
 步骤 4: 创建主 ConfigMap（agent-{name}-config）
   写入 openclaw.json / SOUL.md / AGENTS.md / PROMPT.md
@@ -80,11 +81,12 @@ Operator Reconcile 新 Agent 时，按以下顺序创建资源（每步失败则
   - PROMPT.md: roleData.Prompt（Role 是唯一来源，cron prompt 也从此读取）
 
 步骤 5: 创建 Skills ConfigMap（agent-{name}-skills）
-  直接使用 Role ConfigMap 中的 skills__* 条目
+  使用 Role 目录中的 skills/** 文件，key 转为 __ 格式存入 ConfigMap
   （不再有 Operator 内置 embed 的 builtin skills，所有 skills 在 Role 创建时由 Backend 注入）
 
 步骤 6: 创建 Role Files ConfigMap（agent-{name}-role-files）
   仅当 roleData.ExtraFiles 非空时创建
+  包含 Role 目录中非 well-known 文件
   挂载到 /agent/role/，entrypoint.sh 复制到 ~/.openclaw/
 
 步骤 7: 创建 PVC
@@ -176,10 +178,10 @@ agent CR: developer-1
 │   └── PROMPT.md       ← 来自 Role ConfigMap（cron prompt 也从此读取）
 │
 ├── ConfigMap: agent-developer-1-skills
-│   └── {skill}/SKILL.md  ← 来自 Role ConfigMap（Role 创建时由 Backend 注入 builtin skills）
+│   └── {skill}/SKILL.md  ← 来自 Role PVC 目录（Role 创建时由 Backend 注入 builtin skills）
 │
 ├── ConfigMap: agent-developer-1-role-files（可选）
-│   └── {filename}     ← Role ConfigMap 中的非 well-known 文件
+│   └── {filename}     ← Role PVC 目录中的非 well-known 文件
 │                        挂载到 /agent/role/，entrypoint.sh 复制到 ~/.openclaw/
 │
 ├── Secret: agent-developer-1-gitea-token

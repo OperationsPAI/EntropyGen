@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -50,47 +51,61 @@ func agentRuntimeImage(agent *agentapi.Agent) string {
 	return agentRuntimeImageName()
 }
 
-// parseRoleData classifies ConfigMap data entries into well-known role files.
-// Well-known file names are matched case-insensitively.
-func parseRoleData(data map[string]string) *roleData {
+// readRoleDataFromDir reads a role directory and classifies files into well-known role data.
+// Well-known file names are matched case-insensitively. .metadata.json is skipped.
+func readRoleDataFromDir(roleDir string) (*roleData, error) {
 	rd := &roleData{
 		Skills:     map[string]string{},
 		ExtraFiles: map[string]string{},
 	}
-	for k, v := range data {
-		lower := strings.ToLower(k)
+	err := filepath.WalkDir(roleDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(roleDir, path)
+		rel = filepath.ToSlash(rel)
+		if rel == ".metadata.json" {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		lower := strings.ToLower(rel)
 		switch {
 		case lower == "soul.md":
-			rd.Soul = v
+			rd.Soul = string(content)
 		case lower == "prompt.md":
-			rd.Prompt = v
+			rd.Prompt = string(content)
 		case lower == "agents.md":
-			rd.AgentsMD = v
-		case strings.HasPrefix(lower, "skills__") || strings.HasPrefix(lower, "skills/"):
-			rd.Skills[k] = v
+			rd.AgentsMD = string(content)
+		case strings.HasPrefix(lower, "skills/"):
+			rd.Skills[rel] = string(content)
 		default:
-			rd.ExtraFiles[k] = v
+			rd.ExtraFiles[rel] = string(content)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("read role dir %s: %w", roleDir, err)
 	}
-	return rd
+	return rd, nil
 }
 
-// fetchRoleData reads the role-{roleName} ConfigMap and parses its content.
-// Returns nil if the ConfigMap does not exist (graceful degradation).
+// fetchRoleData reads the role directory from PVC and parses its content.
+// Returns nil if the directory does not exist (graceful degradation).
 func (r *ResourceReconciler) fetchRoleData(ctx context.Context, agent *agentapi.Agent) (*roleData, error) {
 	if agent.Spec.Role == "" {
 		return nil, nil
 	}
-	cmName := fmt.Sprintf("role-%s", agent.Spec.Role)
-	cm := &corev1.ConfigMap{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: cmName, Namespace: agent.Namespace}, cm)
-	if errors.IsNotFound(err) {
+	roleDir := filepath.Join(r.RolesDataPath, agent.Spec.Role)
+	if _, err := os.Stat(roleDir); os.IsNotExist(err) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, fmt.Errorf("fetch role configmap %s: %w", cmName, err)
-	}
-	return parseRoleData(cm.Data), nil
+	return readRoleDataFromDir(roleDir)
 }
 // K8s ConfigMap keys cannot contain '/'.
 func skillKey(path string) string {
@@ -277,10 +292,11 @@ func (r *ResourceReconciler) EnsureRoleFilesConfigMap(ctx context.Context, agent
 func buildSkillsData(agent *agentapi.Agent, rd *roleData) map[string]string {
 	data := map[string]string{}
 
-	// Skills come entirely from the Role ConfigMap
+	// Skills come from the Role directory. Keys use "/" paths (e.g. "skills/gitea-api/SKILL.md").
+	// Convert to "__" format for ConfigMap keys (e.g. "skills__gitea-api__SKILL.md").
 	if rd != nil {
 		for k, v := range rd.Skills {
-			data[k] = v
+			data[skillKey(k)] = v
 		}
 	}
 
@@ -288,17 +304,19 @@ func buildSkillsData(agent *agentapi.Agent, rd *roleData) map[string]string {
 }
 
 // buildSkillItems returns the ConfigMap items mapping for the skills volume,
-// translating "git-ops__SKILL.md" keys back to "git-ops/SKILL.md" paths.
+// mapping ConfigMap keys (e.g. "skills__gitea-api__SKILL.md") to mount paths (e.g. "skills/gitea-api/SKILL.md").
 func buildSkillItems(agent *agentapi.Agent, rd *roleData) []corev1.KeyToPath {
-	var skillPaths []string
-
-	if rd != nil {
-		for k := range rd.Skills {
-			skillPaths = append(skillPaths, strings.ReplaceAll(k, "__", "/"))
-		}
+	if rd == nil {
+		return nil
 	}
-
+	// rd.Skills keys use "/" paths (from filesystem).
+	// Collect and sort the paths.
+	var skillPaths []string
+	for k := range rd.Skills {
+		skillPaths = append(skillPaths, k)
+	}
 	sort.Strings(skillPaths)
+
 	items := make([]corev1.KeyToPath, 0, len(skillPaths))
 	for _, p := range skillPaths {
 		items = append(items, corev1.KeyToPath{Key: skillKey(p), Path: p})

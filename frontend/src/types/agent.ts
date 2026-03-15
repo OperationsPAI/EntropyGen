@@ -103,6 +103,7 @@ export interface Role {
 export interface CreateRoleDto {
   name: string
   description: string
-  role?: string // developer | reviewer | sre | observer | custom
+  role?: string // role type for builtin template selection (e.g. developer, reviewer)
   initial_files?: string[]
+  files?: Record<string, string> // explicit file contents (overrides builtin defaults)
 }

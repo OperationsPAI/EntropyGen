@@ -70,10 +70,10 @@ func NewRouter(cfg Config) *gin.Engine {
 	api.PATCH("/roles/:name", roleH.Update)
 	api.DELETE("/roles/:name", roleH.Delete)
 	api.GET("/roles/:name/files", roleH.ListFiles)
-	api.GET("/roles/:name/files/:filename", roleH.GetFile)
-	api.PUT("/roles/:name/files/:filename", roleH.PutFile)
-	api.DELETE("/roles/:name/files/:filename", roleH.DeleteFile)
-	api.POST("/roles/:name/files/:filename/rename", roleH.RenameFile)
+	api.GET("/roles/:name/files/*filepath", roleH.GetFile)
+	api.PUT("/roles/:name/files/*filepath", roleH.PutFile)
+	api.DELETE("/roles/:name/files/*filepath", roleH.DeleteFile)
+	api.POST("/roles/:name/rename-file", roleH.RenameFile)
 
 	// LLM config proxy
 	api.GET("/llm/models", llmH.ListModels)

@@ -1,54 +1,30 @@
+# Reviewer Agent — runtime configuration only
+# Role content (SOUL.md, PROMPT.md, AGENTS.md, skills) lives in role-reviewer ConfigMap
 apiVersion: aidevops.io/v1alpha1
 kind: Agent
 metadata:
-  name: reviewer-1
-  namespace: agents
-  labels:
-    app.kubernetes.io/component: agent
-    aidevops.io/role: reviewer
+  name: rev-test
+  namespace: aidevops
 spec:
   role: reviewer
-  displayName: "Reviewer Agent 1"
-  soul: |
-    You are Reviewer Agent 1, responsible for code review and quality assurance.
-    Your primary responsibilities:
-    - Review all open Pull Requests in Gitea repositories
-    - Check code quality, correctness, security, and adherence to coding standards
-    - Provide constructive, actionable feedback in PR review comments
-    - Approve PRs that meet quality standards or request changes with clear explanations
-    - Verify that PRs include appropriate tests and documentation
-
-    Review checklist:
-    - Code correctness and logic errors
-    - Security vulnerabilities (injection, hardcoded secrets, etc.)
-    - Test coverage for new functionality
-    - Code style consistency with the repository
-    - Performance concerns (N+1 queries, unnecessary allocations, etc.)
-    - Clear commit messages and PR descriptions
-  skills:
-    - gitea-api
+  soul: ""
   cron:
-    schedule: "*/5 * * * *"
-    # Cron prompt is now defined in the Role's PROMPT.md file
+    schedule: "*/3 * * * *"
   llm:
-    model: gpt-4o
+    model: qwen3.5-plus
     temperature: 0.3
     maxTokens: 4096
-  runtimeImage: ""
   gitea:
-    username: reviewer-1
-    email: reviewer-1@agents.devops.local
     permissions:
       - read
       - review
-      - merge
   resources:
     requests:
       cpu: "100m"
       memory: "256Mi"
     limits:
       cpu: "500m"
-      memory: "512Mi"
+      memory: "1Gi"
   memory:
-    storageSize: "1Gi"
+    storageSize: "5Gi"
   paused: false

@@ -62,6 +62,21 @@ spec:
     requests:
       storage: 1Gi
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roles-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aidevops-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: {{ .Values.storage.className }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.rolesData.size }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -135,11 +150,15 @@ spec:
             secretKeyRef:
               name: {{ .Values.gitea.adminTokenSecretRef }}
               key: token
+        - name: ROLES_DATA_PATH
+          value: /data/roles
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
         volumeMounts:
         - name: dlq
           mountPath: /var/lib/backend/dlq
+        - name: roles-data
+          mountPath: /data/roles
         livenessProbe:
           httpGet:
             path: /api/health
@@ -158,6 +177,9 @@ spec:
       - name: dlq
         persistentVolumeClaim:
           claimName: backend-dlq
+      - name: roles-data
+        persistentVolumeClaim:
+          claimName: roles-data
 ---
 apiVersion: v1
 kind: Service

@@ -25,12 +25,13 @@ type ResourceReconciler struct {
 	LLMAPIKey           string
 	LLMBaseURL          string
 	RedisAddr           string
+	RolesDataPath       string
 
 	// roleData is populated by EnsureRoleData and consumed by subsequent steps.
 	roleData *roleData
 }
 
-// EnsureRoleData fetches the Role ConfigMap and caches the parsed data.
+// EnsureRoleData reads the Role directory from PVC and caches the parsed data.
 func (r *ResourceReconciler) EnsureRoleData(ctx context.Context, agent *agentapi.Agent) error {
 	rd, err := r.fetchRoleData(ctx, agent)
 	if err != nil {

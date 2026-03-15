@@ -9,9 +9,8 @@ type Provider struct{}
 
 var _ k8sclient.BuiltinContentProvider = (*Provider)(nil)
 
-func (p *Provider) ReadSOUL() string                        { return ReadSOUL() }
-func (p *Provider) ReadPrompt() string                      { return ReadPrompt() }
-func (p *Provider) BuildAgentsMD(role string) string        { return BuildAgentsMD(role) }
+func (p *Provider) ReadSOUL() string                          { return ReadSOUL() }
+func (p *Provider) ReadPrompt() string                        { return ReadPrompt() }
+func (p *Provider) BuildAgentsMD(role string) string          { return BuildAgentsMD(role) }
 func (p *Provider) BuiltinSkillsForRole(role string) []string { return BuiltinSkillsForRole(role) }
-func (p *Provider) ReadSkill(name string) string            { return ReadSkill(name) }
-func (p *Provider) SkillKey(path string) string             { return SkillKey(path) }
+func (p *Provider) ReadSkill(name string) string              { return ReadSkill(name) }

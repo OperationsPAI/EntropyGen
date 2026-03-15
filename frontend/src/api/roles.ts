@@ -20,15 +20,15 @@ export const rolesApi = {
   getRoleFiles: (name: string) =>
     apiClient.get<{ success: boolean; data: RoleFile[] }>(`/roles/${name}/files`).then((r) => r.data.data ?? []),
 
-  getRoleFile: (name: string, filename: string) =>
-    apiClient.get<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filename}`).then((r) => r.data.data),
+  getRoleFile: (name: string, filepath: string) =>
+    apiClient.get<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filepath}`).then((r) => r.data.data),
 
-  updateRoleFile: (name: string, filename: string, content: string) =>
-    apiClient.put<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filename}`, { content }).then((r) => r.data.data),
+  updateRoleFile: (name: string, filepath: string, content: string) =>
+    apiClient.put<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filepath}`, { content }).then((r) => r.data.data),
 
-  deleteRoleFile: (name: string, filename: string) =>
-    apiClient.delete(`/roles/${name}/files/${filename}`),
+  deleteRoleFile: (name: string, filepath: string) =>
+    apiClient.delete(`/roles/${name}/files/${filepath}`),
 
-  renameRoleFile: (name: string, filename: string, newName: string) =>
-    apiClient.post<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filename}/rename`, { new_name: newName }).then((r) => r.data.data),
+  renameRoleFile: (name: string, oldName: string, newName: string) =>
+    apiClient.post<{ success: boolean; data: RoleFile }>(`/roles/${name}/rename-file`, { old_name: oldName, new_name: newName }).then((r) => r.data.data),
 }

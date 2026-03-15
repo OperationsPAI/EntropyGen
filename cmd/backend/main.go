@@ -43,6 +43,7 @@ func main() {
 	dlqDir := envOr("DLQ_DIR", "/var/lib/backend/dlq")
 	giteaURL := envOr("GITEA_URL", "")
 	giteaToken := envOr("GITEA_ADMIN_TOKEN", "")
+	rolesDataPath := envOr("ROLES_DATA_PATH", "/data/roles")
 
 	// Gitea (optional: assign-issue endpoint requires it)
 	var giteaCli *giteaclient.Client
@@ -103,7 +104,7 @@ func main() {
 		slog.Warn("k8s unavailable, agent API disabled")
 		agentCRClient = k8sclient.NewAgentClient(nil, agentNS)
 	}
-	roleClient := k8sclient.NewRoleClient(k8sClientset, agentCRClient, agentNS, &builtin.Provider{})
+	roleClient := k8sclient.NewRoleClient(rolesDataPath, agentCRClient, &builtin.Provider{})
 
 	// Background services
 	pusher := wspush.NewPusher()

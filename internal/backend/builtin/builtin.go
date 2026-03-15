@@ -8,7 +8,6 @@ package builtin
 
 import (
 	"embed"
-	"strings"
 )
 
 //go:embed builtin-role/*
@@ -75,11 +74,6 @@ func ReadSkill(name string) string {
 		return "# " + name + " Skill\n(skill content not found)\n"
 	}
 	return string(data)
-}
-
-// SkillKey converts a skill path like "git-ops/SKILL.md" to ConfigMap key "git-ops__SKILL.md".
-func SkillKey(path string) string {
-	return strings.ReplaceAll(path, "/", "__")
 }
 
 func roleTemplateFile(role string) string {
