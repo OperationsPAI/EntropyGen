@@ -19,11 +19,12 @@ if [ -d /agent/workspace-templates ]; then
         [ -f "$f" ] && cp -f "$f" ~/.openclaw/workspace/
     done
     # Template substitution for workspace files
+    # Use | as sed delimiter because values contain / (e.g. org/repo, http://...)
     for f in ~/.openclaw/workspace/*.md; do
         [ -f "$f" ] && sed -i \
-            "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; \
-             s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g; \
-             s/{{REPOS}}/${AGENT_REPOS:-}/g; \
+            "s|{{AGENT_ID}}|${AGENT_ID:-unknown}|g; \
+             s|{{AGENT_ROLE}}|${AGENT_ROLE:-agent}|g; \
+             s|{{REPOS}}|${AGENT_REPOS:-}|g; \
              s|{{GITEA_URL}}|${GITEA_BASE_URL:-http://gitea.aidevops.svc:3000}|g" \
             "$f"
     done
@@ -32,13 +33,13 @@ if [ -d /agent/workspace-templates ]; then
 fi
 
 # Substitute template variables in SOUL.md
-[ -f ~/.openclaw/SOUL.md ] && sed -i "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g" ~/.openclaw/SOUL.md
+[ -f ~/.openclaw/SOUL.md ] && sed -i "s|{{AGENT_ID}}|${AGENT_ID:-unknown}|g; s|{{AGENT_ROLE}}|${AGENT_ROLE:-agent}|g" ~/.openclaw/SOUL.md
 
 # Substitute template variables in PROMPT.md
 [ -f ~/.openclaw/PROMPT.md ] && sed -i \
-    "s/{{AGENT_ID}}/${AGENT_ID:-unknown}/g; \
-     s/{{AGENT_ROLE}}/${AGENT_ROLE:-agent}/g; \
-     s/{{REPOS}}/${AGENT_REPOS:-}/g; \
+    "s|{{AGENT_ID}}|${AGENT_ID:-unknown}|g; \
+     s|{{AGENT_ROLE}}|${AGENT_ROLE:-agent}|g; \
+     s|{{REPOS}}|${AGENT_REPOS:-}|g; \
      s|{{GITEA_URL}}|${GITEA_BASE_URL:-http://gitea.aidevops.svc:3000}|g" \
     ~/.openclaw/PROMPT.md
 
