@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconLive, IconChevronLeft, IconChevronRight } from '@douyinfe/semi-icons'
+import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconLive, IconChevronLeft, IconChevronRight, IconUser, IconShield } from '@douyinfe/semi-icons'
 import { authApi } from '../../api/auth'
+import { useAuth } from '../../contexts/AuthContext'
 import styles from './Sidebar.module.css'
 
 const NAV_ITEMS = [
@@ -15,12 +16,17 @@ const NAV_ITEMS = [
   { path: '/export', label: 'Export', icon: <IconExport size="small" /> },
 ]
 
+const ADMIN_NAV_ITEMS = [
+  { path: '/users', label: 'User Management', icon: <IconShield size="small" /> },
+]
+
 /** Routes that auto-collapse the sidebar for maximum content space */
 const AUTO_COLLAPSE_ROUTES = ['/observe/']
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, isGuest, isAdmin, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
 
   // Auto-collapse when entering observe detail pages, auto-expand when leaving
@@ -31,9 +37,15 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try { await authApi.logout() } catch { /* ignore */ }
-    localStorage.removeItem('jwt_token')
+    logout()
     navigate('/login')
   }
+
+  const handleLogin = () => navigate('/login')
+
+  const avatarText = user ? user.username.slice(0, 2).toUpperCase() : 'GU'
+  const displayName = user ? user.username : 'Guest'
+  const roleLabel = user?.role === 'admin' ? 'Admin' : user?.role === 'member' ? 'Member' : ''
 
   return (
     <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
@@ -74,22 +86,64 @@ export default function Sidebar() {
               </NavLink>
             </li>
           ))}
+          {isAdmin && ADMIN_NAV_ITEMS.map(({ path, label, icon }) => (
+            <li key={path}>
+              <NavLink
+                to={path}
+                className={({ isActive }) =>
+                  `${styles.navItem} ${isActive ? styles.navItemActive : ''} ${collapsed ? styles.navItemCollapsed : ''}`
+                }
+                title={collapsed ? label : undefined}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className={styles.activeBar} />}
+                    <span className={styles.navIcon}>{icon}</span>
+                    {!collapsed && label}
+                  </>
+                )}
+              </NavLink>
+            </li>
+          ))}
         </ul>
       </nav>
 
-      {/* User + Sign Out */}
+      {/* User section */}
       <div className={styles.userSection}>
-        <div className={`${styles.userRow} ${collapsed ? styles.userRowCollapsed : ''}`}>
-          <div className={styles.avatar}>AG</div>
-          {!collapsed && <span className={styles.userName}>Agent Admin</span>}
-        </div>
-        <button
-          onClick={handleLogout}
-          className={`${styles.signOutBtn} ${collapsed ? styles.signOutBtnCollapsed : ''}`}
-          title={collapsed ? 'Sign Out' : undefined}
-        >
-          {collapsed ? <span className={styles.signOutShort}>Out</span> : 'Sign Out'}
-        </button>
+        {isGuest ? (
+          <button
+            onClick={handleLogin}
+            className={`${styles.signOutBtn} ${collapsed ? styles.signOutBtnCollapsed : ''}`}
+            title={collapsed ? 'Sign In' : undefined}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <IconUser size="small" />
+            {!collapsed && 'Sign In'}
+          </button>
+        ) : (
+          <>
+            <div className={`${styles.userRow} ${collapsed ? styles.userRowCollapsed : ''}`}>
+              <div className={styles.avatar}>{avatarText}</div>
+              {!collapsed && (
+                <div style={{ overflow: 'hidden' }}>
+                  <span className={styles.userName}>{displayName}</span>
+                  {roleLabel && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', opacity: 0.7, marginTop: '1px' }}>
+                      {roleLabel}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleLogout}
+              className={`${styles.signOutBtn} ${collapsed ? styles.signOutBtnCollapsed : ''}`}
+              title={collapsed ? 'Sign Out' : undefined}
+            >
+              {collapsed ? <span className={styles.signOutShort}>Out</span> : 'Sign Out'}
+            </button>
+          </>
+        )}
       </div>
     </aside>
   )

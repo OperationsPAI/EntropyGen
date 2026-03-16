@@ -14,13 +14,9 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+// No auto-redirect on 401 — guest requests may get 403 for write ops.
+// Components are responsible for showing appropriate errors.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('jwt_token')
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )

@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
+import { AuthProvider } from './contexts/AuthContext'
 import AppShell from './components/layout/AppShell'
 import Login from './pages/Login'
 
@@ -16,6 +17,7 @@ const Monitor = lazy(() => import('./pages/Monitor'))
 const ObserveOverview = lazy(() => import('./pages/Observe/ObserveOverview'))
 const ObserveDetail = lazy(() => import('./pages/Observe/ObserveDetail'))
 const Export = lazy(() => import('./pages/Export'))
+const Users = lazy(() => import('./pages/Users'))
 
 const Loading = () => (
   <div style={{
@@ -39,14 +41,18 @@ const Loading = () => (
   </div>
 )
 
+const withAuth = (element: React.ReactNode) => (
+  <AuthProvider>{element}</AuthProvider>
+)
+
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: <Login />,
+    element: withAuth(<Login />),
   },
   {
     path: '/',
-    element: <AppShell />,
+    element: withAuth(<AppShell />),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <Suspense fallback={<Loading />}><Dashboard /></Suspense> },
@@ -62,6 +68,7 @@ export const router = createBrowserRouter([
       { path: 'audit', element: <Suspense fallback={<Loading />}><Audit /></Suspense> },
       { path: 'monitor', element: <Suspense fallback={<Loading />}><Monitor /></Suspense> },
       { path: 'export', element: <Suspense fallback={<Loading />}><Export /></Suspense> },
+      { path: 'users', element: <Suspense fallback={<Loading />}><Users /></Suspense> },
     ],
   },
 ])

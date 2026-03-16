@@ -24,6 +24,7 @@ import (
 	"github.com/entropyGen/entropyGen/internal/backend/wspush"
 	"github.com/entropyGen/entropyGen/internal/common/chclient"
 	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
+	"github.com/entropyGen/entropyGen/internal/common/pgclient"
 	"github.com/entropyGen/entropyGen/internal/common/redisclient"
 )
 
@@ -44,6 +45,7 @@ func main() {
 	giteaURL := envOr("GITEA_URL", "")
 	giteaToken := envOr("GITEA_ADMIN_TOKEN", "")
 	rolesDataPath := envOr("ROLES_DATA_PATH", "/data/roles")
+	databaseURL := envOr("DATABASE_URL", "")
 
 	// Gitea (optional: assign-issue endpoint requires it)
 	var giteaCli *giteaclient.Client
@@ -57,6 +59,36 @@ func main() {
 		slog.Info("gitea client initialized", "url", giteaURL)
 	} else {
 		slog.Warn("GITEA_URL or GITEA_ADMIN_TOKEN not set, assign-issue endpoint disabled")
+	}
+
+	// PostgreSQL (optional: RBAC user store)
+	var pgClient *pgclient.Client
+	if databaseURL != "" {
+		var err error
+		pgClient, err = pgclient.New(databaseURL)
+		if err != nil {
+			slog.Error("postgres init failed", "err", err)
+			os.Exit(1)
+		}
+		defer pgClient.Close()
+		slog.Info("postgres connected")
+
+		// Seed admin user on first boot
+		seedCtx := context.Background()
+		if pgClient.CountUsers(seedCtx) == 0 {
+			_, seedErr := pgClient.CreateUser(seedCtx, pgclient.CreateUserInput{
+				Username:     adminUser,
+				PasswordHash: adminPassHash,
+				Role:         "admin",
+			})
+			if seedErr != nil {
+				slog.Error("failed to seed admin user", "err", seedErr)
+			} else {
+				slog.Info("seeded admin user", "username", adminUser)
+			}
+		}
+	} else {
+		slog.Warn("DATABASE_URL not set, user management disabled (falling back to env-based auth)")
 	}
 
 	// ClickHouse
@@ -133,6 +165,8 @@ func main() {
 		Pusher:            pusher,
 		GiteaClient:       giteaCli,
 		StreamWriter:      streamWriter,
+		GiteaBaseURL:      giteaURL,
+		PGClient:          pgClient,
 	})
 	slog.Info("backend starting", "addr", listenAddr)
 	if err := router.Run(listenAddr); err != nil {

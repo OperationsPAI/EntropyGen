@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../../api/auth'
+import { useAuth } from '../../contexts/AuthContext'
 import { Input, Button } from '../../components/ui'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,7 +18,7 @@ export default function Login() {
     setError('')
     try {
       const res = await authApi.login({ username, password })
-      localStorage.setItem('jwt_token', res.token)
+      login(res.token)
       navigate('/dashboard')
     } catch {
       setError('Invalid username or password')

@@ -26,7 +26,7 @@ func hashPassword(t *testing.T, pass string) string {
 
 func TestLogin_Success(t *testing.T) {
 	h := handler.NewAuthHandler("admin", hashPassword(t, "testpass"),
-		[]byte("testsecret-must-be-32-chars-long!"))
+		[]byte("testsecret-must-be-32-chars-long!"), nil)
 	r := gin.New()
 	r.POST("/login", h.Login)
 
@@ -39,7 +39,7 @@ func TestLogin_Success(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("status: got %d, want 200", rec.Code)
 	}
-	var resp map[string]interface{}
+	var resp map[string]any
 	json.NewDecoder(rec.Body).Decode(&resp)
 	if resp["token"] == nil {
 		t.Error("expected token in response")
@@ -48,7 +48,7 @@ func TestLogin_Success(t *testing.T) {
 
 func TestLogin_WrongPassword(t *testing.T) {
 	h := handler.NewAuthHandler("admin", hashPassword(t, "correct"),
-		[]byte("testsecret-must-be-32-chars-long!"))
+		[]byte("testsecret-must-be-32-chars-long!"), nil)
 	r := gin.New()
 	r.POST("/login", h.Login)
 
@@ -65,7 +65,7 @@ func TestLogin_WrongPassword(t *testing.T) {
 
 func TestJWTMiddleware_Valid(t *testing.T) {
 	secret := []byte("testsecret-must-be-32-chars-long!")
-	h := handler.NewAuthHandler("admin", hashPassword(t, "pass"), secret)
+	h := handler.NewAuthHandler("admin", hashPassword(t, "pass"), secret, nil)
 	mw := handler.JWTMiddleware(secret)
 
 	r := gin.New()
@@ -79,7 +79,7 @@ func TestJWTMiddleware_Valid(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
-	var loginResp map[string]interface{}
+	var loginResp map[string]any
 	json.NewDecoder(rec.Body).Decode(&loginResp)
 	token, _ := loginResp["token"].(string)
 

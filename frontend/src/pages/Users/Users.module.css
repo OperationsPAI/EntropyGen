@@ -1,0 +1,43 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 24px;
+  font-size: 0.875rem;
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 16px;
+  color: var(--text-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-subtle);
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.badgeAdmin {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.badgeMember {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+}
