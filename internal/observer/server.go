@@ -57,6 +57,7 @@ func (s *Server) setupRouter() *gin.Engine {
 	r.GET("/workspace/file", s.handleWorkspaceFile)
 	r.GET("/workspace/diff", s.handleWorkspaceDiff)
 	r.GET("/ws/live", s.handleWSLive)
+	r.GET("/state", s.handleState)
 
 	return r
 }
@@ -128,6 +129,11 @@ func (s *Server) handleWorkspaceDiff(c *gin.Context) {
 
 func (s *Server) handleWSLive(c *gin.Context) {
 	s.wsHub.HandleUpgrade(c.Writer, c.Request)
+}
+
+func (s *Server) handleState(c *gin.Context) {
+	state := ReadState(s.cfg.OpenClawHome)
+	c.JSON(http.StatusOK, state)
 }
 
 // writeNDJSON writes a slice of raw JSON messages as newline-delimited JSON.

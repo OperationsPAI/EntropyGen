@@ -1,18 +1,29 @@
 import { useNavigate } from 'react-router-dom'
+import { IconGithubLogo } from '@douyinfe/semi-icons'
 import type { Agent, AgentPhase } from '../../types/agent'
+import { giteaCurrentTaskUrl, giteaRepoUrl } from '../../utils/giteaLinks'
 import AgentPhaseTag from '../../components/agent/AgentPhaseTag'
 import styles from './Observe.module.css'
 
 interface AgentCardProps {
   agent: Agent
+  giteaBaseUrl?: string
 }
 
-export default function AgentCard({ agent }: AgentCardProps) {
+export default function AgentCard({ agent, giteaBaseUrl }: AgentCardProps) {
   const navigate = useNavigate()
   const { name, spec, status } = agent
 
   const activityInfo = getActivityInfo(status.phase, status.lastAction?.description)
   const { percent, label, color } = getActivityBar(status.lastAction?.timestamp)
+
+  const task = status.currentTask
+  const giteaHref =
+    giteaBaseUrl && spec.gitea.repo
+      ? task
+        ? giteaCurrentTaskUrl(giteaBaseUrl, task.repo || spec.gitea.repo, task.type, task.number)
+        : giteaRepoUrl(giteaBaseUrl, spec.gitea.repo)
+      : null
 
   return (
     <div
@@ -49,6 +60,20 @@ export default function AgentCard({ agent }: AgentCardProps) {
           Token: {formatNumber(status.tokenUsage.today)}
         </span>
       </div>
+
+      {giteaHref && (
+        <a
+          href={giteaHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.giteaLink}
+          title={task ? `${task.type === 'pr' ? 'PR' : 'Issue'} #${task.number}${task.title ? ` · ${task.title}` : ''}` : spec.gitea.repo}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <IconGithubLogo size="small" />
+          <span>{task ? `#${task.number} ${task.title || ''}` : spec.gitea.repo}</span>
+        </a>
+      )}
 
       <div className={styles.activityBarWrapper}>
         <div className={styles.activityBar}>

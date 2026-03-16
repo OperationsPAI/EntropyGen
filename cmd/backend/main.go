@@ -43,6 +43,7 @@ func main() {
 	agentNS := envOr("AGENT_NAMESPACE", "agents")
 	dlqDir := envOr("DLQ_DIR", "/var/lib/backend/dlq")
 	giteaURL := envOr("GITEA_URL", "")
+	giteaExternalURL := envOr("GITEA_EXTERNAL_URL", giteaURL)
 	giteaToken := envOr("GITEA_ADMIN_TOKEN", "")
 	rolesDataPath := envOr("ROLES_DATA_PATH", "/data/roles")
 	databaseURL := envOr("DATABASE_URL", "")
@@ -165,7 +166,7 @@ func main() {
 		Pusher:            pusher,
 		GiteaClient:       giteaCli,
 		StreamWriter:      streamWriter,
-		GiteaBaseURL:      giteaURL,
+		GiteaBaseURL:      giteaExternalURL,
 		PGClient:          pgClient,
 	})
 	slog.Info("backend starting", "addr", listenAddr)

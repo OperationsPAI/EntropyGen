@@ -40,7 +40,7 @@ spec:
     spec:
       initContainers:
         {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
-          (dict "name" "litellm-postgres" "addr" (printf "%s:%d" .Values.litellm.postgres.host (.Values.litellm.postgres.port | int)))
+          (dict "name" "platform-postgres" "addr" (printf "%s:%d" .Values.postgres.host (.Values.postgres.port | int)))
         )) | nindent 8 }}
       containers:
       - name: litellm
@@ -53,13 +53,13 @@ spec:
         env:
         - name: LITELLM_MASTER_KEY
           value: {{ .Values.litellm.masterKey | quote }}
-        - name: LITELLM_PG_PASSWORD
+        - name: PG_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: litellm-postgres-secret
+              name: {{ .Values.postgres.secretRef }}
               key: password
         - name: DATABASE_URL
-          value: "postgresql://{{ .Values.litellm.postgres.user }}:$(LITELLM_PG_PASSWORD)@{{ .Values.litellm.postgres.host }}:{{ .Values.litellm.postgres.port }}/{{ .Values.litellm.postgres.database }}"
+          value: "postgresql://{{ .Values.litellm.postgres.user }}:$(PG_PASSWORD)@{{ .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.litellm.postgres.database }}"
         - name: STORE_MODEL_IN_DB
           value: "True"
         resources:

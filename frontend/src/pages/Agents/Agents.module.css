@@ -87,6 +87,24 @@
 .actionsCell {
   display: flex;
   gap: 4px;
+  align-items: center;
+}
+
+.giteaIconLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.giteaIconLink:hover {
+  color: var(--text-main);
+  background-color: var(--bg-surface);
 }
 
 /* Skeleton loading */
@@ -111,4 +129,81 @@
   height: 44px;
   width: 100%;
   margin-bottom: var(--space-sm);
+}
+
+/* Status bar */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.onlineCount {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--status-green);
+}
+
+.onlineDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--status-green);
+}
+
+/* Header actions */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Segmented control view toggle */
+.viewToggle {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--line-subtle);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.viewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0;
+}
+
+.viewBtn:hover {
+  color: var(--text-main);
+}
+
+.viewBtnActive {
+  background-color: var(--text-main);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.viewBtnActive:hover {
+  color: white;
+}
+
+/* Card grid */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
 }

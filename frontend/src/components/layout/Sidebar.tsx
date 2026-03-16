@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconLive, IconChevronLeft, IconChevronRight, IconUser, IconShield } from '@douyinfe/semi-icons'
+import { IconHome, IconUserGroup, IconSetting, IconServer, IconList, IconPulse, IconExport, IconChevronLeft, IconChevronRight, IconUser, IconShield } from '@douyinfe/semi-icons'
 import { authApi } from '../../api/auth'
 import { useAuth } from '../../contexts/AuthContext'
 import styles from './Sidebar.module.css'
@@ -8,7 +8,6 @@ import styles from './Sidebar.module.css'
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: <IconHome size="small" /> },
   { path: '/agents', label: 'Agents', icon: <IconUserGroup size="small" /> },
-  { path: '/observe', label: 'Agent Observe', icon: <IconLive size="small" /> },
   { path: '/roles', label: 'Roles', icon: <IconSetting size="small" /> },
   { path: '/llm', label: 'LLM Models', icon: <IconServer size="small" /> },
   { path: '/audit', label: 'Audit Log', icon: <IconList size="small" /> },

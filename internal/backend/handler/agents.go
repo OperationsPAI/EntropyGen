@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,10 +30,20 @@ type AgentHandler struct {
 	giteaClient  *giteaclient.Client
 	streamWriter *redisclient.StreamWriter
 	ch           *chclient.Client
+	namespace    string
+	httpClient   *http.Client
 }
 
-func NewAgentHandler(client *k8sclient.AgentClient, giteaClient *giteaclient.Client, streamWriter *redisclient.StreamWriter) *AgentHandler {
-	return &AgentHandler{client: client, giteaClient: giteaClient, streamWriter: streamWriter}
+func NewAgentHandler(client *k8sclient.AgentClient, giteaClient *giteaclient.Client, streamWriter *redisclient.StreamWriter, namespace string) *AgentHandler {
+	return &AgentHandler{
+		client:       client,
+		giteaClient:  giteaClient,
+		streamWriter: streamWriter,
+		namespace:    namespace,
+		httpClient: &http.Client{
+			Timeout: 1 * time.Second,
+		},
+	}
 }
 
 // SetClickHouse sets the ClickHouse client for enriching agent data with audit metrics.
@@ -360,32 +372,89 @@ func resolveGiteaUsername(agent *agentapi.Agent) string {
 	return "agent-" + agent.Name
 }
 
-// enrichAgents populates tokenUsage and lastAction from ClickHouse audit data.
-// This is best-effort: if ClickHouse is unavailable, agents are returned without enrichment.
+// enrichAgents populates tokenUsage, lastAction, and currentTask from
+// ClickHouse audit data and observer state.
+// This is best-effort: if any source is unavailable, agents are returned without that enrichment.
 func (h *AgentHandler) enrichAgents(c *gin.Context, agents []agentapi.Agent) {
-	if h.ch == nil || len(agents) == 0 {
+	if len(agents) == 0 {
 		return
 	}
-	summaries, err := h.ch.GetAgentSummaries(c.Request.Context())
-	if err != nil || len(summaries) == 0 {
-		return
-	}
-	for i := range agents {
-		// Agent audit traces use "agent-<name>" as agent_id
-		agentID := "agent-" + agents[i].Name
-		s, ok := summaries[agentID]
-		if !ok {
-			continue
-		}
-		agents[i].Status.TokenUsage = &agentapi.AgentTokenUsage{
-			Today: int64(s.TodayTokens),
-			Total: int64(s.TotalTokens),
-		}
-		if s.LastDescription != "" {
-			agents[i].Status.LastAction = &agentapi.AgentLastAction{
-				Description: s.LastDescription,
-				Timestamp:   metav1.NewTime(s.LastTimestamp),
+
+	// Enrich from ClickHouse (token usage, last action).
+	if h.ch != nil {
+		summaries, err := h.ch.GetAgentSummaries(c.Request.Context())
+		if err == nil && len(summaries) > 0 {
+			for i := range agents {
+				agentID := "agent-" + agents[i].Name
+				s, ok := summaries[agentID]
+				if !ok {
+					continue
+				}
+				agents[i].Status.TokenUsage = &agentapi.AgentTokenUsage{
+					Today: int64(s.TodayTokens),
+					Total: int64(s.TotalTokens),
+				}
+				if s.LastDescription != "" {
+					agents[i].Status.LastAction = &agentapi.AgentLastAction{
+						Description: s.LastDescription,
+						Timestamp:   metav1.NewTime(s.LastTimestamp),
+					}
+				}
 			}
 		}
 	}
+
+	// Enrich from observer /state (currentTask).
+	h.enrichCurrentTasks(agents)
+}
+
+// observerStateResponse mirrors the JSON returned by the observer /state endpoint.
+type observerStateResponse struct {
+	CurrentTask *struct {
+		Type  string `json:"type"`
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+		Repo  string `json:"repo"`
+	} `json:"current_task"`
+}
+
+// enrichCurrentTasks fetches /state from each agent's observer in parallel
+// and populates CurrentTask on the agent status. Best-effort: failures are logged and skipped.
+func (h *AgentHandler) enrichCurrentTasks(agents []agentapi.Agent) {
+	var wg sync.WaitGroup
+	for i := range agents {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			addr := SidecarAddr(agents[idx].Name, h.namespace)
+			stateURL := fmt.Sprintf("http://%s/state", addr)
+
+			resp, err := h.httpClient.Get(stateURL)
+			if err != nil {
+				slog.Debug("enrichCurrentTasks: failed to fetch state", "agent", agents[idx].Name, "err", err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				return
+			}
+
+			var state observerStateResponse
+			if err := json.NewDecoder(resp.Body).Decode(&state); err != nil {
+				slog.Debug("enrichCurrentTasks: failed to decode state", "agent", agents[idx].Name, "err", err)
+				return
+			}
+
+			if state.CurrentTask != nil {
+				agents[idx].Status.CurrentTask = &agentapi.CurrentTask{
+					Type:   state.CurrentTask.Type,
+					Number: state.CurrentTask.ID,
+					Title:  state.CurrentTask.Title,
+					Repo:   state.CurrentTask.Repo,
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
 }

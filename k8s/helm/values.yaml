@@ -34,6 +34,9 @@ backend:
   image: backend
   adminUsername: admin
   port: 8081
+  postgres:
+    database: platform
+    user: platform
   resources:
     requests:
       cpu: "100m"
@@ -78,14 +81,17 @@ clickhouse:
   database: audit
   username: default
 
+postgres:
+  host: platform-postgres.aidevops.svc
+  port: 5432
+  secretRef: platform-postgres-secret
+
 litellm:
   addr: http://litellm.aidevops.svc:4000
   image: litellm/litellm:v1.82.0-stable
   port: 4000
   masterKey: "sk-litellm-master-key"
   postgres:
-    host: litellm-postgres.aidevops.svc
-    port: 5432
     database: litellm
     user: litellm
   resources:

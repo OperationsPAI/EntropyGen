@@ -74,14 +74,22 @@ type AgentMemory struct {
 	StorageClass string `json:"storageClass,omitempty"`
 }
 
+type CurrentTask struct {
+	Type   string `json:"type,omitempty"`
+	Number int    `json:"number,omitempty"`
+	Title  string `json:"title,omitempty"`
+	Repo   string `json:"repo,omitempty"`
+}
+
 type AgentStatus struct {
-	Phase      string           `json:"phase,omitempty"`
-	Conditions []AgentCondition `json:"conditions,omitempty"`
-	GiteaUser  *GiteaUserStatus `json:"giteaUser,omitempty"`
-	LastAction *AgentLastAction `json:"lastAction,omitempty"`
-	TokenUsage *AgentTokenUsage `json:"tokenUsage,omitempty"`
-	PodName    string           `json:"podName,omitempty"`
-	StartedAt  *metav1.Time     `json:"startedAt,omitempty"`
+	Phase       string           `json:"phase,omitempty"`
+	Conditions  []AgentCondition `json:"conditions,omitempty"`
+	GiteaUser   *GiteaUserStatus `json:"giteaUser,omitempty"`
+	LastAction  *AgentLastAction `json:"lastAction,omitempty"`
+	TokenUsage  *AgentTokenUsage `json:"tokenUsage,omitempty"`
+	CurrentTask *CurrentTask     `json:"currentTask,omitempty"`
+	PodName     string           `json:"podName,omitempty"`
+	StartedAt   *metav1.Time     `json:"startedAt,omitempty"`
 }
 
 type AgentCondition struct {

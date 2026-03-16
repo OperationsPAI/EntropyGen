@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { IconPause, IconPlay, IconEyeOpened, IconDelete, IconList, IconGridSquare } from '@douyinfe/semi-icons'
+import { IconPause, IconPlay, IconEyeOpened, IconDelete, IconList, IconGridSquare, IconGithubLogo } from '@douyinfe/semi-icons'
 import { agentsApi } from '../../api/agents'
 import { llmApi, type LLMModel } from '../../api/llm'
 import AgentPhaseTag from '../../components/agent/AgentPhaseTag'
 import AgentCard from '../Observe/AgentCard'
 import { PageHeader, Card, Table, Button, Input, Modal, EmptyState } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
+import { usePlatformConfig } from '../../hooks/usePlatformConfig'
+import { giteaCurrentTaskUrl, giteaRepoUrl } from '../../utils/giteaLinks'
 import type { Agent, AgentPhase } from '../../types/agent'
 import styles from './Agents.module.css'
 
@@ -35,6 +37,7 @@ export default function AgentList() {
   )
   const [modelMap, setModelMap] = useState<Map<string, string>>(new Map())
   const cancelledRef = useRef(false)
+  const config = usePlatformConfig()
 
   const switchView = (mode: ViewMode) => {
     setViewMode(mode)
@@ -176,6 +179,23 @@ export default function AgentList() {
                 <Button variant="ghost" size="sm" onClick={() => navigate(`/observe/${agent.name}`)}>
                   <IconEyeOpened size="small" />
                 </Button>
+                {config?.gitea_base_url && agent.spec.gitea.repo && (() => {
+                  const task = agent.status.currentTask
+                  const href = task
+                    ? giteaCurrentTaskUrl(config.gitea_base_url, task.repo || agent.spec.gitea.repo, task.type, task.number)
+                    : giteaRepoUrl(config.gitea_base_url, agent.spec.gitea.repo)
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.giteaIconLink}
+                      title={task ? `${task.type === 'pr' ? 'PR' : 'Issue'} #${task.number}${task.title ? ` · ${task.title}` : ''}` : agent.spec.gitea.repo}
+                    >
+                      <IconGithubLogo size="small" />
+                    </a>
+                  )
+                })()}
                 <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(agent)}>
                   <IconDelete size="small" style={{ color: 'var(--accent-orange)' }} />
                 </Button>
@@ -190,7 +210,7 @@ export default function AgentList() {
   const renderCards = () => (
     <div className={styles.cardGrid}>
       {filtered.map((agent) => (
-        <AgentCard key={agent.name} agent={agent} />
+        <AgentCard key={agent.name} agent={agent} giteaBaseUrl={config?.gitea_base_url} />
       ))}
     </div>
   )

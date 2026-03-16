@@ -414,7 +414,7 @@ GROUP BY agent_id`
 		return nil, err
 	}
 
-	// Last action per agent (most recent trace, preferring non-heartbeat/non-pod_status)
+	// Last action per agent (most recent trace, excluding internal events)
 	lastActionQuery := `
 SELECT agent_id,
        request_type || ' ' || method || ' ' || path AS description,
@@ -423,6 +423,7 @@ FROM audit.traces
 WHERE (agent_id, created_at) IN (
     SELECT agent_id, max(created_at)
     FROM audit.traces
+    WHERE request_type NOT IN ('heartbeat', 'pod_status')
     GROUP BY agent_id
 )
 ORDER BY agent_id`

@@ -100,9 +100,10 @@ spec:
       serviceAccountName: control-panel-backend
       initContainers:
         {{- include "aidevops-platform.wait-for-deps" (dict "deps" (list
-          (dict "name" "redis"      "addr" .Values.redis.addr)
-          (dict "name" "clickhouse" "addr" .Values.clickhouse.addr)
-          (dict "name" "gitea"      "addr" .Values.gitea.addr)
+          (dict "name" "redis"             "addr" .Values.redis.addr)
+          (dict "name" "clickhouse"        "addr" .Values.clickhouse.addr)
+          (dict "name" "gitea"             "addr" .Values.gitea.addr)
+          (dict "name" "platform-postgres" "addr" (printf "%s:%d" .Values.postgres.host (.Values.postgres.port | int)))
         )) | nindent 8 }}
       containers:
       - name: backend
@@ -145,6 +146,8 @@ spec:
           value: /var/lib/backend/dlq
         - name: GITEA_URL
           value: {{ .Values.gitea.addr }}
+        - name: GITEA_EXTERNAL_URL
+          value: {{ printf "http://%s" .Values.ingress.hosts.gitea }}
         - name: GITEA_ADMIN_TOKEN
           valueFrom:
             secretKeyRef:
@@ -152,6 +155,13 @@ spec:
               key: token
         - name: ROLES_DATA_PATH
           value: /data/roles
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.postgres.secretRef }}
+              key: password
+        - name: DATABASE_URL
+          value: "postgresql://{{ .Values.backend.postgres.user }}:$(PG_PASSWORD)@{{ .Values.postgres.host }}:{{ .Values.postgres.port }}/{{ .Values.backend.postgres.database }}"
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
         volumeMounts:

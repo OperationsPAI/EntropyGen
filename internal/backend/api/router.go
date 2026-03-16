@@ -42,7 +42,7 @@ func NewRouter(cfg Config) *gin.Engine {
 	}
 
 	authH := handler.NewAuthHandler(cfg.AdminUsername, cfg.AdminPasswordHash, cfg.JWTSecret, userStore)
-	agentH := handler.NewAgentHandler(cfg.AgentClient, cfg.GiteaClient, cfg.StreamWriter)
+	agentH := handler.NewAgentHandler(cfg.AgentClient, cfg.GiteaClient, cfg.StreamWriter, cfg.AgentNamespace)
 	agentH.SetClickHouse(cfg.CHClient)
 	roleH := handler.NewRoleHandler(cfg.RoleClient)
 	llmH := handler.NewLLMHandler(cfg.LiteLLMAddr, cfg.LiteLLMMasterKey)
