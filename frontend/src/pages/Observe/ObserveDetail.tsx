@@ -11,6 +11,7 @@ import StatusFooter from './StatusFooter'
 import { agentsApi } from '../../api/agents'
 import { observeApi, buildObserveWsUrl } from '../../api/observe'
 import { computeTokenUsage } from './tokenUtils'
+import { usePlatformConfig } from '../../hooks/usePlatformConfig'
 import type { Agent } from '../../types/agent'
 import type { JsonlMessage, MessageEnvelope, SessionInfo, DiffResultResponse, SidecarWsEvent } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
@@ -18,6 +19,7 @@ import styles from './ObserveDetail.module.css'
 export default function ObserveDetail() {
   const { name } = useParams<{ name: string }>()
   const navigate = useNavigate()
+  const platformConfig = usePlatformConfig()
 
   const [agent, setAgent] = useState<Agent | null>(null)
   const [messages, setMessages] = useState<JsonlMessage[]>([])
@@ -288,6 +290,8 @@ export default function ObserveDetail() {
         tokenUsage={effectiveTokenUsage}
         sessionCount={sessions.length}
         repo={agent?.spec.gitea.repo}
+        currentTask={agent?.status.currentTask}
+        giteaBaseUrl={platformConfig?.gitea_base_url}
       />
     </div>
   )

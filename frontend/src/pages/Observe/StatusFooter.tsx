@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AggregatedTokenUsage } from './tokenUtils'
+import type { CurrentTask } from '../../types/agent'
 import styles from './ObserveDetail.module.css'
 
 interface StatusFooterProps {
@@ -8,6 +9,8 @@ interface StatusFooterProps {
   tokenUsage: AggregatedTokenUsage
   sessionCount: number
   repo?: string
+  currentTask?: CurrentTask
+  giteaBaseUrl?: string
 }
 
 function formatTokenCount(n: number): string {
@@ -22,6 +25,8 @@ export default function StatusFooter({
   tokenUsage,
   sessionCount,
   repo,
+  currentTask,
+  giteaBaseUrl,
 }: StatusFooterProps) {
   return (
     <div className={styles.statusFooter}>
@@ -33,6 +38,20 @@ export default function StatusFooter({
         {repo && (
           <>
             <span className={styles.statusFooterItem}>{repo}</span>
+            <span className={styles.statusFooterSep}>|</span>
+          </>
+        )}
+        {currentTask && giteaBaseUrl && (
+          <>
+            <a
+              href={`${giteaBaseUrl}/${currentTask.repo || repo}/${currentTask.type === 'pr' ? 'pulls' : 'issues'}/${currentTask.number}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.statusFooterCurrentTask}
+            >
+              {currentTask.type === 'pr' ? 'PR' : '#'}{currentTask.number}
+              {currentTask.title && ` · ${currentTask.title}`}
+            </a>
             <span className={styles.statusFooterSep}>|</span>
           </>
         )}

@@ -367,3 +367,82 @@
   height: 200px;
   width: 100%;
 }
+
+/* Gitea header links (Plan A) */
+.giteaLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.giteaLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.giteaLink:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+
+/* Quick Links sidebar (Plan B) */
+.quickLinks {
+  margin-top: var(--space-sm);
+  border-top: 1px solid var(--line-subtle);
+  padding-top: var(--space-md);
+}
+
+.quickLinksLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.quickLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 7px var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  transition: background 0.15s;
+}
+
+.quickLink:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.quickLinkExtIcon {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Current task link (Plan C) */
+.currentTaskLink {
+  color: var(--status-blue, #2563eb);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.currentTaskLink:hover {
+  text-decoration: underline;
+}

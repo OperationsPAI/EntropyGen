@@ -9,6 +9,8 @@ import FileEditor from '../../components/agent/FileEditor'
 import TraceDetail from '../../components/trace/TraceDetail'
 import { PageHeader, Card, Button, Modal, Input, Textarea, EmptyState, SplitPane } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
+import { usePlatformConfig } from '../../hooks/usePlatformConfig'
+import { giteaRepoUrl, giteaIssuesUrl, giteaPRsUrl } from '../../utils/giteaLinks'
 import type { Agent, RoleFile } from '../../types/agent'
 import type { AgentFile } from '../../components/agent/FileEditor'
 import type { AuditTrace } from '../../types/trace'
@@ -40,6 +42,7 @@ function getIconInfo(type: string) {
 
 function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
   const toast = useToast()
+  const config = usePlatformConfig()
   const [agent, setAgent] = useState(initialAgent)
   const [activeTab, setActiveTab] = useState(0)
   const [traces, setTraces] = useState<AuditTrace[]>([])
@@ -148,6 +151,28 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
               <div className={styles.defValue}>{v}</div>
             </div>
           ))}
+          {agent.status.currentTask && (() => {
+            const task = agent.status.currentTask!
+            const base = config?.gitea_base_url ?? ''
+            const repo = task.repo || agent.spec.gitea.repo
+            const path = task.type === 'pr' ? 'pulls' : 'issues'
+            const url = base ? `${base}/${repo}/${path}/${task.number}` : ''
+            return (
+              <div>
+                <div className={styles.defLabel}>Current Task</div>
+                <div className={styles.defValue}>
+                  {url ? (
+                    <a href={url} target="_blank" rel="noopener noreferrer" className={styles.currentTaskLink}>
+                      {task.type === 'pr' ? 'PR' : 'Issue'} #{task.number}
+                      {task.title && ` · ${task.title}`}
+                    </a>
+                  ) : (
+                    <span>{task.type === 'pr' ? 'PR' : 'Issue'} #{task.number}{task.title && ` · ${task.title}`}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </div>
         <div className={styles.defLabel}>Conditions</div>
         <div className={styles.conditionList}>
@@ -166,6 +191,23 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
           {agent.status.phase === 'Paused' ? 'Resume' : 'Pause'}
         </Button>
         <Button variant="secondary" fullWidth onClick={handleResetMemory}>Reset Memory</Button>
+        {config?.gitea_base_url && agent.spec.gitea.repo && (
+          <div className={styles.quickLinks}>
+            <div className={styles.quickLinksLabel}>Open in Gitea</div>
+            <a href={giteaRepoUrl(config.gitea_base_url, agent.spec.gitea.repo)} target="_blank" rel="noopener noreferrer" className={styles.quickLink}>
+              <span>Repository</span>
+              <span className={styles.quickLinkExtIcon}>&#8599;</span>
+            </a>
+            <a href={giteaIssuesUrl(config.gitea_base_url, agent.spec.gitea.repo, agent.status.giteaUsername)} target="_blank" rel="noopener noreferrer" className={styles.quickLink}>
+              <span>Issues</span>
+              <span className={styles.quickLinkExtIcon}>&#8599;</span>
+            </a>
+            <a href={giteaPRsUrl(config.gitea_base_url, agent.spec.gitea.repo, agent.status.giteaUsername)} target="_blank" rel="noopener noreferrer" className={styles.quickLink}>
+              <span>Pull Requests</span>
+              <span className={styles.quickLinkExtIcon}>&#8599;</span>
+            </a>
+          </div>
+        )}
         <div className={styles.tokenBlock}>
           <div className={styles.defLabel}>Today's Tokens</div>
           <div className={styles.tokenValue}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</div>
@@ -373,6 +415,7 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
 export default function AgentDetail() {
   const { name } = useParams<{ name: string }>()
   const toast = useToast()
+  const config = usePlatformConfig()
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -421,6 +464,21 @@ export default function AgentDetail() {
             {agent.name}
             <AgentPhaseTag phase={agent.status.phase} />
           </span>
+        }
+        actions={
+          config && agent.spec.gitea.repo ? (
+            <div className={styles.giteaLinks}>
+              <a href={giteaRepoUrl(config.gitea_base_url, agent.spec.gitea.repo)} target="_blank" rel="noopener noreferrer" className={styles.giteaLink}>
+                <IconGithubLogo size="small" /> {agent.spec.gitea.repo}
+              </a>
+              <a href={giteaIssuesUrl(config.gitea_base_url, agent.spec.gitea.repo, agent.status.giteaUsername)} target="_blank" rel="noopener noreferrer" className={styles.giteaLink}>
+                Issues &#8599;
+              </a>
+              <a href={giteaPRsUrl(config.gitea_base_url, agent.spec.gitea.repo, agent.status.giteaUsername)} target="_blank" rel="noopener noreferrer" className={styles.giteaLink}>
+                PRs &#8599;
+              </a>
+            </div>
+          ) : undefined
         }
       />
       <AgentDetailInner agent={agent} />

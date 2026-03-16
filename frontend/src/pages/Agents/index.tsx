@@ -1,19 +1,24 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { IconPause, IconPlay, IconEyeOpened, IconDelete } from '@douyinfe/semi-icons'
+import { IconPause, IconPlay, IconEyeOpened, IconDelete, IconList, IconGridSquare } from '@douyinfe/semi-icons'
 import { agentsApi } from '../../api/agents'
+import { llmApi, type LLMModel } from '../../api/llm'
 import AgentPhaseTag from '../../components/agent/AgentPhaseTag'
+import AgentCard from '../Observe/AgentCard'
 import { PageHeader, Card, Table, Button, Input, Modal, EmptyState } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
 import type { Agent, AgentPhase } from '../../types/agent'
 import styles from './Agents.module.css'
 
 const PHASES: AgentPhase[] = ['Pending', 'Initializing', 'Running', 'Paused', 'Error']
+const VIEW_KEY = 'agents_view_mode'
 
 function getAge(createdAt: string) {
   const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000)
   return days === 0 ? 'today' : `${days}d ago`
 }
+
+type ViewMode = 'table' | 'card'
 
 export default function AgentList() {
   const navigate = useNavigate()
@@ -25,13 +30,45 @@ export default function AgentList() {
   const [phaseFilter, setPhaseFilter] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null)
   const [deleteInput, setDeleteInput] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem(VIEW_KEY) as ViewMode) || 'table',
+  )
+  const [modelMap, setModelMap] = useState<Map<string, string>>(new Map())
+  const cancelledRef = useRef(false)
+
+  const switchView = (mode: ViewMode) => {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_KEY, mode)
+  }
+
+  const loadData = useCallback(async () => {
+    try {
+      const [agentData, models] = await Promise.all([
+        agentsApi.getAgents(),
+        llmApi.getModels().catch(() => [] as LLMModel[]),
+      ])
+      if (!cancelledRef.current) {
+        setAgents(agentData)
+        const map = new Map<string, string>()
+        for (const m of models) map.set(m.id, m.name)
+        setModelMap(map)
+      }
+    } catch {
+      if (!cancelledRef.current) setError('Failed to load agents')
+    } finally {
+      if (!cancelledRef.current) setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    agentsApi.getAgents()
-      .then(setAgents)
-      .catch(() => setError('Failed to load agents'))
-      .finally(() => setLoading(false))
-  }, [])
+    cancelledRef.current = false
+    loadData()
+    const timer = setInterval(loadData, 10_000)
+    return () => {
+      cancelledRef.current = true
+      clearInterval(timer)
+    }
+  }, [loadData])
 
   const uniqueRoles = useMemo(
     () => [...new Set(agents.map((a) => a.spec.role))].sort(),
@@ -41,6 +78,10 @@ export default function AgentList() {
   const filtered = agents.filter(
     (a) => (!roleFilter || a.spec.role === roleFilter) && (!phaseFilter || a.status.phase === phaseFilter),
   )
+
+  const onlineCount = agents.filter(
+    (a) => a.status.phase === 'Running' || a.status.phase === 'Initializing',
+  ).length
 
   const handleTogglePause = async (agent: Agent) => {
     const isPaused = agent.status.phase === 'Paused'
@@ -100,7 +141,61 @@ export default function AgentList() {
     </div>
   )
 
-  const renderTable = () => {
+  const renderTable = () => (
+    <Table>
+      <thead>
+        <tr>
+          {['Name', 'Role', 'Status', 'Model', 'Last Action', 'Token/Today', 'Age', 'Actions'].map((h) => (
+            <th key={h}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {filtered.map((agent) => (
+          <tr key={agent.name} className={agent.status.phase === 'Error' ? styles.errorRow : undefined}>
+            <td className={styles.nameCell}>
+              <Link to={`/agents/${agent.name}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                {agent.name}
+              </Link>
+            </td>
+            <td>
+              <Link to={`/roles/${agent.spec.role}`} className={styles.roleLink}>
+                {agent.spec.role}
+              </Link>
+            </td>
+            <td><AgentPhaseTag phase={agent.status.phase} /></td>
+            <td className={styles.mutedCell}>{modelMap.get(agent.spec.llm.model) ?? agent.spec.llm.model}</td>
+            <td className={styles.lastActionCell}>{agent.status.lastAction?.description ?? '\u2014'}</td>
+            <td className={styles.tokenCell}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</td>
+            <td className={styles.mutedCell}>{getAge(agent.status.createdAt)}</td>
+            <td>
+              <div className={styles.actionsCell}>
+                <Button variant="ghost" size="sm" onClick={() => handleTogglePause(agent)}>
+                  {agent.status.phase === 'Paused' ? <IconPlay size="small" /> : <IconPause size="small" />}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => navigate(`/observe/${agent.name}`)}>
+                  <IconEyeOpened size="small" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(agent)}>
+                  <IconDelete size="small" style={{ color: 'var(--accent-orange)' }} />
+                </Button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  )
+
+  const renderCards = () => (
+    <div className={styles.cardGrid}>
+      {filtered.map((agent) => (
+        <AgentCard key={agent.name} agent={agent} />
+      ))}
+    </div>
+  )
+
+  const renderContent = () => {
     if (loading) {
       return (
         <div>
@@ -125,59 +220,48 @@ export default function AgentList() {
       )
     }
 
-    return (
-      <Table>
-        <thead>
-          <tr>
-            {['Name', 'Role', 'Status', 'Model', 'Last Action', 'Token/Today', 'Age', 'Actions'].map((h) => (
-              <th key={h}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((agent) => (
-            <tr key={agent.name} className={agent.status.phase === 'Error' ? styles.errorRow : undefined}>
-              <td className={styles.nameCell}>{agent.name}</td>
-              <td>
-                <Link to={`/roles/${agent.spec.role}`} className={styles.roleLink}>
-                  {agent.spec.role}
-                </Link>
-              </td>
-              <td><AgentPhaseTag phase={agent.status.phase} /></td>
-              <td className={styles.mutedCell}>{agent.spec.llm.model}</td>
-              <td className={styles.lastActionCell}>{agent.status.lastAction?.description ?? '\u2014'}</td>
-              <td className={styles.tokenCell}>{(agent.status.tokenUsage?.today ?? 0).toLocaleString()}</td>
-              <td className={styles.mutedCell}>{getAge(agent.status.createdAt)}</td>
-              <td>
-                <div className={styles.actionsCell}>
-                  <Button variant="ghost" size="sm" onClick={() => handleTogglePause(agent)}>
-                    {agent.status.phase === 'Paused' ? <IconPlay size="small" /> : <IconPause size="small" />}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => navigate(`/agents/${agent.name}`)}>
-                    <IconEyeOpened size="small" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(agent)}>
-                    <IconDelete size="small" style={{ color: 'var(--accent-orange)' }} />
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    )
+    return viewMode === 'table' ? renderTable() : renderCards()
   }
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Agents"
-        actions={<Button onClick={() => navigate('/agents/new')}>+ New Agent</Button>}
+        description={
+          <div className={styles.statusBar}>
+            <span className={styles.onlineCount}>
+              <span className={styles.onlineDot} />
+              {onlineCount}/{agents.length} Online
+            </span>
+            <span>Auto-refresh: ON</span>
+          </div>
+        }
+        actions={
+          <div className={styles.headerActions}>
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewBtn} ${viewMode === 'table' ? styles.viewBtnActive : ''}`}
+                onClick={() => switchView('table')}
+                title="Table view"
+              >
+                <IconList size="small" />
+              </button>
+              <button
+                className={`${styles.viewBtn} ${viewMode === 'card' ? styles.viewBtnActive : ''}`}
+                onClick={() => switchView('card')}
+                title="Card view"
+              >
+                <IconGridSquare size="small" />
+              </button>
+            </div>
+            <Button onClick={() => navigate('/agents/new')}>+ New Agent</Button>
+          </div>
+        }
       />
 
       <Card>
         {renderFilters()}
-        {renderTable()}
+        {renderContent()}
       </Card>
 
       <Modal

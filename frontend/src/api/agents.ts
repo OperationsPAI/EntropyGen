@@ -56,6 +56,14 @@ function mapAgent(raw: any): Agent {
     podName: status.podName,
     createdAt: meta.creationTimestamp ?? '',
     giteaUsername: status.giteaUser?.username,
+    currentTask: status.currentTask
+      ? {
+          type: status.currentTask.type as 'issue' | 'pr',
+          number: status.currentTask.number,
+          title: status.currentTask.title,
+          repo: status.currentTask.repo,
+        }
+      : undefined,
   }
 
   return {

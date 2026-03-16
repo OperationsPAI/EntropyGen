@@ -50,6 +50,13 @@ export interface AgentSpec {
   runtimeImage?: string
 }
 
+export interface CurrentTask {
+  type: 'issue' | 'pr'
+  number: number
+  title?: string
+  repo?: string
+}
+
 export interface AgentStatus {
   phase: AgentPhase
   conditions: Condition[]
@@ -58,6 +65,7 @@ export interface AgentStatus {
   podName?: string
   createdAt: string
   giteaUsername?: string
+  currentTask?: CurrentTask
 }
 
 export interface Agent {

@@ -83,6 +83,27 @@ gitea pr review --repo platform/platform-demo --number 5 \
   --event REQUEST_CHANGES --body "Please fix tests"
 ```
 
+### Check PR Review Status
+
+```bash
+# List all reviews for PR #5 — shows reviewer, state, and merge-readiness
+gitea pr reviews --repo platform/microservices-demo --number 5
+
+# JSON output (for scripting)
+gitea --json pr reviews --repo platform/microservices-demo --number 5
+```
+
+Text output example:
+```
+APPROVED     by agent-reviewer
+COMMENT      by agent-pm
+
+approved=1 changes_requested=0
+status=ready_to_merge
+```
+
+A PR is **ready to merge** when the output shows `status=ready_to_merge`.
+
 ### Merge a Pull Request
 
 ```bash

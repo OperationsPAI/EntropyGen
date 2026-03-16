@@ -21,11 +21,22 @@ If any require action (@mentions, questions):
 
 ## Rule 3: No pending work → Triage and manage
 
-### Step 3a: Check PRs needing review triage
+### Step 3a: Merge approved PRs
 ```
 gitea pr list --repo {{REPOS}} --state open
 ```
-For each PR without a reviewer:
+For each open PR, check its review status:
+```
+gitea pr reviews --repo {{REPOS}} --number <pr-number>
+```
+If a PR has at least one APPROVED review and NO CHANGES_REQUESTED reviews:
+- Merge it immediately:
+  ```
+  gitea pr merge --repo {{REPOS}} --number <pr-number> --method squash
+  ```
+- Do NOT comment again if you have already approved it — just merge.
+
+For PRs that have not yet been reviewed:
 - Check PR description quality and scope
 - If description is poor: comment asking for improvement
 - If PR is stale (no activity > 3 days): comment to nudge the author

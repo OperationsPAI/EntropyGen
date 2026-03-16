@@ -21,6 +21,7 @@ func NewPRCmd(jsonMode *bool) *cobra.Command {
 		newPRListCmd(jsonMode),
 		newPRCreateCmd(jsonMode),
 		newPRReviewCmd(jsonMode),
+		newPRReviewsCmd(jsonMode),
 		newPRMergeCmd(jsonMode),
 	)
 
@@ -265,6 +266,67 @@ func newPRMergeCmd(jsonMode *bool) *cobra.Command {
 	cmd.Flags().StringVar(&repo, "repo", "", "Repository in org/repo format (required)")
 	cmd.Flags().Int64Var(&number, "number", 0, "PR number (required)")
 	cmd.Flags().StringVar(&method, "method", "merge", "Merge method: merge, squash, or rebase")
+	_ = cmd.MarkFlagRequired("repo")
+	_ = cmd.MarkFlagRequired("number")
+
+	return cmd
+}
+
+func newPRReviewsCmd(jsonMode *bool) *cobra.Command {
+	var (
+		repo   string
+		number int64
+	)
+
+	cmd := &cobra.Command{
+		Use:   "reviews",
+		Short: "List reviews for a pull request",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			owner, repoName, err := splitRepo(repo)
+			if err != nil {
+				return err
+			}
+
+			client, err := newClient()
+			if err != nil {
+				return err
+			}
+
+			reviews, _, err := client.ListPullReviews(owner, repoName, number, sdk.ListPullReviewsOptions{})
+			if err != nil {
+				return fmt.Errorf("list reviews: %w", err)
+			}
+
+			if *jsonMode {
+				return output.PrintJSON(reviews)
+			}
+
+			approved := 0
+			changesRequested := 0
+			for _, r := range reviews {
+				switch r.State {
+				case sdk.ReviewStateApproved:
+					approved++
+					fmt.Fprintf(os.Stdout, "APPROVED     by %s\n", r.Reviewer.UserName)
+				case sdk.ReviewStateRequestChanges:
+					changesRequested++
+					fmt.Fprintf(os.Stdout, "CHANGES_REQ  by %s\n", r.Reviewer.UserName)
+				case sdk.ReviewStateComment:
+					fmt.Fprintf(os.Stdout, "COMMENT      by %s\n", r.Reviewer.UserName)
+				}
+			}
+			fmt.Fprintf(os.Stdout, "\napproved=%d changes_requested=%d\n", approved, changesRequested)
+			if approved > 0 && changesRequested == 0 {
+				fmt.Fprintln(os.Stdout, "status=ready_to_merge")
+			} else {
+				fmt.Fprintln(os.Stdout, "status=not_ready")
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&repo, "repo", "", "Repository in org/repo format (required)")
+	cmd.Flags().Int64Var(&number, "number", 0, "PR number (required)")
 	_ = cmd.MarkFlagRequired("repo")
 	_ = cmd.MarkFlagRequired("number")
 
