@@ -544,7 +544,7 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 	configCMName := fmt.Sprintf("agent-%s-config", agent.Name)
 	skillsCMName := fmt.Sprintf("agent-%s-skills", agent.Name)
 	jwtSecretName := fmt.Sprintf("agent-%s-jwt-token", agent.Name)
-	giteaTokenSecretName := fmt.Sprintf("agent-%s-gitea-token", agent.Name)
+	giteaTokenSecretName := fmt.Sprintf("role-%s-gitea-token", agent.Spec.Role)
 	pvcName := fmt.Sprintf("agent-%s-workspace", agent.Name)
 
 	model := ""

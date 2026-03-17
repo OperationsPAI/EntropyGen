@@ -174,7 +174,7 @@
 .fileTreeItem {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   padding: 2px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -182,6 +182,24 @@
   font-size: 0.6875rem;
   color: var(--text-muted);
   transition: background-color 0.1s;
+  user-select: none;
+}
+
+.fileTreeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.fileIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 16px;
 }
 
 .fileTreeItem:hover {

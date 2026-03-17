@@ -51,6 +51,7 @@ func (r *ResourceReconciler) ReconcileAll(ctx context.Context, agent *agentapi.A
 	steps := []step{
 		{"gitea-user", r.EnsureGiteaUser},
 		{"gitea-token", r.EnsureGiteaToken},
+		{"gitea-repo-access", r.EnsureGiteaRepoAccess},
 		{"jwt-secret", r.EnsureJWTSecret},
 		{"fetch-role", r.EnsureRoleData},
 		{"configmap", r.EnsureConfigMap},
@@ -71,8 +72,9 @@ func (r *ResourceReconciler) ReconcileAll(ctx context.Context, agent *agentapi.A
 }
 
 // DeleteAll cleans up external resources (K8S resources are cleaned via ownerReference cascade).
+// Gitea user is NOT deleted here — it belongs to the Role, not the Agent.
 func (r *ResourceReconciler) DeleteAll(ctx context.Context, agent *agentapi.Agent) error {
-	return r.DeleteGiteaUser(ctx, agent)
+	return nil
 }
 
 // CronPrompt resolves the cron prompt for the agent.

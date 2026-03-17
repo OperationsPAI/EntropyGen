@@ -137,7 +137,7 @@ func main() {
 		slog.Warn("k8s unavailable, agent API disabled")
 		agentCRClient = k8sclient.NewAgentClient(nil, agentNS)
 	}
-	roleClient := k8sclient.NewRoleClient(rolesDataPath, agentCRClient, &builtin.Provider{})
+	roleClient := k8sclient.NewRoleClient(rolesDataPath, agentCRClient, &builtin.Provider{}, giteaCli, k8sClientset, agentNS)
 
 	// Background services
 	pusher := wspush.NewPusher()

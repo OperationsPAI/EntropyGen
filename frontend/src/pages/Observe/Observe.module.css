@@ -29,19 +29,20 @@
 
 /* Agent Card */
 .agentCard {
-  background-color: var(--bg-surface);
+  background-color: var(--bg-canvas);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.15s;
+  transition: box-shadow 0.2s, transform 0.15s, border-color 0.15s;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  border: 1.5px solid transparent;
+  border: 1.5px solid var(--line-subtle);
 }
 
 .agentCard:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--line-strong);
   transform: translateY(-1px);
 }
 

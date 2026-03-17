@@ -3,6 +3,7 @@ package giteaclient
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	sdk "code.gitea.io/sdk/gitea"
 )
@@ -11,6 +12,7 @@ import (
 type Client struct {
 	inner   *sdk.Client
 	baseURL string
+	token   string
 }
 
 // New creates a new Gitea admin client.
@@ -21,7 +23,7 @@ func New(baseURL, adminToken string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gitea client init: %w", err)
 	}
-	return &Client{inner: inner, baseURL: baseURL}, nil
+	return &Client{inner: inner, baseURL: baseURL, token: adminToken}, nil
 }
 
 // CreateUser creates a new Gitea user. Must be called with admin credentials.
@@ -76,11 +78,27 @@ func (c *Client) AddCollaborator(_ context.Context, owner, repo, collaborator, p
 	return nil
 }
 
-// DeleteUser deletes a Gitea user by username.
+// DeleteUser deletes a Gitea user by username with purge=true to force-remove
+// even when the user owns repositories.
 func (c *Client) DeleteUser(_ context.Context, username string) error {
-	_, err := c.inner.AdminDeleteUser(username)
+	url := fmt.Sprintf("%s/api/v1/admin/users/%s?purge=true", c.baseURL, username)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("build delete request for %q: %w", username, err)
+	}
+	req.Header.Set("Authorization", "token "+c.token)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("delete user %q: %w", username, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil // already gone
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("delete user %q: HTTP %d", username, resp.StatusCode)
 	}
 	return nil
 }

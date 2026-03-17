@@ -9,17 +9,16 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 )
 
-// EnsureGiteaUser creates the Gitea user for the agent if not already present.
+// EnsureGiteaUser creates the Gitea user for the agent's role if not already present.
 // Updates agent status with the created username.
 func (r *ResourceReconciler) EnsureGiteaUser(ctx context.Context, agent *agentapi.Agent) error {
 	username := giteaUsername(agent)
 	email := giteaEmail(agent)
-	password := generatePassword(agent.Name)
+	password := generatePassword(agent.Spec.Role)
 
 	err := r.GiteaClient.CreateUser(ctx, username, email, password)
 	if err != nil && !isGiteaAlreadyExists(err) {
@@ -49,11 +48,12 @@ func (r *ResourceReconciler) DeleteGiteaUser(ctx context.Context, agent *agentap
 	return nil
 }
 
-// EnsureGiteaToken creates a Gitea API token for the agent and stores it in a K8S Secret.
-// Secret name: agent-{name}-gitea-token
+// EnsureGiteaToken creates a Gitea API token for the role user and stores it in a K8S Secret.
+// Secret name: role-{roleName}-gitea-token
 // Idempotent: does nothing if the Secret already exists.
+// The Secret has no ownerReference because it is shared across agents with the same role.
 func (r *ResourceReconciler) EnsureGiteaToken(ctx context.Context, agent *agentapi.Agent) error {
-	secretName := fmt.Sprintf("agent-%s-gitea-token", agent.Name)
+	secretName := fmt.Sprintf("role-%s-gitea-token", agent.Spec.Role)
 	existing := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: agent.Namespace}, existing)
 	if err == nil {
@@ -64,8 +64,8 @@ func (r *ResourceReconciler) EnsureGiteaToken(ctx context.Context, agent *agenta
 	}
 
 	username := giteaUsername(agent)
-	password := generatePassword(agent.Name)
-	tokenValue, err := r.GiteaClient.CreateTokenWithPassword(ctx, username, password, "agent-api")
+	password := generatePassword(agent.Spec.Role)
+	tokenValue, err := r.GiteaClient.CreateTokenWithPassword(ctx, username, password, "role-api")
 	if err != nil {
 		return fmt.Errorf("create gitea token for %q: %w", username, err)
 	}
@@ -77,22 +77,15 @@ func (r *ResourceReconciler) EnsureGiteaToken(ctx context.Context, agent *agenta
 		},
 		StringData: map[string]string{"token": tokenValue},
 	}
-	_ = controllerutil.SetControllerReference(agent, secret, r.Scheme)
 	return r.Client.Create(ctx, secret)
 }
 
 func giteaUsername(agent *agentapi.Agent) string {
-	if agent.Spec.Gitea != nil && agent.Spec.Gitea.Username != "" {
-		return "agent-" + agent.Spec.Gitea.Username
-	}
-	return "agent-" + agent.Name
+	return "role-" + agent.Spec.Role
 }
 
 func giteaEmail(agent *agentapi.Agent) string {
-	if agent.Spec.Gitea != nil && agent.Spec.Gitea.Email != "" {
-		return agent.Spec.Gitea.Email
-	}
-	return giteaUsername(agent) + "@agents.devops.local"
+	return "role-" + agent.Spec.Role + "@agents.devops.local"
 }
 
 // generatePassword returns a deterministic placeholder password (agent uses token auth, not password).
@@ -114,4 +107,41 @@ func isGiteaNotFound(err error) bool {
 	}
 	s := err.Error()
 	return strings.Contains(s, "not found") || strings.Contains(s, "404")
+}
+
+// EnsureGiteaRepoAccess adds the role user as a collaborator to each repo in agent.Spec.Gitea.Repos.
+// Permission is "write" if the agent has any write/review/merge permission, otherwise "read".
+func (r *ResourceReconciler) EnsureGiteaRepoAccess(ctx context.Context, agent *agentapi.Agent) error {
+	if agent.Spec.Gitea == nil || len(agent.Spec.Gitea.Repos) == 0 {
+		return nil
+	}
+
+	username := giteaUsername(agent)
+	permission := resolveCollaboratorPermission(agent)
+
+	for _, repo := range agent.Spec.Gitea.Repos {
+		parts := strings.SplitN(repo, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			continue
+		}
+		if err := r.GiteaClient.AddCollaborator(ctx, parts[0], parts[1], username, permission); err != nil {
+			return fmt.Errorf("add collaborator %q to %s: %w", username, repo, err)
+		}
+	}
+	return nil
+}
+
+// resolveCollaboratorPermission returns "write" if the agent has any write/review/merge permission,
+// otherwise "read".
+func resolveCollaboratorPermission(agent *agentapi.Agent) string {
+	if agent.Spec.Gitea == nil {
+		return "read"
+	}
+	for _, p := range agent.Spec.Gitea.Permissions {
+		switch strings.ToLower(p) {
+		case "write", "review", "merge":
+			return "write"
+		}
+	}
+	return "read"
 }

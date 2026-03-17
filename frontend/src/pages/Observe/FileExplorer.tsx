@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { IconFolderOpen, IconFile, IconTreeTriangleRight, IconTreeTriangleDown } from '@douyinfe/semi-icons'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { IconFolder, IconFolderOpen, IconFile, IconTreeTriangleRight, IconTreeTriangleDown } from '@douyinfe/semi-icons'
 import { observeApi } from '../../api/observe'
 import type { FileTreeNode, SessionInfo } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
@@ -29,6 +29,7 @@ export default function FileExplorer({
 }: FileExplorerProps) {
   const [tree, setTree] = useState<FileTreeNode[]>([])
   const [sessionsCollapsed, setSessionsCollapsed] = useState(false)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -45,11 +46,39 @@ export default function FileExplorer({
     return () => { cancelled = true; clearInterval(timer) }
   }, [agentName, treeRefreshKey])
 
+  // Auto-expand directories that contain modified files or the active file.
+  useEffect(() => {
+    const paths = new Set<string>()
+    collectExpandedPaths(tree, '', paths, activePath)
+    if (paths.size > 0) {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        for (const p of paths) next.add(p)
+        return next
+      })
+    }
+  }, [tree, activePath])
+
+  const toggleDir = useCallback((dirPath: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(dirPath)) {
+        next.delete(dirPath)
+      } else {
+        next.add(dirPath)
+      }
+      return next
+    })
+  }, [])
+
   const handleFileClick = useCallback((path: string) => {
     onFileSelected(path)
   }, [onFileSelected])
 
-  const flatFiles = flattenTree(tree)
+  const visibleItems = useMemo(
+    () => buildVisibleItems(tree, expanded),
+    [tree, expanded],
+  )
 
   return (
     <div className={styles.fileExplorer}>
@@ -68,17 +97,28 @@ export default function FileExplorer({
 
       {/* File tree */}
       <div className={styles.explorerTree}>
-        {flatFiles.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className={styles.explorerEmpty}>No files available</div>
         ) : (
-          flatFiles.map((f) => (
+          visibleItems.map((f) => (
             <div
               key={f.path}
               className={`${styles.fileTreeItem} ${f.path === activePath ? styles.fileTreeItemActive : ''}`}
-              onClick={() => !f.isDir && handleFileClick(f.path)}
-              style={{ paddingLeft: `${8 + f.depth * 12}px` }}
+              onClick={() => f.isDir ? toggleDir(f.path) : handleFileClick(f.path)}
+              style={{ paddingLeft: `${8 + f.depth * 14}px` }}
             >
-              <span className={styles.fileIcon}>{f.isDir ? <IconFolderOpen size="small" /> : <IconFile size="small" />}</span>
+              {f.isDir ? (
+                <>
+                  <span className={styles.fileTreeToggle}>
+                    {expanded.has(f.path) ? <IconTreeTriangleDown size="extra-small" /> : <IconTreeTriangleRight size="extra-small" />}
+                  </span>
+                  <span className={styles.fileIcon}>
+                    {expanded.has(f.path) ? <IconFolderOpen size="small" /> : <IconFolder size="small" />}
+                  </span>
+                </>
+              ) : (
+                <span className={styles.fileIcon}><IconFile size="small" /></span>
+              )}
               <span className={styles.fileName}>{f.name}</span>
               {f.status && (
                 <span
@@ -135,7 +175,7 @@ export default function FileExplorer({
   )
 }
 
-interface FlatFile {
+interface VisibleItem {
   name: string
   path: string
   isDir: boolean
@@ -143,20 +183,61 @@ interface FlatFile {
   depth: number
 }
 
-function flattenTree(nodes: FileTreeNode[], depth = 0, parentPath = ''): FlatFile[] {
-  const result: FlatFile[] = []
+/**
+ * Build the list of items that should be rendered based on which
+ * directories are currently expanded. Collapsed directories hide
+ * all their descendants, dramatically reducing DOM node count.
+ */
+function buildVisibleItems(
+  nodes: FileTreeNode[],
+  expanded: Set<string>,
+  depth = 0,
+  parentPath = '',
+): VisibleItem[] {
+  const result: VisibleItem[] = []
   for (const node of nodes) {
     const path = parentPath ? `${parentPath}/${node.name}` : node.name
+    const isDir = node.type === 'dir'
     result.push({
       name: node.name,
       path,
-      isDir: node.type === 'dir',
+      isDir,
       status: node.modified ? 'modified' : undefined,
       depth,
     })
-    if (node.children) {
-      result.push(...flattenTree(node.children, depth + 1, path))
+    // Only recurse into children when the directory is expanded.
+    if (isDir && node.children && expanded.has(path)) {
+      result.push(...buildVisibleItems(node.children, expanded, depth + 1, path))
     }
   }
   return result
+}
+
+/**
+ * Walk the tree and collect directory paths that should be auto-expanded:
+ * - directories containing modified files
+ * - ancestor directories of the currently active file
+ */
+function collectExpandedPaths(
+  nodes: FileTreeNode[],
+  parentPath: string,
+  result: Set<string>,
+  activePath: string,
+): boolean {
+  let hasRelevant = false
+  for (const node of nodes) {
+    const path = parentPath ? `${parentPath}/${node.name}` : node.name
+    if (node.type === 'dir' && node.children) {
+      const childRelevant = collectExpandedPaths(node.children, path, result, activePath)
+      if (childRelevant || node.modified) {
+        result.add(path)
+        hasRelevant = true
+      }
+    } else {
+      if (node.modified || path === activePath) {
+        hasRelevant = true
+      }
+    }
+  }
+  return hasRelevant
 }

@@ -365,11 +365,11 @@ func resolveGiteaUsername(agent *agentapi.Agent) string {
 	if agent.Status.GiteaUser != nil && agent.Status.GiteaUser.Username != "" {
 		return agent.Status.GiteaUser.Username
 	}
-	if agent.Spec.Gitea != nil && agent.Spec.Gitea.Username != "" {
-		return "agent-" + agent.Spec.Gitea.Username
+	// Default convention: role-level Gitea user.
+	if agent.Spec.Role != "" {
+		return "role-" + agent.Spec.Role
 	}
-	// Default convention matches operator's giteaUsername() logic.
-	return "agent-" + agent.Name
+	return ""
 }
 
 // enrichAgents populates tokenUsage, lastAction, and currentTask from

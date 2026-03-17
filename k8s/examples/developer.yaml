@@ -13,18 +13,18 @@ spec:
   llm:
     model: qwen3.5-plus
     temperature: 0.7
-    maxTokens: 4096
+    maxTokens: 65536
   gitea:
     permissions:
       - read
       - write
   resources:
     requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
       cpu: "500m"
       memory: "1Gi"
+    limits:
+      cpu: "5000m"
+      memory: "2Gi"
   memory:
     storageSize: "5Gi"
   paused: false

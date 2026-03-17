@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Agent, AgentSpec, AgentStatus, CreateAgentDto, UpdateAgentDto, AssignTaskDto } from '../types/agent'
+import type { Agent, AgentSpec, AgentStatus, CreateAgentDto, AssignTaskDto } from '../types/agent'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -18,20 +18,21 @@ function mapAgent(raw: any): Agent {
     llm: {
       model: spec.llm?.model ?? '',
       temperature: spec.llm?.temperature ?? 0.7,
-      maxTokens: spec.llm?.maxTokens ?? 4096,
+      maxTokens: spec.llm?.maxTokens ?? 65536,
     },
     cron: {
       schedule: spec.cron?.schedule ?? '',
     },
     resources: {
-      cpuRequest: spec.resources?.requests?.cpu ?? '100m',
-      cpuLimit: spec.resources?.limits?.cpu ?? '500m',
-      memoryRequest: spec.resources?.requests?.memory ?? '256Mi',
-      memoryLimit: spec.resources?.limits?.memory ?? '1Gi',
+      cpuRequest: spec.resources?.requests?.cpu ?? '500m',
+      cpuLimit: spec.resources?.limits?.cpu ?? '5000m',
+      memoryRequest: spec.resources?.requests?.memory ?? '1Gi',
+      memoryLimit: spec.resources?.limits?.memory ?? '2Gi',
       workspaceSize: '5Gi',
     },
     gitea: {
-      repo: spec.gitea?.repo ?? '',
+      repo: spec.gitea?.repo ?? (spec.gitea?.repos?.[0] ?? ''),
+      repos: spec.gitea?.repos ?? (spec.gitea?.repo ? [spec.gitea.repo] : []),
       permissions: (spec.gitea?.permissions ?? ['read']) as ('read' | 'write' | 'review' | 'merge')[],
     },
     runtimeImage: spec.runtimeImage ?? '',
@@ -58,11 +59,11 @@ function mapAgent(raw: any): Agent {
     giteaUsername: status.giteaUser?.username,
     currentTask: status.currentTask
       ? {
-          type: status.currentTask.type as 'issue' | 'pr',
-          number: status.currentTask.number,
-          title: status.currentTask.title,
-          repo: status.currentTask.repo,
-        }
+        type: status.currentTask.type as 'issue' | 'pr',
+        number: status.currentTask.number,
+        title: status.currentTask.title,
+        repo: status.currentTask.repo,
+      }
       : undefined,
   }
 
@@ -105,8 +106,8 @@ export const agentsApi = {
       return mapAgent(body?.data ?? body) as Agent
     }),
 
-  updateAgent: (name: string, dto: UpdateAgentDto) =>
-    apiClient.patch(`/agents/${name}`, dto).then((r) => {
+  updateAgent: (name: string, spec: Partial<AgentSpec>) =>
+    apiClient.put(`/agents/${name}`, spec).then((r) => {
       const body = r.data
       return mapAgent(body?.data ?? body) as Agent
     }),

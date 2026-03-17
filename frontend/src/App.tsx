@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import AppShell from './components/layout/AppShell'
+import RequireAuth from './components/auth/RequireAuth'
 import Login from './pages/Login'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -44,6 +45,10 @@ const withAuth = (element: React.ReactNode) => (
   <AuthProvider>{element}</AuthProvider>
 )
 
+const authed = (element: React.ReactNode) => (
+  <RequireAuth><Suspense fallback={<Loading />}>{element}</Suspense></RequireAuth>
+)
+
 export const router = createBrowserRouter([
   {
     path: '/login',
@@ -54,19 +59,21 @@ export const router = createBrowserRouter([
     element: withAuth(<AppShell />),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
+      // Guest-accessible (read-only)
       { path: 'dashboard', element: <Suspense fallback={<Loading />}><Dashboard /></Suspense> },
       { path: 'agents', element: <Suspense fallback={<Loading />}><AgentList /></Suspense> },
-      { path: 'agents/new', element: <Suspense fallback={<Loading />}><NewAgent /></Suspense> },
       { path: 'agents/:name', element: <Suspense fallback={<Loading />}><AgentDetail /></Suspense> },
-      { path: 'observe/:name', element: <Suspense fallback={<Loading />}><ObserveDetail /></Suspense> },
-      { path: 'roles', element: <Suspense fallback={<Loading />}><RoleList /></Suspense> },
-      { path: 'roles/new', element: <Suspense fallback={<Loading />}><NewRole /></Suspense> },
-      { path: 'roles/:name', element: <Suspense fallback={<Loading />}><RoleEditor /></Suspense> },
-      { path: 'llm', element: <Suspense fallback={<Loading />}><LLM /></Suspense> },
-      { path: 'audit', element: <Suspense fallback={<Loading />}><Audit /></Suspense> },
-      { path: 'monitor', element: <Suspense fallback={<Loading />}><Monitor /></Suspense> },
-      { path: 'export', element: <Suspense fallback={<Loading />}><Export /></Suspense> },
-      { path: 'users', element: <Suspense fallback={<Loading />}><Users /></Suspense> },
+      // Requires login (member+)
+      { path: 'agents/new', element: authed(<NewAgent />) },
+      { path: 'observe/:name', element: authed(<ObserveDetail />) },
+      { path: 'roles', element: authed(<RoleList />) },
+      { path: 'roles/new', element: authed(<NewRole />) },
+      { path: 'roles/:name', element: authed(<RoleEditor />) },
+      { path: 'llm', element: authed(<LLM />) },
+      { path: 'audit', element: authed(<Audit />) },
+      { path: 'monitor', element: authed(<Monitor />) },
+      { path: 'export', element: authed(<Export />) },
+      { path: 'users', element: authed(<Users />) },
     ],
   },
 ])

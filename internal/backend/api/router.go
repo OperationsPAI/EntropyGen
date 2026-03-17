@@ -79,11 +79,11 @@ func NewRouter(cfg Config) *gin.Engine {
 	opt.POST("/agents/:name/reset-memory", handler.RequireRole("member", "admin"), agentH.ResetMemory)
 	opt.POST("/agents/:name/assign-issue", handler.RequireRole("member", "admin"), agentH.AssignIssue)
 
-	// Role management — read (guest+)
-	opt.GET("/roles", roleH.List)
-	opt.GET("/roles/:name", roleH.Get)
-	opt.GET("/roles/:name/files", roleH.ListFiles)
-	opt.GET("/roles/:name/files/*filepath", roleH.GetFile)
+	// Role management — read (member+)
+	opt.GET("/roles", handler.RequireRole("member", "admin"), roleH.List)
+	opt.GET("/roles/:name", handler.RequireRole("member", "admin"), roleH.Get)
+	opt.GET("/roles/:name/files", handler.RequireRole("member", "admin"), roleH.ListFiles)
+	opt.GET("/roles/:name/files/*filepath", handler.RequireRole("member", "admin"), roleH.GetFile)
 
 	// Role management — write (member+)
 	opt.POST("/roles", handler.RequireRole("member", "admin"), roleH.Create)
@@ -93,9 +93,9 @@ func NewRouter(cfg Config) *gin.Engine {
 	opt.DELETE("/roles/:name/files/*filepath", handler.RequireRole("member", "admin"), roleH.DeleteFile)
 	opt.POST("/roles/:name/rename-file", handler.RequireRole("member", "admin"), roleH.RenameFile)
 
-	// LLM — read (guest+)
-	opt.GET("/llm/models", llmH.ListModels)
-	opt.GET("/llm/health", llmH.Health)
+	// LLM — read (member+)
+	opt.GET("/llm/models", handler.RequireRole("member", "admin"), llmH.ListModels)
+	opt.GET("/llm/health", handler.RequireRole("member", "admin"), llmH.Health)
 
 	// LLM — member write
 	opt.POST("/llm/chat", handler.RequireRole("member", "admin"), llmH.Chat)
@@ -106,26 +106,26 @@ func NewRouter(cfg Config) *gin.Engine {
 	opt.PUT("/llm/models/:id", handler.RequireRole("admin"), llmH.UpdateModel)
 	opt.DELETE("/llm/models/:id", handler.RequireRole("admin"), llmH.DeleteModel)
 
-	// Audit — read (guest+), export (member+)
-	opt.GET("/audit/traces", auditH.ListTraces)
-	opt.GET("/audit/traces/:trace_id", auditH.GetTrace)
-	opt.GET("/audit/stats/token-usage", auditH.TokenUsage)
-	opt.GET("/audit/stats/agent-activity", auditH.AgentActivity)
-	opt.GET("/audit/stats/operations", auditH.Operations)
+	// Audit — read (member+), export (member+)
+	opt.GET("/audit/traces", handler.RequireRole("member", "admin"), auditH.ListTraces)
+	opt.GET("/audit/traces/:trace_id", handler.RequireRole("member", "admin"), auditH.GetTrace)
+	opt.GET("/audit/stats/token-usage", handler.RequireRole("member", "admin"), auditH.TokenUsage)
+	opt.GET("/audit/stats/agent-activity", handler.RequireRole("member", "admin"), auditH.AgentActivity)
+	opt.GET("/audit/stats/operations", handler.RequireRole("member", "admin"), auditH.Operations)
 	opt.GET("/audit/export", handler.RequireRole("member", "admin"), auditH.Export)
 
-	// Monitor (guest+)
-	opt.GET("/monitor/token-trend", auditH.TokenUsage)
-	opt.GET("/monitor/activity-heatmap", auditH.AgentActivity)
-	opt.GET("/monitor/model-distribution", auditH.ModelDistribution)
-	opt.GET("/monitor/latency-trend", auditH.LatencyTrend)
-	opt.GET("/monitor/agent-ranking", auditH.AgentRanking)
+	// Monitor (member+)
+	opt.GET("/monitor/token-trend", handler.RequireRole("member", "admin"), auditH.TokenUsage)
+	opt.GET("/monitor/activity-heatmap", handler.RequireRole("member", "admin"), auditH.AgentActivity)
+	opt.GET("/monitor/model-distribution", handler.RequireRole("member", "admin"), auditH.ModelDistribution)
+	opt.GET("/monitor/latency-trend", handler.RequireRole("member", "admin"), auditH.LatencyTrend)
+	opt.GET("/monitor/agent-ranking", handler.RequireRole("member", "admin"), auditH.AgentRanking)
 
-	// Agent observation (guest+)
-	opt.Any("/agents/:name/observe/*path", observeH.Proxy)
+	// Agent observation (member+)
+	opt.Any("/agents/:name/observe/*path", handler.RequireRole("member", "admin"), observeH.Proxy)
 
-	// WebSocket (guest+)
-	opt.GET("/ws/events", wsH.Handle)
+	// WebSocket (member+)
+	opt.GET("/ws/events", handler.RequireRole("member", "admin"), wsH.Handle)
 
 	// User management — admin only (only when PGClient configured)
 	if userStore != nil {

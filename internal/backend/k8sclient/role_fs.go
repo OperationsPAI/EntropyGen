@@ -9,6 +9,12 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/entropyGen/entropyGen/internal/common/giteaclient"
 )
 
 type RoleFile struct {
@@ -58,10 +64,13 @@ type RoleClient struct {
 	basePath    string
 	agentClient *AgentClient
 	builtin     BuiltinContentProvider
+	giteaClient *giteaclient.Client
+	k8s         kubernetes.Interface
+	namespace   string
 }
 
-func NewRoleClient(basePath string, agentClient *AgentClient, builtin BuiltinContentProvider) *RoleClient {
-	return &RoleClient{basePath: basePath, agentClient: agentClient, builtin: builtin}
+func NewRoleClient(basePath string, agentClient *AgentClient, builtin BuiltinContentProvider, giteaClient *giteaclient.Client, k8s kubernetes.Interface, namespace string) *RoleClient {
+	return &RoleClient{basePath: basePath, agentClient: agentClient, builtin: builtin, giteaClient: giteaClient, k8s: k8s, namespace: namespace}
 }
 
 // validatePath ensures the path is safe: no absolute paths, no ".." traversal.
@@ -291,7 +300,29 @@ func (r *RoleClient) Delete(ctx context.Context, name string) error {
 	if _, err := os.Stat(roleDir); os.IsNotExist(err) {
 		return fmt.Errorf("role %s not found", name)
 	}
-	return os.RemoveAll(roleDir)
+	if err := os.RemoveAll(roleDir); err != nil {
+		return fmt.Errorf("remove role dir %s: %w", name, err)
+	}
+
+	// Clean up the role-level Gitea user (purge=true handles repo ownership).
+	giteaUsername := "role-" + name
+	if r.giteaClient != nil {
+		if err := r.giteaClient.DeleteUser(ctx, giteaUsername); err != nil {
+			// Log but don't fail — Gitea user may not exist if role was never reconciled.
+			_ = err
+		}
+	}
+
+	// Clean up the role-level Gitea token Secret.
+	if r.k8s != nil && r.namespace != "" {
+		secretName := fmt.Sprintf("role-%s-gitea-token", name)
+		err := r.k8s.CoreV1().Secrets(r.namespace).Delete(ctx, secretName, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete gitea token secret %q: %w", secretName, err)
+		}
+	}
+
+	return nil
 }
 
 func (r *RoleClient) ListFiles(ctx context.Context, roleName string) ([]RoleFile, error) {

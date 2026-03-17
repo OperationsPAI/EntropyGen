@@ -58,9 +58,11 @@ func (c *Client) QueryTraces(ctx context.Context, f TraceFilter) (*TraceResult, 
 	}
 	offset := (f.Page - 1) * f.Limit
 
-	// Build WHERE clauses
+	// Build WHERE clauses – always exclude noise event types
 	var conditions []string
 	var args []any
+
+	conditions = append(conditions, "request_type NOT IN ('pod_status')")
 
 	if f.AgentID != "" {
 		conditions = append(conditions, "agent_id = ?")

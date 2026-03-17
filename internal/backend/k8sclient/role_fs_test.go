@@ -19,7 +19,7 @@ func (b *testBuiltin) ReadSkill(name string) string              { return "# " +
 func newTestClient(t *testing.T) (*RoleClient, string) {
 	t.Helper()
 	dir := t.TempDir()
-	return NewRoleClient(dir, nil, &testBuiltin{}), dir
+	return NewRoleClient(dir, nil, &testBuiltin{}, nil, nil, ""), dir
 }
 
 func TestCreateAndGet(t *testing.T) {

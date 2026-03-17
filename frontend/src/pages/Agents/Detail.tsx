@@ -56,6 +56,19 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
   const [roleFiles, setRoleFiles] = useState<AgentFile[]>([])
   const [roleFilesActive, setRoleFilesActive] = useState('')
 
+  // Edit settings state
+  const [editModal, setEditModal] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editForm, setEditForm] = useState({
+    model: '',
+    temperature: 0.7,
+    maxTokens: 65536,
+    schedule: '',
+    repo: '',
+    permissions: ['read'] as ('read' | 'write' | 'review' | 'merge')[],
+    runtimeImage: '',
+  })
+
   useEffect(() => {
     auditApi.getTraces({ agent_id: [agent.name], limit: 20 })
       .then((r) => setTraces(r.items))
@@ -124,6 +137,48 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
     }
   }
 
+  const openEditModal = () => {
+    setEditForm({
+      model: agent.spec.llm.model,
+      temperature: agent.spec.llm.temperature,
+      maxTokens: agent.spec.llm.maxTokens,
+      schedule: agent.spec.cron.schedule,
+      repo: agent.spec.gitea.repo,
+      permissions: [...agent.spec.gitea.permissions],
+      runtimeImage: agent.spec.runtimeImage || '',
+    })
+    setEditModal(true)
+  }
+
+  const toggleEditPermission = (perm: 'read' | 'write' | 'review' | 'merge') =>
+    setEditForm((prev) => ({
+      ...prev,
+      permissions: prev.permissions.includes(perm)
+        ? prev.permissions.filter((p) => p !== perm)
+        : [...prev.permissions, perm],
+    }))
+
+  const handleSaveSettings = async () => {
+    setEditSaving(true)
+    try {
+      const updated = await agentsApi.updateAgent(agent.name, {
+        role: agent.spec.role,
+        llm: { model: editForm.model, temperature: editForm.temperature, maxTokens: editForm.maxTokens },
+        cron: { schedule: editForm.schedule },
+        resources: agent.spec.resources,
+        gitea: { repo: editForm.repo, repos: editForm.repo ? [editForm.repo] : [], permissions: editForm.permissions },
+        runtimeImage: editForm.runtimeImage || undefined,
+      })
+      setAgent(updated)
+      setEditModal(false)
+      toast.success('Settings saved', 'Agent configuration updated')
+    } catch {
+      toast.error('Save failed', 'Could not update agent settings')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const renderOverview = () => (
     <div className={styles.overviewGrid}>
       <div>
@@ -142,6 +197,8 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
             ['Max Tokens', String(agent.spec.llm.maxTokens)],
             ['Cron', agent.spec.cron.schedule],
             ['Runtime Image', agent.spec.runtimeImage || '(default)'],
+            ['Repo', agent.spec.gitea.repo || '\u2014'],
+            ['Permissions', agent.spec.gitea.permissions.join(', ') || '\u2014'],
             ['Gitea User', agent.status.giteaUsername ?? '\u2014'],
             ['Phase', agent.status.phase],
             ['Pod', agent.status.podName ?? '\u2014'],
@@ -191,6 +248,7 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
           {agent.status.phase === 'Paused' ? 'Resume' : 'Pause'}
         </Button>
         <Button variant="secondary" fullWidth onClick={handleResetMemory}>Reset Memory</Button>
+        <Button variant="secondary" fullWidth onClick={openEditModal}>Edit Settings</Button>
         {config?.gitea_base_url && agent.spec.gitea.repo && (
           <div className={styles.quickLinks}>
             <div className={styles.quickLinksLabel}>Open in Gitea</div>
@@ -406,6 +464,48 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
         </div>
         <div className={styles.assignInfo}>
           Creates a Gitea issue and assigns it to @{agent.status.giteaUsername}
+        </div>
+      </Modal>
+
+      <Modal
+        open={editModal}
+        onClose={() => setEditModal(false)}
+        title={`Edit Settings: ${agent.name}`}
+        width={520}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditModal(false)}>Cancel</Button>
+            <Button onClick={handleSaveSettings} loading={editSaving}>Save</Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div className={styles.defLabel}>LLM</div>
+          <Input label="Model" value={editForm.model} onChange={(e) => setEditForm((p) => ({ ...p, model: e.target.value }))} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+            <Input label="Temperature" type="number" min={0} max={2} step={0.1} value={editForm.temperature} onChange={(e) => setEditForm((p) => ({ ...p, temperature: parseFloat(e.target.value) }))} />
+            <Input label="Max Tokens" type="number" value={editForm.maxTokens} onChange={(e) => setEditForm((p) => ({ ...p, maxTokens: parseInt(e.target.value, 10) }))} />
+          </div>
+
+          <div className={styles.defLabel}>Schedule</div>
+          <Input label="Cron Expression" value={editForm.schedule} onChange={(e) => setEditForm((p) => ({ ...p, schedule: e.target.value }))} />
+
+          <div className={styles.defLabel}>Runtime</div>
+          <Input label="Runtime Image" value={editForm.runtimeImage} onChange={(e) => setEditForm((p) => ({ ...p, runtimeImage: e.target.value }))} />
+
+          <div className={styles.defLabel}>Gitea</div>
+          <Input label="Repository" value={editForm.repo} onChange={(e) => setEditForm((p) => ({ ...p, repo: e.target.value }))} placeholder="org/repo" />
+          <div>
+            <div className={styles.defLabel} style={{ marginBottom: '8px' }}>Permissions</div>
+            <div style={{ display: 'flex', gap: 'var(--space-lg)' }}>
+              {(['read', 'write', 'review', 'merge'] as const).map((perm) => (
+                <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.875rem' }}>
+                  <input type="checkbox" checked={editForm.permissions.includes(perm)} onChange={() => toggleEditPermission(perm)} />
+                  {perm}
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </Modal>
     </>

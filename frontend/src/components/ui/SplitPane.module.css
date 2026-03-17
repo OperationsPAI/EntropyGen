@@ -9,6 +9,13 @@
   min-width: 0;
 }
 
+/* Left panel fills remaining space when right is anchored */
+.leftFill {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+}
+
 .divider {
   flex-shrink: 0;
   width: 4px;
@@ -39,4 +46,10 @@
   flex: 1;
   min-width: 0;
   overflow: auto;
+}
+
+/* Right panel with explicit width when right-anchored */
+.rightFixed {
+  overflow: auto;
+  min-width: 0;
 }

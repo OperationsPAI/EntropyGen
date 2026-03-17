@@ -5,9 +5,13 @@ import { authApi } from '../../api/auth'
 import { useAuth } from '../../contexts/AuthContext'
 import styles from './Sidebar.module.css'
 
-const NAV_ITEMS = [
+const GUEST_NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', icon: <IconHome size="small" /> },
   { path: '/agents', label: 'Agents', icon: <IconUserGroup size="small" /> },
+]
+
+const MEMBER_NAV_ITEMS = [
+  ...GUEST_NAV_ITEMS,
   { path: '/roles', label: 'Roles', icon: <IconSetting size="small" /> },
   { path: '/llm', label: 'LLM Models', icon: <IconServer size="small" /> },
   { path: '/audit', label: 'Audit Log', icon: <IconList size="small" /> },
@@ -27,6 +31,7 @@ export default function Sidebar() {
   const location = useLocation()
   const { user, isGuest, isAdmin, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
+  const navItems = isGuest ? GUEST_NAV_ITEMS : MEMBER_NAV_ITEMS
 
   // Auto-collapse when entering observe detail pages, auto-expand when leaving
   useEffect(() => {
@@ -66,7 +71,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className={styles.nav}>
         <ul className={styles.navList}>
-          {NAV_ITEMS.map(({ path, label, icon }) => (
+          {navItems.map(({ path, label, icon }) => (
             <li key={path}>
               <NavLink
                 to={path}

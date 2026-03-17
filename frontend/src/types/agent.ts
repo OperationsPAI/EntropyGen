@@ -20,6 +20,7 @@ export interface ResourceConfig {
 
 export interface GiteaConfig {
   repo: string
+  repos: string[]
   permissions: ('read' | 'write' | 'review' | 'merge')[]
 }
 

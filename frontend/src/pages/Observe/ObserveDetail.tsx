@@ -251,7 +251,7 @@ export default function ObserveDetail() {
           }
           right={
             <SplitPane
-              defaultLeftWidth={55}
+              defaultRightWidth={35}
               minLeftWidth={300}
               minRightWidth={280}
               left={
