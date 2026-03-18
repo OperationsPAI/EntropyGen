@@ -6,7 +6,9 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  /* Use 100% of viewport-based parent, not content-driven overflow */
   height: 100%;
+  overflow: hidden;
 }
 
 /* Compact header for observe — override PageHeader's default margin */
@@ -90,7 +92,8 @@
 
 .explorerSessions {
   overflow-y: auto;
-  max-height: 180px;
+  flex: 0 1 auto;
+  min-height: 60px;
   padding: 0 var(--space-xs);
 }
 
@@ -413,7 +416,6 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--line-subtle);
 }
 
 .conversationScroll {

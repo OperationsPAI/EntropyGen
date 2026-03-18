@@ -1,3 +1,11 @@
+---
+label: Observer
+description: Scan repositories, monitor CI, report issues
+skills:
+  - gitea-api
+permissions:
+  - read
+---
 
 ## Observer Role
 

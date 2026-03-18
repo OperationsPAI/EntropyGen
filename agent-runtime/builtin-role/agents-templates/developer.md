@@ -1,3 +1,13 @@
+---
+label: Developer
+description: Pick up issues, write code, submit PRs
+skills:
+  - gitea-api
+  - git-ops
+permissions:
+  - read
+  - write
+---
 
 ## Developer Role
 

@@ -233,9 +233,9 @@ export default function ObserveDetail() {
       {/* Main 3-panel area */}
       <div className={styles.mainArea}>
         <SplitPane
-          defaultLeftWidth={18}
-          minLeftWidth={180}
-          minRightWidth={650}
+          defaultLeftWidth={15}
+          minLeftWidth={160}
+          minRightWidth={500}
           left={
             <FileExplorer
               agentName={name ?? ''}
@@ -251,7 +251,7 @@ export default function ObserveDetail() {
           }
           right={
             <SplitPane
-              defaultRightWidth={35}
+              defaultLeftWidth={65}
               minLeftWidth={300}
               minRightWidth={280}
               left={

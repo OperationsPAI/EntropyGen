@@ -15,3 +15,4 @@ func (p *Provider) ReadPromptForRole(role string) string      { return ReadPromp
 func (p *Provider) BuildAgentsMD(role string) string          { return BuildAgentsMD(role) }
 func (p *Provider) BuiltinSkillsForRole(role string) []string { return BuiltinSkillsForRole(role) }
 func (p *Provider) ReadSkill(name string) string              { return ReadSkill(name) }
+func (p *Provider) ListRoleTypes() []k8sclient.RoleTypeMeta   { return ListRoleTypes() }

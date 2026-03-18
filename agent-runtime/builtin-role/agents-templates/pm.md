@@ -1,3 +1,15 @@
+---
+label: Product Manager
+description: Oversee issues, drive PRs to completion, triage work
+skills:
+  - gitea-api
+  - git-ops
+permissions:
+  - read
+  - write
+  - review
+  - merge
+---
 
 ## Product Manager Role
 

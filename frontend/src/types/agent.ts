@@ -117,3 +117,17 @@ export interface CreateRoleDto {
   initial_files?: string[]
   files?: Record<string, string> // explicit file contents (overrides builtin defaults)
 }
+
+export interface RoleType {
+  name: string
+  label: string
+  description: string
+  skills: string[]
+  permissions: string[]
+}
+
+export interface ValidationIssue {
+  file: string
+  level: 'error' | 'warning'
+  message: string
+}

@@ -1,3 +1,14 @@
+---
+label: SRE
+description: Monitor deployments, handle incidents, maintain reliability
+skills:
+  - gitea-api
+  - git-ops
+  - kubectl-ops
+permissions:
+  - read
+  - write
+---
 
 ## SRE Role
 

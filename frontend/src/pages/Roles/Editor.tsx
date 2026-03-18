@@ -4,7 +4,7 @@ import { rolesApi } from '../../api/roles'
 import MonacoEditor from '../../components/editor/MonacoEditor'
 import { PageHeader, Card, Button, Modal, EmptyState } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
-import type { Role } from '../../types/agent'
+import type { Role, ValidationIssue } from '../../types/agent'
 import styles from './Editor.module.css'
 
 function RoleEditorInner({ initialRole }: { initialRole: Role }) {
@@ -32,6 +32,8 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
   const [saving, setSaving] = useState(false)
   const [newFileName, setNewFileName] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null)
+  const [validating, setValidating] = useState(false)
 
   const isDirty = useCallback(
     (name: string) => fileContents[name] !== originalContents[name],
@@ -148,6 +150,21 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
     }
   }
 
+  const handleValidate = async () => {
+    setValidating(true)
+    try {
+      const issues = await rolesApi.validateRole(role.name)
+      setValidationIssues(issues)
+      if (issues.length === 0) {
+        toast.success('Validation passed', 'No issues found')
+      }
+    } catch {
+      toast.error('Validation failed', 'Could not validate role')
+    } finally {
+      setValidating(false)
+    }
+  }
+
   const fileNames = (role.files ?? []).map((f) => f.name)
 
   return (
@@ -248,11 +265,29 @@ function RoleEditorInner({ initialRole }: { initialRole: Role }) {
             </div>
           )}
 
+          {validationIssues && validationIssues.length > 0 && (
+            <div className={styles.validationPanel}>
+              {validationIssues.map((issue, i) => (
+                <div key={i} className={issue.level === 'error' ? styles.validationError : styles.validationWarning}>
+                  <strong>{issue.level.toUpperCase()}</strong>: {issue.file ? `${issue.file} — ` : ''}{issue.message}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className={styles.statusBar}>
             <div className={styles.statusBarLeft}>
               {role.agent_count} agent{role.agent_count !== 1 ? 's' : ''} using this role
             </div>
             <div className={styles.statusBarRight}>
+              <Button
+                size="sm"
+                variant="secondary"
+                loading={validating}
+                onClick={handleValidate}
+              >
+                Validate
+              </Button>
               <Button
                 size="sm"
                 variant="secondary"

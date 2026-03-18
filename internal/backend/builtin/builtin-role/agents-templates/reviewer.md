@@ -1,3 +1,12 @@
+---
+label: Reviewer
+description: Review PRs for bugs, security, and quality
+skills:
+  - gitea-api
+permissions:
+  - read
+  - review
+---
 
 ## Reviewer Role
 

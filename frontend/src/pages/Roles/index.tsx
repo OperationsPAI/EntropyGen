@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { IconDelete } from '@douyinfe/semi-icons'
+import { IconDelete, IconDownload } from '@douyinfe/semi-icons'
 import { rolesApi } from '../../api/roles'
 import { PageHeader, Card, Table, Button, Input, Modal, EmptyState } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
@@ -24,6 +24,7 @@ export default function RoleList() {
   const [error, setError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null)
   const [deleteInput, setDeleteInput] = useState('')
+  const importRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     rolesApi.getRoles()
@@ -43,6 +44,20 @@ export default function RoleList() {
     }
     setDeleteTarget(null)
     setDeleteInput('')
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const name = file.name.replace(/\.zip$/i, '')
+    try {
+      await rolesApi.importRole(name, '', file)
+      toast.success('Role imported', name)
+      rolesApi.getRoles().then(setRoles)
+    } catch {
+      toast.error('Import failed', `Could not import ${file.name}`)
+    }
+    if (importRef.current) importRef.current.value = ''
   }
 
   const renderTable = () => {
@@ -98,6 +113,14 @@ export default function RoleList() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => rolesApi.exportRole(role.name)}
+                    title="Export as ZIP"
+                  >
+                    <IconDownload size="small" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setDeleteTarget(role)}
                     disabled={role.agent_count > 0}
                     title={role.agent_count > 0 ? `${role.agent_count} agents are using this role` : undefined}
@@ -117,7 +140,22 @@ export default function RoleList() {
     <div className={styles.page}>
       <PageHeader
         title="Roles"
-        actions={<Button onClick={() => navigate('/roles/new')}>+ New Role</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="secondary" onClick={() => importRef.current?.click()}>
+              Import
+            </Button>
+            <Button onClick={() => navigate('/roles/new')}>+ New Role</Button>
+          </div>
+        }
+      />
+
+      <input
+        ref={importRef}
+        type="file"
+        accept=".zip"
+        style={{ display: 'none' }}
+        onChange={handleImport}
       />
 
       <Card>

@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Role, RoleFile, CreateRoleDto } from '../types/agent'
+import type { Role, RoleFile, CreateRoleDto, RoleType, ValidationIssue } from '../types/agent'
 
 export const rolesApi = {
   getRoles: () =>
@@ -31,4 +31,24 @@ export const rolesApi = {
 
   renameRoleFile: (name: string, oldName: string, newName: string) =>
     apiClient.post<{ success: boolean; data: RoleFile }>(`/roles/${name}/rename-file`, { old_name: oldName, new_name: newName }).then((r) => r.data.data),
+
+  getRoleTypes: () =>
+    apiClient.get<{ success: boolean; data: RoleType[] }>('/roles/types').then((r) => r.data.data ?? []),
+
+  validateRole: (name: string) =>
+    apiClient.get<{ success: boolean; data: ValidationIssue[] }>(`/roles/${name}/validate`).then((r) => r.data.data ?? []),
+
+  exportRole: (name: string) => {
+    window.open(`/api/roles/${name}/export`, '_blank')
+  },
+
+  importRole: (name: string, description: string, file: File) => {
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('description', description)
+    formData.append('file', file)
+    return apiClient.post<{ success: boolean; data: Role }>('/roles', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data.data)
+  },
 }

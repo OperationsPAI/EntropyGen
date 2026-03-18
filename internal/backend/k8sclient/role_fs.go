@@ -41,6 +41,22 @@ type CreateRoleRequest struct {
 	Files        map[string]string `json:"files,omitempty"`         // explicit file contents (overrides builtin defaults)
 }
 
+// RoleTypeMeta describes a builtin role type discovered from YAML frontmatter.
+type RoleTypeMeta struct {
+	Name        string   `json:"name"`
+	Label       string   `json:"label"`
+	Description string   `json:"description"`
+	Skills      []string `json:"skills"`
+	Permissions []string `json:"permissions"`
+}
+
+// ValidationIssue represents a problem found during role validation.
+type ValidationIssue struct {
+	File    string `json:"file"`
+	Level   string `json:"level"`   // "error" | "warning"
+	Message string `json:"message"`
+}
+
 // BuiltinContentProvider supplies default content for role files.
 type BuiltinContentProvider interface {
 	ReadSOUL() string
@@ -49,6 +65,7 @@ type BuiltinContentProvider interface {
 	BuildAgentsMD(role string) string
 	BuiltinSkillsForRole(role string) []string
 	ReadSkill(name string) string
+	ListRoleTypes() []RoleTypeMeta
 }
 
 // roleMetadata is persisted as .metadata.json in each role directory.
@@ -529,4 +546,69 @@ func (r *RoleClient) countFiles(roleName string) int {
 		return nil
 	})
 	return count
+}
+
+// ListRoleTypes delegates to the builtin content provider.
+func (r *RoleClient) ListRoleTypes() []RoleTypeMeta {
+	if r.builtin == nil {
+		return nil
+	}
+	return r.builtin.ListRoleTypes()
+}
+
+// ValidateRole checks a role's files for common issues.
+func (r *RoleClient) ValidateRole(ctx context.Context, name string) ([]ValidationIssue, error) {
+	if err := validatePath(name); err != nil {
+		return nil, err
+	}
+	files, err := r.listFilesInternal(name)
+	if err != nil {
+		return nil, err
+	}
+	fileMap := make(map[string]string, len(files))
+	for _, f := range files {
+		fileMap[f.Name] = f.Content
+	}
+
+	var issues []ValidationIssue
+
+	// Check well-known files exist
+	for _, wk := range []string{"SOUL.md", "PROMPT.md", "AGENTS.md"} {
+		if _, ok := fileMap[wk]; !ok {
+			issues = append(issues, ValidationIssue{
+				File:    wk,
+				Level:   "warning",
+				Message: wk + " is missing",
+			})
+		}
+	}
+
+	// Check template placeholders in PROMPT.md
+	if content, ok := fileMap["PROMPT.md"]; ok {
+		for _, ph := range []string{"{{REPOS}}", "{{AGENT_ID}}"} {
+			if !strings.Contains(content, ph) {
+				issues = append(issues, ValidationIssue{
+					File:    "PROMPT.md",
+					Level:   "warning",
+					Message: "Missing placeholder " + ph,
+				})
+			}
+		}
+	}
+
+	// Check skill files follow convention
+	for _, f := range files {
+		if strings.HasPrefix(f.Name, "skills/") {
+			parts := strings.Split(f.Name, "/")
+			if len(parts) != 3 || parts[2] != "SKILL.md" {
+				issues = append(issues, ValidationIssue{
+					File:    f.Name,
+					Level:   "warning",
+					Message: "Skill files should follow skills/<name>/SKILL.md convention",
+				})
+			}
+		}
+	}
+
+	return issues, nil
 }

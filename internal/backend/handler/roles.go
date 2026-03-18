@@ -2,6 +2,8 @@ package handler
 
 import (
 	"archive/zip"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -235,4 +237,67 @@ func (h *RoleHandler) RenameFile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": file})
+}
+
+func (h *RoleHandler) ListTypes(c *gin.Context) {
+	types := h.client.ListRoleTypes()
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": types})
+}
+
+func (h *RoleHandler) Validate(c *gin.Context) {
+	issues, err := h.client.ValidateRole(c.Request.Context(), c.Param("name"))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, apiError("ROLE_NOT_FOUND", err.Error(), ""))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, apiError("VALIDATE_FAILED", err.Error(), ""))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": issues})
+}
+
+func (h *RoleHandler) Export(c *gin.Context) {
+	name := c.Param("name")
+	files, err := h.client.ListFiles(c.Request.Context(), name)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, apiError("ROLE_NOT_FOUND", err.Error(), ""))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, apiError("EXPORT_FAILED", err.Error(), ""))
+		return
+	}
+
+	// Read metadata for description
+	role, _ := h.client.Get(c.Request.Context(), name)
+	meta := map[string]string{"description": ""}
+	if role != nil {
+		meta["description"] = role.Description
+	}
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.zip"`, name))
+
+	zw := zip.NewWriter(c.Writer)
+	defer zw.Close()
+
+	// Write role files
+	for _, f := range files {
+		w, err := zw.Create(f.Name)
+		if err != nil {
+			return
+		}
+		if _, err := w.Write([]byte(f.Content)); err != nil {
+			return
+		}
+	}
+
+	// Write .metadata.json
+	metaJSON, _ := json.MarshalIndent(meta, "", "  ")
+	w, err := zw.Create(".metadata.json")
+	if err != nil {
+		return
+	}
+	w.Write(metaJSON)
 }

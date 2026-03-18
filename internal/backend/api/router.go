@@ -80,10 +80,13 @@ func NewRouter(cfg Config) *gin.Engine {
 	opt.POST("/agents/:name/assign-issue", handler.RequireRole("member", "admin"), agentH.AssignIssue)
 
 	// Role management — read (member+)
+	opt.GET("/roles/types", handler.RequireRole("member", "admin"), roleH.ListTypes)
 	opt.GET("/roles", handler.RequireRole("member", "admin"), roleH.List)
 	opt.GET("/roles/:name", handler.RequireRole("member", "admin"), roleH.Get)
 	opt.GET("/roles/:name/files", handler.RequireRole("member", "admin"), roleH.ListFiles)
 	opt.GET("/roles/:name/files/*filepath", handler.RequireRole("member", "admin"), roleH.GetFile)
+	opt.GET("/roles/:name/validate", handler.RequireRole("member", "admin"), roleH.Validate)
+	opt.GET("/roles/:name/export", handler.RequireRole("member", "admin"), roleH.Export)
 
 	// Role management — write (member+)
 	opt.POST("/roles", handler.RequireRole("member", "admin"), roleH.Create)

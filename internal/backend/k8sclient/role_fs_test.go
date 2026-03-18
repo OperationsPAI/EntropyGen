@@ -15,6 +15,11 @@ func (b *testBuiltin) ReadPromptForRole(role string) string      { return "# Pro
 func (b *testBuiltin) BuildAgentsMD(role string) string          { return "# Agents for " + role }
 func (b *testBuiltin) BuiltinSkillsForRole(role string) []string { return []string{"gitea-api"} }
 func (b *testBuiltin) ReadSkill(name string) string              { return "# " + name + " Skill" }
+func (b *testBuiltin) ListRoleTypes() []RoleTypeMeta {
+	return []RoleTypeMeta{
+		{Name: "developer", Label: "Developer", Description: "Dev", Skills: []string{"gitea-api", "git-ops"}, Permissions: []string{"read", "write"}},
+	}
+}
 
 func newTestClient(t *testing.T) (*RoleClient, string) {
 	t.Helper()

@@ -196,3 +196,22 @@
   color: var(--text-muted);
   font-size: 0.875rem;
 }
+
+/* Validation panel */
+.validationPanel {
+  padding: 8px 16px;
+  border-top: 1px solid var(--line-subtle);
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+}
+
+.validationError {
+  color: var(--status-error, #e53e3e);
+  padding: 2px 0;
+}
+
+.validationWarning {
+  color: var(--status-warning, #d69e2e);
+  padding: 2px 0;
+}

@@ -1,19 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { rolesApi } from '../../api/roles'
 import { PageHeader, Card, Button, Input, Textarea, Select } from '../../components/ui'
 import { useToast } from '../../hooks/useToast'
+import type { RoleType } from '../../types/agent'
 import styles from './Roles.module.css'
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
-
-const ROLE_TYPES = [
-  { value: '', label: 'Custom (no template)' },
-  { value: 'developer', label: 'Developer' },
-  { value: 'reviewer', label: 'Reviewer' },
-  { value: 'sre', label: 'SRE' },
-  { value: 'observer', label: 'Observer' },
-] as const
 
 const INITIAL_FILES = [
   { name: 'SOUL.md', defaultChecked: true },
@@ -22,19 +15,21 @@ const INITIAL_FILES = [
   { name: 'MEMORY.md', defaultChecked: false },
 ]
 
-const ROLE_SKILLS: Record<string, string[]> = {
-  developer: ['gitea-api', 'git-ops'],
-  reviewer: ['gitea-api'],
-  sre: ['gitea-api', 'git-ops', 'kubectl-ops'],
-  observer: ['gitea-api'],
-}
-
 export default function NewRole() {
   const navigate = useNavigate()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '', roleType: '' })
   const [selectedFiles, setSelectedFiles] = useState(['SOUL.md', 'PROMPT.md', 'AGENTS.md'])
   const [creating, setCreating] = useState(false)
+  const [roleTypes, setRoleTypes] = useState<RoleType[]>([])
+  const [loadingTypes, setLoadingTypes] = useState(true)
+
+  useEffect(() => {
+    rolesApi.getRoleTypes()
+      .then(setRoleTypes)
+      .catch(() => {}) // silently fail, user sees empty types = custom only
+      .finally(() => setLoadingTypes(false))
+  }, [])
 
   const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
   const canCreate = form.name !== '' && NAME_PATTERN.test(form.name)
@@ -63,7 +58,8 @@ export default function NewRole() {
     }
   }
 
-  const builtinSkills = form.roleType ? (ROLE_SKILLS[form.roleType] ?? []) : []
+  const selectedRoleType = roleTypes.find((rt) => rt.name === form.roleType)
+  const builtinSkills = selectedRoleType?.skills ?? []
 
   return (
     <div className={styles.page}>
@@ -101,9 +97,11 @@ export default function NewRole() {
             label="Role Type"
             value={form.roleType}
             onChange={(e) => setForm((p) => ({ ...p, roleType: e.target.value }))}
+            disabled={loadingTypes}
           >
-            {ROLE_TYPES.map((rt) => (
-              <option key={rt.value} value={rt.value}>{rt.label}</option>
+            <option value="">Custom (no template)</option>
+            {roleTypes.map((rt) => (
+              <option key={rt.name} value={rt.name}>{rt.label}</option>
             ))}
           </Select>
           <div className={styles.hint}>
