@@ -1,0 +1,80 @@
+# values-minikube.yaml — Overrides for local minikube development.
+# Usage: skaffold run -p minikube  (or helm install -f values.yaml -f values-minikube.yaml)
+
+global:
+  imagePullPolicy: IfNotPresent
+
+# minikube uses the built-in "standard" storage class (hostpath provisioner)
+storage:
+  className: standard
+  rolesData:
+    size: 1Gi
+
+# Disable ingress — use minikube service / port-forward instead
+ingress:
+  enabled: false
+
+# Smaller resource footprint for local dev
+operator:
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "128Mi"
+
+gateway:
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "128Mi"
+
+backend:
+  port: 8081
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+eventCollector:
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+
+frontend:
+  serviceType: NodePort
+  nodePort: 30083
+  resources:
+    requests:
+      cpu: "25m"
+      memory: "32Mi"
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+
+gitea:
+  serviceType: NodePort
+  nodePort: 30030
+
+redis:
+  maxmemory: 256mb
+
+litellm:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"

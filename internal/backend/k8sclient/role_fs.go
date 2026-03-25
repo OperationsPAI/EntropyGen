@@ -556,6 +556,32 @@ func (r *RoleClient) ListRoleTypes() []RoleTypeMeta {
 	return r.builtin.ListRoleTypes()
 }
 
+// SeedBuiltinRoles creates builtin roles on disk if they don't already exist.
+// Called once at startup to populate the roles PVC with defaults.
+func (r *RoleClient) SeedBuiltinRoles(ctx context.Context) int {
+	if r.builtin == nil {
+		return 0
+	}
+	types := r.builtin.ListRoleTypes()
+	seeded := 0
+	for _, rt := range types {
+		roleDir := r.roleDir(rt.Name)
+		if _, err := os.Stat(roleDir); err == nil {
+			continue // already exists
+		}
+		_, err := r.Create(ctx, CreateRoleRequest{
+			Name:        rt.Name,
+			Description: rt.Description,
+			Role:        rt.Name,
+		})
+		if err != nil {
+			continue
+		}
+		seeded++
+	}
+	return seeded
+}
+
 // ValidateRole checks a role's files for common issues.
 func (r *RoleClient) ValidateRole(ctx context.Context, name string) ([]ValidationIssue, error) {
 	if err := validatePath(name); err != nil {

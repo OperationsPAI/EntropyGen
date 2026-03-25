@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-const (
-	giteaURL       = "http://localhost:3000"
+var (
+	giteaURL       = envOrGitea("GITEA_URL", "http://localhost:3000")
 	giteaAdminUser = "gitea-admin"
 	giteaAdminPass = "gitea-admin123"
 	// Created in dev setup; see TestMain or scripts/dev-up.sh comment
@@ -31,6 +31,13 @@ const (
 	testOrg  = "e2e-test-org"
 	testRepo = "e2e-test-repo"
 )
+
+func envOrGitea(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 // giteaToken returns the API token to use for tests.
 func giteaToken(t *testing.T) string {

@@ -16,15 +16,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 )
 
-const (
-	backendURL   = "http://localhost:8080"
-	backendUser  = "admin"
-	backendPass  = "admin"
+var (
+	backendURL  = envOr("BACKEND_URL", "http://localhost:8080")
+	backendUser = "admin"
+	backendPass = "admin"
 )
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -92,7 +100,10 @@ func TestBackend_Auth_LoginSuccess(t *testing.T) {
 
 func TestBackend_Auth_LoginWrongPassword(t *testing.T) {
 	body, _ := json.Marshal(map[string]string{"username": "admin", "password": "WRONG"})
-	resp, _ := http.Post(backendURL+"/api/auth/login", "application/json", bytes.NewReader(body))
+	resp, err := http.Post(backendURL+"/api/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("login request: %v", err)
+	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("wrong password: got %d, want 401", resp.StatusCode)
@@ -464,7 +475,8 @@ func TestBackend_Audit_InsertAndQuery(t *testing.T) {
 		(trace_id, span_id, agent_id, agent_role, request_type, method, path, status_code, latency_ms)
 		VALUES (generateUUIDv4(), generateUUIDv4(), '%s', 'developer', 'gitea_api', 'GET', '/api/v1/repos', 200, 50)`,
 		agentID)
-	chResp, err := http.Post("http://localhost:8123/", "text/plain", strings.NewReader(insertSQL))
+	chURL := envOr("CLICKHOUSE_URL", "http://localhost:8123")
+	chResp, err := http.Post(chURL+"/", "text/plain", strings.NewReader(insertSQL))
 	if err != nil {
 		t.Fatalf("clickhouse insert: %v", err)
 	}
@@ -485,19 +497,18 @@ func TestBackend_Audit_InsertAndQuery(t *testing.T) {
 		t.Error("expected at least 1 trace after insert, got 0")
 	}
 	// Verify the returned trace has the correct agent_id
-	// (backend serializes Go struct fields: AgentID not agent_id)
 	if len(data) > 0 {
 		trace, _ := data[0].(map[string]interface{})
-		agentIDField := trace["AgentID"]
+		agentIDField := trace["agent_id"]
 		if agentIDField != agentID {
-			t.Errorf("trace AgentID: got %v, want %s", agentIDField, agentID)
+			t.Errorf("trace agent_id: got %v, want %s", agentIDField, agentID)
 		}
 		// Verify other expected fields are present
-		if trace["TraceID"] == nil {
-			t.Error("trace missing TraceID field")
+		if trace["trace_id"] == nil {
+			t.Error("trace missing trace_id field")
 		}
-		if trace["RequestType"] == nil {
-			t.Error("trace missing RequestType field")
+		if trace["request_type"] == nil {
+			t.Error("trace missing request_type field")
 		}
 	}
 }

@@ -31,6 +31,55 @@ Use golang as the implementation language for backend component.
 
 use `skaffold run` to build and deploy the project to a local Kubernetes cluster (e.g., kind, minikube). Skaffold will watch for file changes and automatically rebuild and redeploy the affected components, do not use `docker build` or `kubectl apply` directly.
 
+### Local minikube environment
+
+```bash
+./scripts/minikube-setup.sh start           # Install tools + start cluster
+eval $(minikube -p aidevops docker-env)     # Point docker to minikube
+skaffold run -p minikube                    # Build + deploy
+skaffold dev -p minikube                    # Dev mode (hot-reload)
+```
+
+See [local-dev-environment design doc](.claude/designs/local-dev-environment.md) for details.
+
+## Dev / Testing / Monitoring Loop
+
+Three scripts for observing and verifying platform state. Tools are in `~/.local/bin` (minikube, kubectl, helm, skaffold).
+
+### 1. Health Check — "what's broken right now?"
+
+```bash
+./scripts/platform-status.sh          # Quick: pods, services, agents, gitea
+./scripts/platform-status.sh --full   # + data pipeline, recent errors, stream lengths
+```
+
+### 2. Test — "did my change break anything?"
+
+```bash
+./scripts/run-tests.sh               # Unit tests only (fast, no cluster)
+./scripts/run-tests.sh --smoke       # + K8s smoke tests (requires cluster)
+./scripts/run-tests.sh --all         # + E2E tests (requires cluster + port-forwards)
+```
+
+### 3. Observe — "what's happening in the system?"
+
+```bash
+./scripts/observe.sh errors           # Recent errors across all components
+./scripts/observe.sh agents           # Agent CRs, pods, current tasks
+./scripts/observe.sh gitea            # Issues, PRs, users in Gitea
+./scripts/observe.sh pipeline         # Redis streams → ClickHouse data flow
+./scripts/observe.sh logs [component] # Tail logs (e.g., control-panel-backend)
+./scripts/observe.sh events           # Recent K8s events
+./scripts/observe.sh resources        # CPU/memory/PVC usage
+```
+
+### Workflow
+
+1. Start of session: `./scripts/platform-status.sh` to assess current state
+2. After code changes: `./scripts/run-tests.sh` then `skaffold run -p minikube`
+3. After deploy: `./scripts/platform-status.sh` + `./scripts/observe.sh errors`
+4. Debugging: `./scripts/observe.sh logs <component>` or `./scripts/observe.sh pipeline`
+
 ## Design Documentation System
 
 All design documents are stored in the `.claude/` directory. A `.claude/index.yaml` file maintains the conceptual index and relationships between concepts.

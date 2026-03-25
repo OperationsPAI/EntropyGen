@@ -99,7 +99,12 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	// Set Initializing phase on first reconcile
 	if agent.Status.Phase == "" {
 		agent.Status.Phase = "Initializing"
-		_ = r.Status().Update(ctx, agent)
+		if err := r.Status().Update(ctx, agent); err == nil {
+			// Re-fetch after status update
+			if err := r.Get(ctx, req.NamespacedName, agent); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	// Reconcile all resources
@@ -111,6 +116,10 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{RequeueAfter: requeueOnError}, err
 	}
 
+	// Re-fetch agent to get latest resourceVersion before final status update
+	if err := r.Get(ctx, req.NamespacedName, agent); err != nil {
+		return ctrl.Result{}, err
+	}
 	// Update status
 	if !agent.Spec.Paused {
 		agent.Status.Phase = "Running"

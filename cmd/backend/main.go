@@ -139,6 +139,11 @@ func main() {
 	}
 	roleClient := k8sclient.NewRoleClient(rolesDataPath, agentCRClient, &builtin.Provider{}, giteaCli, k8sClientset, agentNS)
 
+	// Seed builtin roles on first boot
+	if seeded := roleClient.SeedBuiltinRoles(context.Background()); seeded > 0 {
+		slog.Info("seeded builtin roles", "count", seeded)
+	}
+
 	// Background services
 	pusher := wspush.NewPusher()
 	go pusher.Run(ctx, wsReader)

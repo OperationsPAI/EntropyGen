@@ -221,6 +221,28 @@ spec:
             port: 3000
           initialDelaySeconds: 15
           periodSeconds: 10
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Wait for Gitea to be ready, then ensure admin user exists.
+                # This is needed because INSTALL_LOCK=true skips the initial setup
+                # that would normally create the admin from GITEA_ADMIN_* env vars.
+                for i in $(seq 1 60); do
+                  su-exec git gitea admin user list 2>/dev/null | grep -q "$GITEA_ADMIN_USER" && exit 0
+                  if su-exec git gitea admin user list 2>/dev/null >/dev/null; then
+                    su-exec git gitea admin user create \
+                      --username "$GITEA_ADMIN_USER" \
+                      --password "$GITEA_ADMIN_PASSWORD" \
+                      --email "$GITEA_ADMIN_EMAIL" \
+                      --admin \
+                      --must-change-password=false 2>/dev/null && exit 0
+                  fi
+                  sleep 2
+                done
   volumeClaimTemplates:
   - metadata:
       name: data

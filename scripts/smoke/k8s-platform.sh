@@ -102,9 +102,9 @@ echo "$TRACES" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 t=d['data'][0]
-assert t['AgentID'] == 'smoke-test-agent', f'wrong agent: {t[\"AgentID\"]}'
-assert t['Model'] == 'claude-3-sonnet', f'wrong model: {t[\"Model\"]}'
-assert t['TokensIn'] == 800, f'wrong tokens_in: {t[\"TokensIn\"]}'
+assert t['agent_id'] == 'smoke-test-agent', f'wrong agent: {t[\"agent_id\"]}'
+assert t['model'] == 'claude-3-sonnet', f'wrong model: {t[\"model\"]}'
+assert t['tokens_in'] == 800, f'wrong tokens_in: {t[\"tokens_in\"]}'
 " && pass "Trace fields correct" || fail "Trace field mismatch"
 
 # Export

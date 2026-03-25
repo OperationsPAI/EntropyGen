@@ -1,5 +1,6 @@
-# Creates the 'agents' namespace where all Agent Pods run.
-# This namespace is created as part of Phase 1 infrastructure setup.
+{{- /* Only create the namespace if it differs from the release namespace,
+       because Helm/Skaffold already creates the release namespace via createNamespace. */ -}}
+{{- if ne .Values.agentNamespace .Release.Namespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -7,3 +8,4 @@ metadata:
   labels:
     {{- include "aidevops-platform.labels" . | nindent 4 }}
     purpose: agent-runtime
+{{- end }}

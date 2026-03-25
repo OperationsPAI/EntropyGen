@@ -105,6 +105,17 @@ concepts:
       - "plans/2026-03-11-phase7-agent-tooling.md"
     tasks: []
 
+  local-dev-environment:
+    description: "minikube local development environment setup, skaffold profile, and values override"
+    design: "designs/local-dev-environment.md"
+    related_concepts:
+      - system-overview
+      - operator
+      - agent-gateway
+      - control-panel
+    plans: []
+    tasks: []
+
   event-bus:
     description: "基于 Redis Stream 的统一事件总线，连接 Gateway/Event Collector 与 ClickHouse Writer/WebSocket"
     design: "designs/event-bus.md"

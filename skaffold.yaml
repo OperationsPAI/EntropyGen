@@ -51,3 +51,54 @@ deploy:
         llm.baseURL: "https://bobdong.cn/v1"
       setValueTemplates:
         agentRuntimeImage: "{{.IMAGE_FULLY_QUALIFIED_10_10_10_240_library_agent_runtime}}"
+
+profiles:
+- name: minikube
+  build:
+    local:
+      push: false
+      concurrency: 2
+    artifacts:
+    - image: aidevops/backend
+      docker:
+        dockerfile: build/backend/Dockerfile
+      context: .
+    - image: aidevops/operator
+      docker:
+        dockerfile: build/operator/Dockerfile
+      context: .
+    - image: aidevops/gateway
+      docker:
+        dockerfile: build/gateway/Dockerfile
+      context: .
+    - image: aidevops/event-collector
+      docker:
+        dockerfile: build/event-collector/Dockerfile
+      context: .
+    - image: aidevops/control-panel-frontend
+      docker:
+        dockerfile: Dockerfile
+      context: frontend
+    - image: aidevops/agent-runtime
+      docker:
+        dockerfile: agent-runtime/Dockerfile
+      context: .
+  deploy:
+    helm:
+      releases:
+      - name: aidevops
+        chartPath: k8s/helm
+        namespace: aidevops
+        createNamespace: true
+        valuesFiles:
+        - k8s/helm/values.yaml
+        - k8s/helm/values-minikube.yaml
+        setValues:
+          global.registry: "aidevops"
+          global.tag: dev
+          global.imagePullPolicy: IfNotPresent
+          platformInit.image: "bitnami/kubectl:latest"
+          llm.apiKey: ""
+          llm.baseURL: ""
+        setValueTemplates:
+          agentRuntimeImage: "{{.IMAGE_FULLY_QUALIFIED_aidevops_agent_runtime}}"
