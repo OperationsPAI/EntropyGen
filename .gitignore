@@ -22,5 +22,5 @@
 *.swp
 .playwright-mcp
 
-# Build-time copies (source of truth: agent-runtime/skills/)
+# Build-time copies (source of truth: agent-runtimes/openclaw/skills/)
 internal/operator/reconciler/skills/

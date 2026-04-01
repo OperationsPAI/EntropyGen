@@ -45,7 +45,7 @@ COPY --from=gitea-cli-builder /app/gitea /usr/local/bin/gitea
 COPY --from=observer-builder /app/agent-observer /usr/local/bin/agent-observer
 
 # Copy entrypoint
-COPY agent-runtime/entrypoint.sh /entrypoint.sh
+COPY agent-runtimes/openclaw/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create non-root user for security
@@ -55,9 +55,9 @@ RUN useradd -m -u 1000 -s /bin/bash node \
 USER node
 
 # Copy skills (owned by non-root user)
-COPY --chown=node:node agent-runtime/skills/ /home/node/.openclaw/skills/
+COPY --chown=node:node agent-runtimes/openclaw/skills/ /home/node/.openclaw/skills/
 
 # Copy workspace templates for overriding openclaw defaults
-COPY --chown=node:node agent-runtime/builtin-role/workspace-templates/ /agent/workspace-templates/
+COPY --chown=node:node agent-runtimes/openclaw/builtin-role/workspace-templates/ /agent/workspace-templates/
 
 ENTRYPOINT ["/entrypoint.sh"]

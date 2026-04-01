@@ -5,7 +5,7 @@ RUN GOPROXY=https://goproxy.cn,direct go mod download
 COPY cmd/operator/ cmd/operator/
 COPY internal/operator/ internal/operator/
 COPY internal/common/ internal/common/
-COPY agent-runtime/skills/ internal/operator/reconciler/skills/
+COPY agent-runtimes/openclaw/skills/ internal/operator/reconciler/skills/
 RUN CGO_ENABLED=0 GOOS=linux GOFLAGS=-p=8 go build -o operator ./cmd/operator/
 
 FROM debian:trixie

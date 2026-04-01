@@ -1,7 +1,7 @@
 // Package builtin provides embedded builtin role templates and skills.
 //
-// The builtin-role/ and skills/ directories are copies of agent-runtime/builtin-role/
-// and agent-runtime/skills/. The Dockerfile (build/backend/Dockerfile) copies the
+// The builtin-role/ and skills/ directories are copies of agent-runtimes/openclaw/builtin-role/
+// and agent-runtimes/openclaw/skills/. The Dockerfile (build/backend/Dockerfile) copies the
 // canonical source into this directory at build time. For local development,
 // the committed copies allow `go build` to work without extra steps.
 package builtin

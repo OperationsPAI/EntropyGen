@@ -7,8 +7,8 @@ COPY internal/backend/ internal/backend/
 COPY internal/common/ internal/common/
 COPY internal/operator/api/ internal/operator/api/
 # Copy builtin templates and skills for Go embed in backend/builtin package
-COPY agent-runtime/builtin-role/ internal/backend/builtin/builtin-role/
-COPY agent-runtime/skills/ internal/backend/builtin/skills/
+COPY agent-runtimes/openclaw/builtin-role/ internal/backend/builtin/builtin-role/
+COPY agent-runtimes/openclaw/skills/ internal/backend/builtin/skills/
 RUN CGO_ENABLED=0 GOOS=linux GOFLAGS=-p=8 go build -o backend ./cmd/backend/
 
 FROM debian:trixie
