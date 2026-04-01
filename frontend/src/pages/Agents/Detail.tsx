@@ -63,10 +63,9 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
     model: '',
     temperature: 0.7,
     maxTokens: 65536,
-    schedule: '',
+    runtimeType: 'openclaw',
     repo: '',
     permissions: ['read'] as ('read' | 'write' | 'review' | 'merge')[],
-    runtimeImage: '',
   })
 
   useEffect(() => {
@@ -142,10 +141,9 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
       model: agent.spec.llm.model,
       temperature: agent.spec.llm.temperature,
       maxTokens: agent.spec.llm.maxTokens,
-      schedule: agent.spec.cron.schedule,
+      runtimeType: agent.spec.runtime?.type || 'openclaw',
       repo: agent.spec.gitea.repo,
       permissions: [...agent.spec.gitea.permissions],
-      runtimeImage: agent.spec.runtimeImage || '',
     })
     setEditModal(true)
   }
@@ -164,10 +162,9 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
       const updated = await agentsApi.updateAgent(agent.name, {
         role: agent.spec.role,
         llm: { model: editForm.model, temperature: editForm.temperature, maxTokens: editForm.maxTokens },
-        cron: { schedule: editForm.schedule },
+        runtime: { type: editForm.runtimeType },
         resources: agent.spec.resources,
         gitea: { repo: editForm.repo, repos: editForm.repo ? [editForm.repo] : [], permissions: editForm.permissions },
-        runtimeImage: editForm.runtimeImage || undefined,
       })
       setAgent(updated)
       setEditModal(false)
@@ -195,8 +192,7 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
             ['Model', agent.spec.llm.model],
             ['Temperature', String(agent.spec.llm.temperature)],
             ['Max Tokens', String(agent.spec.llm.maxTokens)],
-            ['Cron', agent.spec.cron.schedule],
-            ['Runtime Image', agent.spec.runtimeImage || '(default)'],
+            ['Runtime Type', agent.spec.runtime?.type || 'openclaw'],
             ['Repo', agent.spec.gitea.repo || '\u2014'],
             ['Permissions', agent.spec.gitea.permissions.join(', ') || '\u2014'],
             ['Gitea User', agent.status.giteaUsername ?? '\u2014'],
@@ -487,11 +483,8 @@ function AgentDetailInner({ agent: initialAgent }: { agent: Agent }) {
             <Input label="Max Tokens" type="number" value={editForm.maxTokens} onChange={(e) => setEditForm((p) => ({ ...p, maxTokens: parseInt(e.target.value, 10) }))} />
           </div>
 
-          <div className={styles.defLabel}>Schedule</div>
-          <Input label="Cron Expression" value={editForm.schedule} onChange={(e) => setEditForm((p) => ({ ...p, schedule: e.target.value }))} />
-
           <div className={styles.defLabel}>Runtime</div>
-          <Input label="Runtime Image" value={editForm.runtimeImage} onChange={(e) => setEditForm((p) => ({ ...p, runtimeImage: e.target.value }))} />
+          <Input label="Runtime Type" value={editForm.runtimeType} onChange={(e) => setEditForm((p) => ({ ...p, runtimeType: e.target.value }))} />
 
           <div className={styles.defLabel}>Gitea</div>
           <Input label="Repository" value={editForm.repo} onChange={(e) => setEditForm((p) => ({ ...p, repo: e.target.value }))} placeholder="org/repo" />

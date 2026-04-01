@@ -20,8 +20,10 @@ function mapAgent(raw: any): Agent {
       temperature: spec.llm?.temperature ?? 0.7,
       maxTokens: spec.llm?.maxTokens ?? 65536,
     },
-    cron: {
-      schedule: spec.cron?.schedule ?? '',
+    runtime: {
+      type: spec.runtime?.type ?? spec.runtimeImage ?? 'openclaw',
+      image: spec.runtime?.image ?? spec.runtimeImage,
+      env: spec.runtime?.env,
     },
     resources: {
       cpuRequest: spec.resources?.requests?.cpu ?? '500m',
@@ -35,7 +37,6 @@ function mapAgent(raw: any): Agent {
       repos: spec.gitea?.repos ?? (spec.gitea?.repo ? [spec.gitea.repo] : []),
       permissions: (spec.gitea?.permissions ?? ['read']) as ('read' | 'write' | 'review' | 'merge')[],
     },
-    runtimeImage: spec.runtimeImage ?? '',
   }
 
   const mappedStatus: AgentStatus = {
@@ -74,16 +75,23 @@ function mapAgent(raw: any): Agent {
   }
 }
 
-export interface RuntimeImage {
+export interface RuntimeType {
+  type: string
   image: string
   default: boolean
 }
 
 export const agentsApi = {
-  getRuntimeImages: () =>
+  getRuntimeTypes: () =>
     apiClient.get('/agents/runtime-images').then((r) => {
       const body = r.data
-      return (Array.isArray(body?.data) ? body.data : []) as RuntimeImage[]
+      const items = (Array.isArray(body?.data) ? body.data : []) as Array<{ image: string; default: boolean }>
+      // Map legacy runtime-images response to RuntimeType format
+      return items.map((item) => ({
+        type: item.image,
+        image: item.image,
+        default: item.default,
+      })) as RuntimeType[]
     }),
 
   getAgents: () =>
