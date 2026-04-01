@@ -23,4 +23,4 @@
 .playwright-mcp
 
 # Build-time copies (source of truth: agent-runtime/skills/)
-internal/operator/reconciler/skills/
+internal/operator/reconciler/skills/.claude/worktrees/
