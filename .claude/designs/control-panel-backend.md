@@ -201,7 +201,7 @@ JWT_SECRET=<random 256-bit key>
   "success": false,
   "error": "agent not found",
   "code": "AGENT_NOT_FOUND",
-  "detail": "agent 'developer-1' does not exist in namespace 'agents'"
+  "detail": "agent 'developer-1' does not exist in namespace 'aidevops'"
 }
 ```
 
@@ -220,10 +220,10 @@ JWT_SECRET=<random 256-bit key>
 ```yaml
 # Backend 环境变量
 KUBECONFIG: ""  # 集群内运行，使用 in-cluster config
-CLICKHOUSE_ADDR: "clickhouse.storage.svc:9000"
+CLICKHOUSE_ADDR: "clickhouse.aidevops.svc:9000"
 CLICKHOUSE_DB: "audit"
-REDIS_ADDR: "redis.storage.svc:6379"
-LITELLM_ADDR: "http://litellm.llm-gateway.svc:4000"
+REDIS_ADDR: "redis.aidevops.svc:6379"
+LITELLM_ADDR: "http://litellm.aidevops.svc:4000"
 ADMIN_USERNAME: "admin"
 ADMIN_PASSWORD_HASH: "<bcrypt>"
 JWT_SECRET: "<secret>"
