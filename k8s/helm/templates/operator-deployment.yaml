@@ -70,7 +70,10 @@ spec:
         - name: ROLES_DATA_PATH
           value: /data/roles
         - name: LLM_API_KEY
-          value: {{ .Values.litellm.masterKey | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: platform-secrets
+              key: litellm-master-key
         - name: LLM_BASE_URL
           value: "http://litellm.{{ .Release.Namespace }}.svc:4000/v1"
         resources:

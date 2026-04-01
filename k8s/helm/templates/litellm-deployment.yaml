@@ -52,7 +52,10 @@ spec:
           protocol: TCP
         env:
         - name: LITELLM_MASTER_KEY
-          value: {{ .Values.litellm.masterKey | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: platform-secrets
+              key: litellm-master-key
         - name: PG_PASSWORD
           valueFrom:
             secretKeyRef:

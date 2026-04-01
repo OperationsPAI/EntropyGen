@@ -90,7 +90,7 @@ litellm:
   addr: http://litellm.aidevops.svc:4000
   image: litellm/litellm:v1.82.0-stable
   port: 4000
-  masterKey: "sk-litellm-master-key"
+  masterKey: "" # Set via --set or secrets. Auto-generated if empty.
   postgres:
     database: litellm
     user: litellm
@@ -105,7 +105,7 @@ litellm:
 gitea:
   addr: http://gitea.aidevops.svc:3000
   adminTokenSecretRef: gitea-admin-token
-  adminPassword: "gitea-admin123"
+  adminPassword: "" # Set via --set or secrets. Auto-generated if empty.
   serviceType: NodePort
   nodePort: 30030
 

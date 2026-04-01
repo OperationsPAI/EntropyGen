@@ -19,9 +19,11 @@ Frontend (React)  →  Backend API  →  K8s CRD (Agent)
 |-----------|------|------|
 | Control Panel (frontend) | `frontend/` | 3000 |
 | Backend API | `cmd/backend/` | 8080 |
-| Agent Gateway | `cmd/gateway/` | 8090 |
+| Agent Gateway | `cmd/gateway/` | 8080 |
 | Event Collector | `cmd/event-collector/` | — |
 | K8s Operator | `cmd/operator/` | — |
+| Observer (sidecar) | `cmd/observer/` | 8081 |
+| Gitea CLI | `cmd/gitea-cli/` | — |
 
 ---
 
@@ -29,7 +31,7 @@ Frontend (React)  →  Backend API  →  K8s CRD (Agent)
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - Node.js 20+
 - Docker + Docker Compose
 

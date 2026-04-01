@@ -12,11 +12,10 @@ import (
 	"github.com/entropyGen/entropyGen/internal/common/chclient"
 )
 
-var exportConcurrent int32 // atomic counter, max 2
-
 // AuditHandler handles audit data queries and JSONL export.
 type AuditHandler struct {
-	ch *chclient.Client
+	ch               *chclient.Client
+	exportConcurrent int32 // atomic counter, max 2
 }
 
 func NewAuditHandler(ch *chclient.Client) *AuditHandler {
@@ -138,12 +137,12 @@ func (h *AuditHandler) AgentRanking(c *gin.Context) {
 
 // Export streams audit traces as JSONL (training data format).
 func (h *AuditHandler) Export(c *gin.Context) {
-	if atomic.LoadInt32(&exportConcurrent) >= 2 {
+	if atomic.LoadInt32(&h.exportConcurrent) >= 2 {
 		c.JSON(http.StatusTooManyRequests, apiError("EXPORT_BUSY", "max 2 concurrent exports", ""))
 		return
 	}
-	atomic.AddInt32(&exportConcurrent, 1)
-	defer atomic.AddInt32(&exportConcurrent, -1)
+	atomic.AddInt32(&h.exportConcurrent, 1)
+	defer atomic.AddInt32(&h.exportConcurrent, -1)
 
 	agentID := c.Query("agent_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "1000"))

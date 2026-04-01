@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -60,9 +61,12 @@ func (h *GiteaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write to Redis asynchronously so we return 200 immediately
+	// Write to Redis asynchronously so we return 200 immediately.
+	// Use background context since r.Context() is cancelled when handler returns.
 	go func() {
-		if err := h.writer.Write(r.Context(), streamGitea, event, streamMaxLen); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := h.writer.Write(ctx, streamGitea, event, streamMaxLen); err != nil {
 			slog.Warn("webhook: redis write failed", "event_type", event.EventType, "err", err)
 		}
 	}()

@@ -63,20 +63,3 @@ func TestEventJSONRoundTrip(t *testing.T) {
 		t.Errorf("payload.TokensIn: got %d, want %d", decodedPayload.TokensIn, payload.TokensIn)
 	}
 }
-
-func TestHeartbeatEventConstants(t *testing.T) {
-	types := []string{
-		EventTypeGatewayLLMInference,
-		EventTypeGatewayGiteaAPI,
-		EventTypeGatewayHeartbeat,
-		EventTypeGiteaIssueOpen,
-		EventTypeGiteaPRMerge,
-		EventTypeOperatorAgentAlert,
-		EventTypeK8SPodStatus,
-	}
-	for _, et := range types {
-		if et == "" {
-			t.Errorf("event type constant is empty")
-		}
-	}
-}

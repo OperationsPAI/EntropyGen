@@ -2,7 +2,9 @@ package reconciler
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -93,9 +95,16 @@ func giteaEmail(agent *agentapi.Agent) string {
 	return "role-" + agent.Spec.Role + "@agents.devops.local"
 }
 
-// generatePassword returns a deterministic placeholder password (agent uses token auth, not password).
-func generatePassword(name string) string {
-	return "AgentP@ss-" + strings.ReplaceAll(name, "-", "") + "!"
+// generatePassword returns a random password. Agent uses token auth, not password,
+// but Gitea requires a password for user creation and token generation.
+func generatePassword(_ string) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, 24)
+	for i := range b {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		b[i] = chars[n.Int64()]
+	}
+	return string(b) + "!@1a"
 }
 
 func isGiteaAlreadyExists(err error) bool {
