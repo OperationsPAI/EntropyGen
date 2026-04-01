@@ -42,7 +42,10 @@ openapi:
 		-d .,internal/backend/handler,internal/common/models,internal/operator/api,internal/common/chclient,internal/backend/k8sclient \
 		-o docs \
 		--outputTypes json,yaml \
-		--parseInternal
+		--parseInternal \
+		--parseDependency
+	mv docs/swagger.json docs/openapi.json
+	mv docs/swagger.yaml docs/openapi.yaml
 
 ## Generate TypeScript client from OpenAPI spec
 api-client:

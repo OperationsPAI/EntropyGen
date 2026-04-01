@@ -1,7 +1,12 @@
-import type { CreateClientConfig } from '@hey-api/client-axios';
+import type { CreateClientConfig } from './generated/client';
 
-export const createClientConfig: CreateClientConfig = () => ({
+/**
+ * Runtime configuration for the generated API client.
+ * This function is called by the generated client.gen.ts during initialization.
+ */
+export const createClientConfig: CreateClientConfig = (override) => ({
+  ...override,
   baseURL: '/api',
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', ...override?.headers },
 });
