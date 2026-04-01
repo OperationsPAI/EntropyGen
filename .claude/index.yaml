@@ -116,6 +116,15 @@ concepts:
     plans: []
     tasks: []
 
+  api-codegen:
+    description: "OpenAPI 3.1 codegen pipeline: Go swag annotations → openapi.json → TypeScript client via @hey-api/openapi-ts"
+    design: "designs/api-codegen.md"
+    related_concepts:
+      - control-panel
+      - control-panel-frontend
+    plans: []
+    tasks: []
+
   event-bus:
     description: "基于 Redis Stream 的统一事件总线，连接 Gateway/Event Collector 与 ClickHouse Writer/WebSocket"
     design: "designs/event-bus.md"
