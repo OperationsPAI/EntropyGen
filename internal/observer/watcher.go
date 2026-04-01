@@ -18,27 +18,20 @@ type FileChangeEvent struct {
 
 // Watcher monitors directories via fsnotify and sends change events.
 type Watcher struct {
-	completionsDir string
-	workspaceDir   string
-	events         chan interface{} // sends FileChangeEvent or JSONLLineEvent
+	workspaceDir string
+	events       chan FileChangeEvent
 }
 
-// JSONLLineEvent indicates new lines were appended to a session JSONL file.
-type JSONLLineEvent struct {
-	SessionFile string `json:"session_file"`
-}
-
-// NewWatcher creates a file system watcher for the given directories.
-func NewWatcher(completionsDir, workspaceDir string) *Watcher {
+// NewWatcher creates a file system watcher for the given workspace directory.
+func NewWatcher(workspaceDir string) *Watcher {
 	return &Watcher{
-		completionsDir: completionsDir,
-		workspaceDir:   workspaceDir,
-		events:         make(chan interface{}, 256),
+		workspaceDir: workspaceDir,
+		events:       make(chan FileChangeEvent, 256),
 	}
 }
 
 // Events returns the channel of file change events.
-func (w *Watcher) Events() <-chan interface{} {
+func (w *Watcher) Events() <-chan FileChangeEvent {
 	return w.events
 }
 
@@ -49,11 +42,6 @@ func (w *Watcher) Run(ctx context.Context) error {
 		return err
 	}
 	defer fsw.Close()
-
-	// Watch completions directory for JSONL changes
-	if err := fsw.Add(w.completionsDir); err != nil {
-		slog.Warn("watcher: cannot watch completions dir", "dir", w.completionsDir, "err", err)
-	}
 
 	// Watch workspace directory recursively
 	if err := addDirRecursive(fsw, w.workspaceDir); err != nil {
@@ -84,20 +72,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-// handleEvent converts an fsnotify event into the appropriate change event.
+// handleEvent converts an fsnotify event into a FileChangeEvent.
 func (w *Watcher) handleEvent(event fsnotify.Event) {
 	path := event.Name
-
-	// Check if this is a JSONL file in completions directory
-	if strings.HasPrefix(path, w.completionsDir) && strings.HasSuffix(path, ".jsonl") {
-		if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
-			select {
-			case w.events <- JSONLLineEvent{SessionFile: filepath.Base(path)}:
-			default:
-			}
-		}
-		return
-	}
 
 	// Workspace file change
 	if strings.HasPrefix(path, w.workspaceDir) {

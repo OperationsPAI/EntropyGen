@@ -7,7 +7,7 @@ import (
 )
 
 // AgentState represents the runtime state persisted by the agent process
-// in ~/.openclaw/state.json.
+// in <workspace>/state.json.
 type AgentState struct {
 	LastNotificationCheck string     `json:"last_notification_check,omitempty"`
 	CurrentTask           *StateTask `json:"current_task,omitempty"`
@@ -22,12 +22,12 @@ type StateTask struct {
 	StartedAt string `json:"started_at,omitempty"`
 }
 
-// ReadState reads and parses the agent state.json file.
+// ReadState reads and parses the agent state.json file from the workspace directory.
 // Returns an empty AgentState (not an error) when the file does not exist
 // or contains invalid JSON, since this data is best-effort.
-func ReadState(openClawHome string) AgentState {
+func ReadState(workspaceDir string) AgentState {
 	var state AgentState
-	data, err := os.ReadFile(filepath.Join(openClawHome, "state.json"))
+	data, err := os.ReadFile(filepath.Join(workspaceDir, "state.json"))
 	if err != nil {
 		return state
 	}

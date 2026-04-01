@@ -49,63 +49,6 @@ func TestValidatePath_BlocksAbsolutePath(t *testing.T) {
 	}
 }
 
-func TestListSessions_Empty(t *testing.T) {
-	dir := t.TempDir()
-
-	sessions, err := ListSessions(dir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(sessions) != 0 {
-		t.Errorf("expected 0 sessions, got %d", len(sessions))
-	}
-}
-
-func TestListSessions_ParsesFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create two session files
-	line1 := `{"sessionId":"abc-123","timestamp":"2026-03-12T10:00:00Z","type":"session_start"}`
-	line2 := `{"role":"user","content":"hello"}`
-	os.WriteFile(filepath.Join(dir, "abc-123.jsonl"), []byte(line1+"\n"+line2+"\n"), 0o644)
-
-	line3 := `{"sessionId":"def-456","timestamp":"2026-03-12T11:00:00Z","type":"session_start"}`
-	os.WriteFile(filepath.Join(dir, "def-456.jsonl"), []byte(line3+"\n"), 0o644)
-
-	sessions, err := ListSessions(dir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(sessions) != 2 {
-		t.Fatalf("expected 2 sessions, got %d", len(sessions))
-	}
-
-	// Should be sorted by started_at descending
-	if sessions[0].ID != "def-456" {
-		t.Errorf("expected first session to be def-456, got %s", sessions[0].ID)
-	}
-	if sessions[0].MessageCount != 1 {
-		t.Errorf("expected message count 1, got %d", sessions[0].MessageCount)
-	}
-	if sessions[1].ID != "abc-123" {
-		t.Errorf("expected second session to be abc-123, got %s", sessions[1].ID)
-	}
-	if sessions[1].MessageCount != 2 {
-		t.Errorf("expected message count 2, got %d", sessions[1].MessageCount)
-	}
-
-	// Most recently modified should be current
-	currentCount := 0
-	for _, s := range sessions {
-		if s.IsCurrent {
-			currentCount++
-		}
-	}
-	if currentCount != 1 {
-		t.Errorf("expected exactly 1 current session, got %d", currentCount)
-	}
-}
-
 func TestBuildFileTree(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "src"), 0o755)
@@ -158,12 +101,10 @@ func TestInferLanguage(t *testing.T) {
 
 func TestHealthzEndpoint(t *testing.T) {
 	cfg := Config{
-		Port:           "0",
-		OpenClawHome:   t.TempDir(),
-		CompletionsDir: t.TempDir(),
-		WorkspaceDir:   t.TempDir(),
+		Port:         "0",
+		WorkspaceDir: t.TempDir(),
 	}
-	watcher := NewWatcher(cfg.CompletionsDir, cfg.WorkspaceDir)
+	watcher := NewWatcher(cfg.WorkspaceDir)
 	wsHub := NewWSHub(watcher)
 	srv := NewServer(cfg, wsHub)
 
@@ -181,48 +122,12 @@ func TestHealthzEndpoint(t *testing.T) {
 	}
 }
 
-func TestSessionsEndpoint(t *testing.T) {
-	compDir := t.TempDir()
-	line := `{"sessionId":"test-1","timestamp":"2026-03-12T10:00:00Z"}` + "\n"
-	os.WriteFile(filepath.Join(compDir, "test-1.jsonl"), []byte(line), 0o644)
-
-	cfg := Config{
-		Port:           "0",
-		OpenClawHome:   t.TempDir(),
-		CompletionsDir: compDir,
-		WorkspaceDir:   t.TempDir(),
-	}
-	watcher := NewWatcher(cfg.CompletionsDir, cfg.WorkspaceDir)
-	wsHub := NewWSHub(watcher)
-	srv := NewServer(cfg, wsHub)
-
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/sessions", nil)
-	srv.Router().ServeHTTP(w, req)
-
-	if w.Code != 200 {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-
-	var sessions []SessionInfo
-	json.Unmarshal(w.Body.Bytes(), &sessions)
-	if len(sessions) != 1 {
-		t.Fatalf("expected 1 session, got %d", len(sessions))
-	}
-	if sessions[0].ID != "test-1" {
-		t.Errorf("expected session id test-1, got %s", sessions[0].ID)
-	}
-}
-
 func TestWorkspaceFileEndpoint_PathTraversal(t *testing.T) {
-	homeDir := t.TempDir()
 	cfg := Config{
-		Port:           "0",
-		OpenClawHome:   homeDir,
-		CompletionsDir: t.TempDir(),
-		WorkspaceDir:   t.TempDir(),
+		Port:         "0",
+		WorkspaceDir: t.TempDir(),
 	}
-	watcher := NewWatcher(cfg.CompletionsDir, cfg.WorkspaceDir)
+	watcher := NewWatcher(cfg.WorkspaceDir)
 	wsHub := NewWSHub(watcher)
 	srv := NewServer(cfg, wsHub)
 
@@ -237,12 +142,10 @@ func TestWorkspaceFileEndpoint_PathTraversal(t *testing.T) {
 
 func TestWorkspaceFileEndpoint_MissingPath(t *testing.T) {
 	cfg := Config{
-		Port:           "0",
-		OpenClawHome:   t.TempDir(),
-		CompletionsDir: t.TempDir(),
-		WorkspaceDir:   t.TempDir(),
+		Port:         "0",
+		WorkspaceDir: t.TempDir(),
 	}
-	watcher := NewWatcher(cfg.CompletionsDir, cfg.WorkspaceDir)
+	watcher := NewWatcher(cfg.WorkspaceDir)
 	wsHub := NewWSHub(watcher)
 	srv := NewServer(cfg, wsHub)
 

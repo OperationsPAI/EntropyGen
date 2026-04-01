@@ -1,15 +1,10 @@
 package observer
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -46,7 +41,7 @@ func NewWSHub(watcher *Watcher) *WSHub {
 }
 
 // Run listens for watcher events and broadcasts them to all connected clients.
-func (h *WSHub) Run(ctx context.Context, completionsDir string) {
+func (h *WSHub) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -55,40 +50,18 @@ func (h *WSHub) Run(ctx context.Context, completionsDir string) {
 			if !ok {
 				return
 			}
-			h.broadcastEvent(evt, completionsDir)
+			h.broadcastEvent(evt)
 		}
 	}
 }
 
-// broadcastEvent converts a watcher event to a WebSocket message and sends it.
-func (h *WSHub) broadcastEvent(evt interface{}, completionsDir string) {
-	var msg []byte
-	var err error
-
-	switch e := evt.(type) {
-	case JSONLLineEvent:
-		// Read the latest lines from the JSONL file
-		sessionPath := filepath.Join(completionsDir, e.SessionFile)
-		lastLine := readLastLine(sessionPath)
-		if lastLine == nil {
-			return
-		}
-		sessionID := strings.TrimSuffix(e.SessionFile, ".jsonl")
-		msg, err = json.Marshal(map[string]interface{}{
-			"type":       "jsonl",
-			"session_id": sessionID,
-			"data":       json.RawMessage(lastLine),
-		})
-	case FileChangeEvent:
-		msg, err = json.Marshal(map[string]interface{}{
-			"type":   "file_change",
-			"path":   e.Path,
-			"action": e.Action,
-		})
-	default:
-		return
-	}
-
+// broadcastEvent converts a FileChangeEvent to a WebSocket message and sends it.
+func (h *WSHub) broadcastEvent(evt FileChangeEvent) {
+	msg, err := json.Marshal(map[string]interface{}{
+		"type":   "file_change",
+		"path":   evt.Path,
+		"action": evt.Action,
+	})
 	if err != nil {
 		slog.Warn("ws: marshal error", "err", err)
 		return
@@ -166,42 +139,4 @@ func (h *WSHub) writePump(c *wsClient) {
 			}
 		}
 	}
-}
-
-// readLastLine reads the last non-empty line from a file.
-func readLastLine(path string) []byte {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-
-	// Seek to near end of file to find last line
-	info, err := f.Stat()
-	if err != nil || info.Size() == 0 {
-		return nil
-	}
-
-	// Read from the end to find the last line
-	const readSize = 64 * 1024
-	offset := info.Size() - readSize
-	if offset < 0 {
-		offset = 0
-	}
-	if _, err := f.Seek(offset, io.SeekStart); err != nil {
-		return nil
-	}
-
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 256*1024), 256*1024)
-
-	var lastLine []byte
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) > 0 {
-			lastLine = make([]byte, len(line))
-			copy(lastLine, line)
-		}
-	}
-	return lastLine
 }
