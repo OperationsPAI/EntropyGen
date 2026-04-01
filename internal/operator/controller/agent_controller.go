@@ -129,8 +129,10 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	r.setCondition(agent, "Ready", "True", "Reconciled", "All resources reconciled successfully")
 	_ = r.Status().Update(ctx, agent)
 
-	// Sync cron scheduler (legacy — Cron field removed; always clean up)
+	// Sync cron scheduler
 	if r.CronScheduler != nil {
+		// Cron scheduling removed — runtime containers manage their own lifecycle.
+		// Remove any previously scheduled cron jobs for this agent.
 		r.CronScheduler.Remove(agent.Name)
 	}
 

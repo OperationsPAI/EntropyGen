@@ -35,12 +35,17 @@ type AgentSpec struct {
 	Paused      bool             `json:"paused,omitempty"`
 }
 
+// AgentRuntime specifies the runtime type and image for the agent container.
 type AgentRuntime struct {
-	Type  string        `json:"type,omitempty"`
-	Image string        `json:"image,omitempty"`
-	Env   []AgentEnvVar `json:"env,omitempty"`
+	// Type selects a predefined runtime (e.g. "openclaw", "claude-code", "aider").
+	Type string `json:"type,omitempty"`
+	// Image overrides the container image for the runtime.
+	Image string `json:"image,omitempty"`
+	// Env is a list of additional environment variables to inject into the runtime container.
+	Env []AgentEnvVar `json:"env,omitempty"`
 }
 
+// AgentEnvVar is a simple name/value pair for environment variables.
 type AgentEnvVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`

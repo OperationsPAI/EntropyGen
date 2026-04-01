@@ -3,7 +3,6 @@ package reconciler
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,18 +36,29 @@ type roleData struct {
 	ExtraFiles map[string]string // other custom files
 }
 
-func agentRuntimeImageName() string {
-	if v := os.Getenv("AGENT_RUNTIME_IMAGE"); v != "" {
-		return v
-	}
-	return "registry.local/agent-runtime:latest"
+// runtimeImages maps known runtime types to their default container images.
+// Empty strings mean "fall back to AGENT_RUNTIME_IMAGE env var or hardcoded default".
+var runtimeImages = map[string]string{
+	"openclaw":    "",
+	"claude-code": "",
+	"aider":       "",
 }
 
 func agentRuntimeImage(agent *agentapi.Agent) string {
 	if agent.Spec.Runtime != nil && agent.Spec.Runtime.Image != "" {
 		return agent.Spec.Runtime.Image
 	}
-	return agentRuntimeImageName()
+	runtimeType := "openclaw"
+	if agent.Spec.Runtime != nil && agent.Spec.Runtime.Type != "" {
+		runtimeType = agent.Spec.Runtime.Type
+	}
+	if img, ok := runtimeImages[runtimeType]; ok && img != "" {
+		return img
+	}
+	if v := os.Getenv("AGENT_RUNTIME_IMAGE"); v != "" {
+		return v
+	}
+	return "registry.local/agent-runtime:latest"
 }
 
 // readRoleDataFromDir reads a role directory and classifies files into well-known role data.
@@ -112,11 +122,11 @@ func skillKey(path string) string {
 	return strings.ReplaceAll(path, "/", "__")
 }
 
-// EnsureConfigMap creates or updates the main agent ConfigMap (openclaw.json, SOUL.md, AGENTS.md).
+// EnsureConfigMap creates or updates the agent prompt ConfigMap (SOUL.md, AGENTS.md, PROMPT.md).
 func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentapi.Agent) error {
-	data := buildConfigMapData(agent, r.roleData, r.GatewayURL, r.LLMBaseURL, r.LLMAPIKey)
+	data := buildPromptConfigMapData(agent, r.roleData)
 	hash := computeHash(data)
-	name := fmt.Sprintf("agent-%s-config", agent.Name)
+	name := fmt.Sprintf("agent-%s-prompt", agent.Name)
 
 	cm := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: name, Namespace: agent.Namespace}, cm)
@@ -143,88 +153,18 @@ func (r *ResourceReconciler) EnsureConfigMap(ctx context.Context, agent *agentap
 	return r.Client.Update(ctx, cm)
 }
 
-func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBaseURL, llmAPIKey string) map[string]string {
-	model := ""
-	if agent.Spec.LLM != nil && agent.Spec.LLM.Model != "" {
-		model = agent.Spec.LLM.Model
-	}
-
-	// Extract provider prefix (e.g. "litellm" from "litellm/MiniMax-M2.5")
-	providerName := "litellm"
-	modelID := model
-	if idx := strings.Index(model, "/"); idx > 0 {
-		providerName = model[:idx]
-		modelID = model[idx+1:]
-	} else {
-		// No provider prefix — default to litellm and add prefix
-		model = providerName + "/" + model
-	}
-
-	// Build openclaw.json using the new config format (models.providers + agents.defaults)
-	openclawCfg := map[string]interface{}{
-		"models": map[string]interface{}{
-			"providers": map[string]interface{}{
-				providerName: map[string]interface{}{
-					"baseUrl": llmBaseURL,
-					"apiKey":  llmAPIKey,
-					"api":     "openai-completions",
-					"models": []map[string]interface{}{
-						{
-							"id":            modelID,
-							"name":          modelID,
-							"reasoning":     false,
-							"input":         []string{"text"},
-							"contextWindow": 128000,
-							"maxTokens":     32000,
-						},
-					},
-				},
-			},
-		},
-		"agents": map[string]interface{}{
-			"defaults": map[string]interface{}{
-				"model": map[string]interface{}{
-					"primary": model,
-				},
-			},
-		},
-		"gateway": map[string]interface{}{
-			"controlUi": map[string]interface{}{
-				"dangerouslyAllowHostHeaderOriginFallback": true,
-			},
-			"http": map[string]interface{}{
-				"endpoints": map[string]interface{}{
-					"chatCompletions": map[string]interface{}{
-						"enabled": true,
-					},
-				},
-			},
-		},
-	}
-	openclawJSON, _ := json.MarshalIndent(openclawCfg, "", "  ")
-
-	// SOUL.md: Role data is the single source of truth
-	soul := ""
+// buildPromptConfigMapData builds a generic prompt-only ConfigMap with SOUL.md, AGENTS.md, PROMPT.md.
+// No runtime-specific config (e.g. openclaw.json) is generated.
+func buildPromptConfigMapData(agent *agentapi.Agent, rd *roleData) map[string]string {
+	result := map[string]string{}
 	if rd != nil && rd.Soul != "" {
-		soul = rd.Soul
+		result["SOUL.md"] = rd.Soul
 	}
-
-	// AGENTS.md: Role data is the single source of truth
-	agentsMD := ""
 	if rd != nil && rd.AgentsMD != "" {
-		agentsMD = rd.AgentsMD
+		result["AGENTS.md"] = rd.AgentsMD
 	}
-
-	result := map[string]string{
-		"openclaw.json": string(openclawJSON),
-		"SOUL.md":       soul,
-		"AGENTS.md":     agentsMD,
-	}
-
-	// PROMPT.md: include for observability (cron reads from roleData directly)
 	if rd != nil && rd.Prompt != "" {
 		prompt := rd.Prompt
-		// Replace template variables in PROMPT.md
 		if agent.Spec.Gitea != nil && len(agent.Spec.Gitea.Repos) > 0 {
 			prompt = strings.ReplaceAll(prompt, "{{REPOS}}", strings.Join(agent.Spec.Gitea.Repos, ","))
 		}
@@ -232,7 +172,6 @@ func buildConfigMapData(agent *agentapi.Agent, rd *roleData, gatewayURL, llmBase
 		prompt = strings.ReplaceAll(prompt, "{{AGENT_ROLE}}", agent.Spec.Role)
 		result["PROMPT.md"] = prompt
 	}
-
 	return result
 }
 
@@ -503,7 +442,7 @@ func (r *ResourceReconciler) EnsureRoleBinding(ctx context.Context, agent *agent
 // Config hash annotation on pod template triggers rolling restart when ConfigMap changes.
 func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agentapi.Agent) error {
 	// Get current config hash to propagate to pod template
-	cmName := fmt.Sprintf("agent-%s-config", agent.Name)
+	cmName := fmt.Sprintf("agent-%s-prompt", agent.Name)
 	cm := &corev1.ConfigMap{}
 	cfgHash := ""
 	if err := r.Client.Get(ctx, types.NamespacedName{Name: cmName, Namespace: agent.Namespace}, cm); err == nil {
@@ -512,7 +451,7 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 		}
 	}
 
-	desired := buildDeployment(agent, r.roleData, cfgHash, r.GatewayURL, r.RedisAddr, r.GiteaURL)
+	desired := buildDeployment(agent, r.roleData, cfgHash, r.GatewayURL, r.RedisAddr, r.GiteaURL, r.LLMBaseURL, r.LLMAPIKey)
 	_ = controllerutil.SetControllerReference(agent, desired, r.Scheme)
 
 	existing := &appsv1.Deployment{}
@@ -534,14 +473,14 @@ func (r *ResourceReconciler) EnsureDeployment(ctx context.Context, agent *agenta
 	return r.Client.Update(ctx, existing)
 }
 
-func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewayURL string, redisAddr string, giteaURL string) *appsv1.Deployment {
+func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewayURL string, redisAddr string, giteaURL string, llmBaseURL string, llmAPIKey string) *appsv1.Deployment {
 	replicas := int32(1)
 	if agent.Spec.Paused {
 		replicas = 0
 	}
 
 	saName := fmt.Sprintf("agent-%s", agent.Name)
-	configCMName := fmt.Sprintf("agent-%s-config", agent.Name)
+	promptCMName := fmt.Sprintf("agent-%s-prompt", agent.Name)
 	skillsCMName := fmt.Sprintf("agent-%s-skills", agent.Name)
 	jwtSecretName := fmt.Sprintf("agent-%s-jwt-token", agent.Name)
 	giteaTokenSecretName := fmt.Sprintf("role-%s-gitea-token", agent.Spec.Role)
@@ -557,18 +496,38 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 		agentRepos = strings.Join(agent.Spec.Gitea.Repos, ",")
 	}
 
+	// Runtime Contract environment variables — generic across all runtime types
+	envVars := []corev1.EnvVar{
+		{Name: "AGENT_ID", Value: "agent-" + agent.Name},
+		{Name: "AGENT_ROLE", Value: agent.Spec.Role},
+		{Name: "LLM_BASE_URL", Value: llmBaseURL},
+		{Name: "LLM_API_KEY", Value: llmAPIKey},
+		{Name: "LLM_MODEL", Value: model},
+		{Name: "GITEA_BASE_URL", Value: giteaURL},
+		{Name: "GITEA_TOKEN_FILE", Value: "/agent/secrets/gitea-token"},
+		{Name: "GITEA_REPOS", Value: agentRepos},
+		{Name: "WORKSPACE_DIR", Value: "/workspace"},
+		{Name: "REDIS_ADDR", Value: redisAddr},
+		{Name: "GATEWAY_URL", Value: gatewayURL},
+	}
+	if agent.Spec.Runtime != nil {
+		for _, e := range agent.Spec.Runtime.Env {
+			envVars = append(envVars, corev1.EnvVar{Name: e.Name, Value: e.Value})
+		}
+	}
+
 	volumeMounts := []corev1.VolumeMount{
-		{Name: "config", MountPath: "/agent/config", ReadOnly: true},
+		{Name: "prompt", MountPath: "/agent/config", ReadOnly: true},
 		{Name: "skills", MountPath: "/agent/skills", ReadOnly: true},
 		{Name: "jwt-token", MountPath: "/agent/secrets/jwt-token", SubPath: "token", ReadOnly: true},
 		{Name: "gitea-token", MountPath: "/agent/secrets/gitea-token", SubPath: "token", ReadOnly: true},
-		{Name: "workspace", MountPath: "/home/node/.openclaw/workspace"},
+		{Name: "workspace", MountPath: "/workspace"},
 	}
 
 	volumes := []corev1.Volume{
-		{Name: "config", VolumeSource: corev1.VolumeSource{
+		{Name: "prompt", VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: configCMName},
+				LocalObjectReference: corev1.LocalObjectReference{Name: promptCMName},
 			},
 		}},
 		{Name: "skills", VolumeSource: corev1.VolumeSource{
@@ -631,15 +590,7 @@ func buildDeployment(agent *agentapi.Agent, rd *roleData, cfgHash string, gatewa
 						Name:      "agent-runtime",
 						Image:     agentRuntimeImage(agent),
 						Resources: buildResourceRequirements(agent),
-						Env: []corev1.EnvVar{
-							{Name: "AGENT_ID", Value: "agent-" + agent.Name},
-							{Name: "AGENT_ROLE", Value: agent.Spec.Role},
-							{Name: "AGENT_REPOS", Value: agentRepos},
-							{Name: "GATEWAY_URL", Value: gatewayURL},
-							{Name: "LLM_MODEL", Value: model},
-							{Name: "REDIS_ADDR", Value: redisAddr},
-							{Name: "GITEA_BASE_URL", Value: giteaURL},
-						},
+						Env:       envVars,
 						LivenessProbe: &corev1.Probe{
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{

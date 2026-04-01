@@ -26,21 +26,19 @@ spec:
                   properties:
                     type:
                       type: string
-                      default: "openclaw"
-                      description: "Runtime adapter type (e.g. openclaw, claude-code, aider)"
+                      description: "Runtime type: openclaw, claude-code, aider"
                     image:
                       type: string
-                      description: "Override default image for this runtime type"
+                      description: "Override the default container image for this runtime type"
                     env:
                       type: array
                       items:
                         type: object
+                        required: [name, value]
                         properties:
-                          name:
-                            type: string
-                          value:
-                            type: string
-                      description: "Extra environment variables for the adapter"
+                          name: { type: string }
+                          value: { type: string }
+                      description: "Additional environment variables for the runtime container"
                 llm:
                   type: object
                   properties:
@@ -138,9 +136,6 @@ spec:
         - name: Role
           type: string
           jsonPath: .spec.role
-        - name: Runtime
-          type: string
-          jsonPath: .spec.runtime.type
         - name: Phase
           type: string
           jsonPath: .status.phase
