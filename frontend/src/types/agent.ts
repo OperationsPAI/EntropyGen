@@ -9,7 +9,7 @@ export interface LLMConfig {
 export interface RuntimeConfig {
   type: string
   image?: string
-  env?: Array<{ name: string; value: string }>
+  env?: Record<string, string>
 }
 
 export interface ResourceConfig {

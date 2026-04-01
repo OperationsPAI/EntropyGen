@@ -20,13 +20,11 @@ function mapAgent(raw: any): Agent {
       temperature: spec.llm?.temperature ?? 0.7,
       maxTokens: spec.llm?.maxTokens ?? 65536,
     },
-    runtime: spec.runtime
-      ? {
-        type: spec.runtime.type ?? 'openclaw',
-        image: spec.runtime.image,
-        env: spec.runtime.env,
-      }
-      : undefined,
+    runtime: {
+      type: spec.runtime?.type ?? spec.runtimeImage ?? 'openclaw',
+      image: spec.runtime?.image ?? spec.runtimeImage,
+      env: spec.runtime?.env,
+    },
     resources: {
       cpuRequest: spec.resources?.requests?.cpu ?? '500m',
       cpuLimit: spec.resources?.limits?.cpu ?? '5000m',
@@ -85,9 +83,15 @@ export interface RuntimeType {
 
 export const agentsApi = {
   getRuntimeTypes: () =>
-    apiClient.get('/agents/runtime-types').then((r) => {
+    apiClient.get('/agents/runtime-images').then((r) => {
       const body = r.data
-      return (Array.isArray(body?.data) ? body.data : []) as RuntimeType[]
+      const items = (Array.isArray(body?.data) ? body.data : []) as Array<{ image: string; default: boolean }>
+      // Map legacy runtime-images response to RuntimeType format
+      return items.map((item) => ({
+        type: item.image,
+        image: item.image,
+        default: item.default,
+      })) as RuntimeType[]
     }),
 
   getAgents: () =>

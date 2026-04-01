@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import cronstrue from 'cronstrue'
-import { agentsApi, type RuntimeImage } from '../../api/agents'
+import { agentsApi, type RuntimeType } from '../../api/agents'
 import { llmApi, type LLMModel } from '../../api/llm'
 import { rolesApi } from '../../api/roles'
 import { PageHeader, Card, Button, Input, Select, EmptyState } from '../../components/ui'
@@ -14,22 +13,6 @@ const STEPS = ['Identity', 'Configuration', 'Infrastructure', 'Review'] as const
 const TOTAL_STEPS = STEPS.length
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/
-const CRON_SEGMENT_PATTERN = /^[0-9*,\/-]+$/
-
-function isValidCron(value: string): boolean {
-  const segments = value.trim().split(/\s+/)
-  if (segments.length !== 5) return false
-  return segments.every((s) => CRON_SEGMENT_PATTERN.test(s))
-}
-
-function getCronDescription(value: string): string | null {
-  if (!value.trim()) return null
-  try {
-    return cronstrue.toString(value)
-  } catch {
-    return null
-  }
-}
 
 interface FormState {
   name: string
@@ -37,8 +20,7 @@ interface FormState {
   model: string
   temperature: number
   maxTokens: number
-  schedule: string
-  runtimeImage: string
+  runtimeType: string
   cpuRequest: string
   cpuLimit: string
   memoryRequest: string
@@ -54,8 +36,7 @@ const INITIAL_FORM: FormState = {
   model: '',
   temperature: 0.7,
   maxTokens: 65536,
-  schedule: '*/5 * * * *',
-  runtimeImage: '',
+  runtimeType: 'openclaw',
   cpuRequest: '500m',
   cpuLimit: '5000m',
   memoryRequest: '1Gi',
@@ -73,8 +54,8 @@ export default function NewAgent() {
   const [rolesLoading, setRolesLoading] = useState(true)
   const [models, setModels] = useState<LLMModel[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
-  const [runtimeImages, setRuntimeImages] = useState<RuntimeImage[]>([])
-  const [imagesLoading, setImagesLoading] = useState(true)
+  const [runtimeTypes, setRuntimeTypes] = useState<RuntimeType[]>([])
+  const [runtimeTypesLoading, setRuntimeTypesLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -95,29 +76,28 @@ export default function NewAgent() {
   }, [])
 
   useEffect(() => {
-    agentsApi.getRuntimeImages()
-      .then((images) => {
-        setRuntimeImages(images)
-        const defaultImg = images.find((img) => img.default)
-        if (defaultImg) {
-          setForm((prev) => prev.runtimeImage === '' ? { ...prev, runtimeImage: defaultImg.image } : prev)
+    agentsApi.getRuntimeTypes()
+      .then((types) => {
+        setRuntimeTypes(types)
+        const defaultType = types.find((t) => t.default)
+        if (defaultType) {
+          setForm((prev) => prev.runtimeType === 'openclaw' ? { ...prev, runtimeType: defaultType.type } : prev)
         }
       })
       .catch(() => {})
-      .finally(() => setImagesLoading(false))
+      .finally(() => setRuntimeTypesLoading(false))
   }, [])
 
   const selectedRole = roles.find((r) => r.name === form.role)
 
   const nameValid = form.name === '' || NAME_PATTERN.test(form.name)
-  const cronValid = form.schedule === '' || isValidCron(form.schedule)
 
   const isStepValid = (s: number): boolean => {
     switch (s) {
       case 1:
         return NAME_PATTERN.test(form.name) && form.role !== ''
       case 2:
-        return form.model.trim() !== '' && isValidCron(form.schedule)
+        return form.model.trim() !== ''
       case 3:
         return (
           form.cpuRequest.trim() !== '' &&
@@ -142,7 +122,7 @@ export default function NewAgent() {
         spec: {
           role: form.role,
           llm: { model: form.model, temperature: form.temperature, maxTokens: form.maxTokens },
-          cron: { schedule: form.schedule },
+          runtime: { type: form.runtimeType },
           resources: {
             cpuRequest: form.cpuRequest,
             cpuLimit: form.cpuLimit,
@@ -151,7 +131,6 @@ export default function NewAgent() {
             workspaceSize: form.workspaceSize,
           },
           gitea: { repo: form.repo, repos: form.repo ? [form.repo] : [], permissions: form.permissions },
-          runtimeImage: form.runtimeImage || undefined,
         },
       })
       toast.success('Agent created', form.name)
@@ -307,107 +286,92 @@ export default function NewAgent() {
     </div>
   )
 
-  const renderStepConfiguration = () => {
-    const cronDesc = getCronDescription(form.schedule)
-
-    return (
-      <div className={styles.formBody}>
-        <span className={styles.sectionLabel}>LLM</span>
-        <Select
-          label="Model"
-          value={form.model}
-          onChange={(e) => updateField('model', e.target.value)}
-          disabled={modelsLoading}
-        >
-          <option value="">
-            {modelsLoading ? 'Loading models...' : 'Select a model...'}
+  const renderStepConfiguration = () => (
+    <div className={styles.formBody}>
+      <span className={styles.sectionLabel}>LLM</span>
+      <Select
+        label="Model"
+        value={form.model}
+        onChange={(e) => updateField('model', e.target.value)}
+        disabled={modelsLoading}
+      >
+        <option value="">
+          {modelsLoading ? 'Loading models...' : 'Select a model...'}
+        </option>
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name} ({m.provider})
           </option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name} ({m.provider})
-            </option>
-          ))}
-        </Select>
-        {!modelsLoading && models.length === 0 && (
-          <span className={styles.helperText}>
-            No models available.{' '}
-            <a className={styles.infoLink} href="/llm" target="_blank" rel="noopener noreferrer">
-              Go to LLM Models to add one &rarr;
-            </a>
-          </span>
-        )}
-        <div className={styles.formGrid2}>
-          <div>
-            <Input
-              label="Temperature"
-              type="number"
-              min={0}
-              max={2}
-              step={0.1}
-              value={form.temperature}
-              onChange={(e) => updateField('temperature', parseFloat(e.target.value))}
-            />
-            <span className={styles.helperText}>0 = deterministic, 2 = creative</span>
-          </div>
+        ))}
+      </Select>
+      {!modelsLoading && models.length === 0 && (
+        <span className={styles.helperText}>
+          No models available.{' '}
+          <a className={styles.infoLink} href="/llm" target="_blank" rel="noopener noreferrer">
+            Go to LLM Models to add one &rarr;
+          </a>
+        </span>
+      )}
+      <div className={styles.formGrid2}>
+        <div>
           <Input
-            label="Max Tokens"
+            label="Temperature"
             type="number"
-            value={form.maxTokens}
-            onChange={(e) => updateField('maxTokens', parseInt(e.target.value, 10))}
+            min={0}
+            max={2}
+            step={0.1}
+            value={form.temperature}
+            onChange={(e) => updateField('temperature', parseFloat(e.target.value))}
           />
-        </div>
-
-        <div className={styles.sectionDivider}>
-          <span className={styles.sectionLabel}>Schedule</span>
+          <span className={styles.helperText}>0 = deterministic, 2 = creative</span>
         </div>
         <Input
-          label="Cron Expression"
-          value={form.schedule}
-          onChange={(e) => updateField('schedule', e.target.value)}
+          label="Max Tokens"
+          type="number"
+          value={form.maxTokens}
+          onChange={(e) => updateField('maxTokens', parseInt(e.target.value, 10))}
         />
-        {!cronValid && (
-          <span className={styles.hintError}>Must be 5 space-separated segments using digits, *, commas, slashes, or hyphens</span>
-        )}
-        {cronDesc && (
-          <span className={styles.cronReadable}>{cronDesc}</span>
-        )}
-        <div className={styles.infoBox}>
-          The prompt content is defined in your role's prompt.md file.
-          {form.role && (
-            <>
-              {' '}
-              <a
-                className={styles.infoLink}
-                href={`/roles/${form.role}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Edit in Role Editor &rarr;
-              </a>
-            </>
-          )}
-        </div>
       </div>
-    )
-  }
+
+      <div className={styles.infoBox}>
+        The prompt content is defined in your role's prompt.md file.
+        {form.role && (
+          <>
+            {' '}
+            <a
+              className={styles.infoLink}
+              href={`/roles/${form.role}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Edit in Role Editor &rarr;
+            </a>
+          </>
+        )}
+      </div>
+    </div>
+  )
 
   const renderStepInfrastructure = () => (
     <div className={styles.formBody}>
-      <span className={styles.sectionLabel}>Runtime Image</span>
+      <span className={styles.sectionLabel}>Runtime Type</span>
       <Select
-        label="Agent Image"
-        value={form.runtimeImage}
-        onChange={(e) => updateField('runtimeImage', e.target.value)}
-        disabled={imagesLoading}
+        label="Runtime Type"
+        value={form.runtimeType}
+        onChange={(e) => updateField('runtimeType', e.target.value)}
+        disabled={runtimeTypesLoading}
       >
-        <option value="">
-          {imagesLoading ? 'Loading images...' : 'Select an image...'}
-        </option>
-        {runtimeImages.map((img) => (
-          <option key={img.image} value={img.image}>
-            {img.image}{img.default ? ' (default)' : ''}
-          </option>
-        ))}
+        {runtimeTypesLoading ? (
+          <option value={form.runtimeType}>Loading runtime types...</option>
+        ) : runtimeTypes.length === 0 ? (
+          <option value="openclaw">openclaw (default)</option>
+        ) : (
+          runtimeTypes.map((rt) => (
+            <option key={rt.type} value={rt.type}>
+              {rt.type}{rt.default ? ' (default)' : ''}
+            </option>
+          ))
+        )}
       </Select>
 
       <div className={styles.sectionDivider}>
@@ -523,17 +487,13 @@ export default function NewAgent() {
             <span className={styles.reviewLabel}>Max Tokens</span>
             <span className={styles.reviewValue}>{form.maxTokens.toLocaleString()}</span>
           </div>
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>Cron</span>
-            <span className={styles.reviewValue}>{form.schedule}</span>
-          </div>
         </div>
 
         <div className={styles.reviewSection} onClick={() => setStep(3)}>
           <div className={styles.reviewSectionTitle}>Infrastructure</div>
           <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>Image</span>
-            <span className={styles.reviewValue}>{form.runtimeImage || '\u2014'}</span>
+            <span className={styles.reviewLabel}>Runtime Type</span>
+            <span className={styles.reviewValue}>{form.runtimeType}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>CPU</span>
