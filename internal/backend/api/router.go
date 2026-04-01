@@ -70,7 +70,7 @@ func NewRouter(cfg Config) *gin.Engine {
 	opt.GET("/agents/:name/logs", agentH.Logs)
 
 	// Agent management — write (member+)
-	opt.GET("/agents/runtime-images", handler.RequireRole("member", "admin"), agentH.RuntimeImages)
+	opt.GET("/agents/runtime-types", handler.RequireRole("member", "admin"), agentH.RuntimeTypes)
 	opt.POST("/agents", handler.RequireRole("member", "admin"), agentH.Create)
 	opt.PUT("/agents/:name", handler.RequireRole("member", "admin"), agentH.Update)
 	opt.DELETE("/agents/:name", handler.RequireRole("member", "admin"), agentH.Delete)

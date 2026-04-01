@@ -160,11 +160,12 @@ func (h *AgentHandler) ResetMemory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
-// RuntimeImages returns the list of available agent runtime images.
-// The default image comes from AGENT_RUNTIME_IMAGE env var.
-// Extra images can be added via AGENT_RUNTIME_IMAGES (comma-separated).
-func (h *AgentHandler) RuntimeImages(c *gin.Context) {
-	type imageEntry struct {
+// RuntimeTypes returns the available runtime adapter types and their default images.
+// The default runtime comes from AGENT_RUNTIME_IMAGE env var.
+// Extra runtimes can be added via AGENT_RUNTIME_TYPES (comma-separated "type=image" pairs).
+func (h *AgentHandler) RuntimeTypes(c *gin.Context) {
+	type runtimeEntry struct {
+		Type    string `json:"type"`
 		Image   string `json:"image"`
 		Default bool   `json:"default"`
 	}
@@ -174,18 +175,20 @@ func (h *AgentHandler) RuntimeImages(c *gin.Context) {
 		defaultImg = "registry.local/agent-runtime:latest"
 	}
 
-	images := []imageEntry{{Image: defaultImg, Default: true}}
+	runtimes := []runtimeEntry{
+		{Type: "openclaw", Image: defaultImg, Default: true},
+	}
 
-	if extra := os.Getenv("AGENT_RUNTIME_IMAGES"); extra != "" {
-		for _, img := range strings.Split(extra, ",") {
-			img = strings.TrimSpace(img)
-			if img != "" && img != defaultImg {
-				images = append(images, imageEntry{Image: img})
+	if extra := os.Getenv("AGENT_RUNTIME_TYPES"); extra != "" {
+		for _, entry := range strings.Split(extra, ",") {
+			parts := strings.SplitN(strings.TrimSpace(entry), "=", 2)
+			if len(parts) == 2 {
+				runtimes = append(runtimes, runtimeEntry{Type: parts[0], Image: parts[1]})
 			}
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": images})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": runtimes})
 }
 
 // AssignIssue creates a Gitea issue and assigns it to the agent's Gitea user.
