@@ -24,21 +24,26 @@ type Agent struct {
 }
 
 type AgentSpec struct {
-	Role         string           `json:"role"`
-	DisplayName  string           `json:"displayName,omitempty"`
-	Cron         *AgentCron       `json:"cron,omitempty"`
-	LLM          *AgentLLM        `json:"llm,omitempty"`
-	Gitea        *AgentGitea      `json:"gitea,omitempty"`
-	Kubernetes   *AgentKubernetes `json:"kubernetes,omitempty"`
-	Resources    *AgentResources  `json:"resources,omitempty"`
-	Memory       *AgentMemory     `json:"memory,omitempty"`
-	RuntimeImage string           `json:"runtimeImage,omitempty"`
-	Paused       bool             `json:"paused,omitempty"`
+	Role        string           `json:"role"`
+	DisplayName string           `json:"displayName,omitempty"`
+	Runtime     *AgentRuntime    `json:"runtime,omitempty"`
+	LLM         *AgentLLM        `json:"llm,omitempty"`
+	Gitea       *AgentGitea      `json:"gitea,omitempty"`
+	Kubernetes  *AgentKubernetes `json:"kubernetes,omitempty"`
+	Resources   *AgentResources  `json:"resources,omitempty"`
+	Memory      *AgentMemory     `json:"memory,omitempty"`
+	Paused      bool             `json:"paused,omitempty"`
 }
 
-type AgentCron struct {
-	Schedule string `json:"schedule,omitempty"`
-	// Prompt field removed — cron prompt is now defined entirely by the Role's PROMPT.md
+type AgentRuntime struct {
+	Type  string        `json:"type,omitempty"`
+	Image string        `json:"image,omitempty"`
+	Env   []AgentEnvVar `json:"env,omitempty"`
+}
+
+type AgentEnvVar struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type AgentLLM struct {

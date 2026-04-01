@@ -45,8 +45,8 @@ func agentRuntimeImageName() string {
 }
 
 func agentRuntimeImage(agent *agentapi.Agent) string {
-	if agent.Spec.RuntimeImage != "" {
-		return agent.Spec.RuntimeImage
+	if agent.Spec.Runtime != nil && agent.Spec.Runtime.Image != "" {
+		return agent.Spec.Runtime.Image
 	}
 	return agentRuntimeImageName()
 }
