@@ -21,12 +21,26 @@ spec:
                   description: "References a Role directory on the roles-data PVC"
                 displayName:
                   type: string
-                cron:
+                runtime:
                   type: object
                   properties:
-                    schedule:
+                    type:
                       type: string
-                      description: "Cron expression"
+                      default: "openclaw"
+                      description: "Runtime adapter type (e.g. openclaw, claude-code, aider)"
+                    image:
+                      type: string
+                      description: "Override default image for this runtime type"
+                    env:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          value:
+                            type: string
+                      description: "Extra environment variables for the adapter"
                 llm:
                   type: object
                   properties:
@@ -84,9 +98,6 @@ spec:
                   type: boolean
                   default: false
                   description: "Pause Agent execution"
-                runtimeImage:
-                  type: string
-                  description: "Override the default agent-runtime container image"
             status:
               type: object
               properties:
@@ -127,6 +138,9 @@ spec:
         - name: Role
           type: string
           jsonPath: .spec.role
+        - name: Runtime
+          type: string
+          jsonPath: .spec.runtime.type
         - name: Phase
           type: string
           jsonPath: .status.phase
