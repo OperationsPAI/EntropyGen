@@ -30,7 +30,7 @@ build:
     context: frontend
   - image: 10.10.10.240/library/agent-runtime
     docker:
-      dockerfile: agent-runtime/Dockerfile
+      dockerfile: agent-runtimes/openclaw/Dockerfile
     context: .
 
 deploy:
@@ -81,7 +81,7 @@ profiles:
       context: frontend
     - image: aidevops/agent-runtime
       docker:
-        dockerfile: agent-runtime/Dockerfile
+        dockerfile: agent-runtimes/openclaw/Dockerfile
       context: .
   deploy:
     helm:
