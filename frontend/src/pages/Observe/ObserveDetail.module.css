@@ -409,13 +409,62 @@
   color: var(--line-subtle);
 }
 
-/* === Conversation flow (right panel) === */
+/* === Workspace activity feed (right panel) === */
 
 .conversationPanel {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.activityHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--space-sm);
+  border-bottom: 1px solid var(--line-subtle);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.activityCount {
+  font-weight: 400;
+  font-size: 0.625rem;
+}
+
+.activityRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.75rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.5;
+}
+
+.activityTime {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.activityAction {
+  font-weight: 600;
+  font-size: 0.6875rem;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.activityPath {
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversationScroll {

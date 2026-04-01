@@ -1,36 +1,53 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import type { JsonlMessage } from '../../types/observe'
-import MessageBubble from './MessageBubble'
+import type { FileChangeEvent } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
 
-interface ConversationFlowProps {
-  messages: JsonlMessage[]
-  isLive: boolean
-  historySessionId?: string
-  onReturnToLive?: () => void
-  onToolCallClick?: (toolName: string, args: Record<string, unknown>) => void
+/** Activity entry with a local receive timestamp. */
+export interface ActivityEntry extends FileChangeEvent {
+  timestamp: string
 }
 
-export default function ConversationFlow({
-  messages,
-  isLive,
-  historySessionId,
-  onReturnToLive,
-  onToolCallClick,
-}: ConversationFlowProps) {
+interface WorkspaceActivityProps {
+  events: ActivityEntry[]
+}
+
+const ACTION_LABELS: Record<FileChangeEvent['action'], string> = {
+  created: 'Created',
+  modified: 'Modified',
+  deleted: 'Deleted',
+}
+
+const ACTION_COLORS: Record<FileChangeEvent['action'], string> = {
+  created: 'var(--status-green)',
+  modified: 'var(--status-yellow)',
+  deleted: 'var(--status-red)',
+}
+
+function formatTime(ts: string): string {
+  try {
+    return new Date(ts).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return ts
+  }
+}
+
+export default function WorkspaceActivity({ events }: WorkspaceActivityProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
-  const prevLenRef = useRef(messages.length)
+  const prevLenRef = useRef(events.length)
 
-  // Auto-scroll when new messages arrive and autoScroll is on
+  // Auto-scroll when new events arrive
   useEffect(() => {
-    if (autoScroll && messages.length > prevLenRef.current && scrollRef.current) {
+    if (autoScroll && events.length > prevLenRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-    prevLenRef.current = messages.length
-  }, [messages.length, autoScroll])
+    prevLenRef.current = events.length
+  }, [events.length, autoScroll])
 
-  // Detect user scroll to pause auto-scroll
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
@@ -47,38 +64,43 @@ export default function ConversationFlow({
 
   return (
     <div className={styles.conversationPanel}>
-      {historySessionId && (
-        <div className={styles.historyBanner}>
-          <span>Viewing session {historySessionId.slice(0, 8)}</span>
-          <button className={styles.historyBannerLink} onClick={onReturnToLive}>
-            Return to live
-          </button>
-        </div>
-      )}
+      <div className={styles.activityHeader}>
+        <span>Workspace Activity</span>
+        <span className={styles.activityCount}>{events.length} events</span>
+      </div>
 
       <div
         ref={scrollRef}
         className={styles.conversationScroll}
         onScroll={handleScroll}
       >
-        {messages.length === 0 ? (
+        {events.length === 0 ? (
           <div className={styles.loadingState}>
-            {isLive && <span className={styles.waitingDot} />}
-            {isLive ? 'Waiting for messages...' : 'No messages in this session'}
+            <span className={styles.waitingDot} />
+            Watching for file changes...
           </div>
         ) : (
-          messages.map((msg, i) => (
-            <MessageBubble
-              key={i}
-              message={msg}
-              onToolCallClick={onToolCallClick}
-            />
+          events.map((entry, i) => (
+            <div key={i} className={styles.activityRow}>
+              <span className={styles.activityTime}>
+                {formatTime(entry.timestamp)}
+              </span>
+              <span
+                className={styles.activityAction}
+                style={{ color: ACTION_COLORS[entry.action] }}
+              >
+                {ACTION_LABELS[entry.action]}
+              </span>
+              <span className={styles.activityPath} title={entry.path}>
+                {entry.path}
+              </span>
+            </div>
           ))
         )}
 
         {!autoScroll && (
           <button className={styles.scrollToBottom} onClick={scrollToBottom}>
-            ↓ Back to bottom
+            Back to bottom
           </button>
         )}
       </div>

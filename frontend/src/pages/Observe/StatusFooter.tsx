@@ -7,7 +7,6 @@ interface StatusFooterProps {
   statusIcon: ReactNode
   statusText: string
   tokenUsage: AggregatedTokenUsage
-  sessionCount: number
   repo?: string
   currentTask?: CurrentTask
   giteaBaseUrl?: string
@@ -23,7 +22,6 @@ export default function StatusFooter({
   statusIcon,
   statusText,
   tokenUsage,
-  sessionCount,
   repo,
   currentTask,
   giteaBaseUrl,
@@ -50,7 +48,7 @@ export default function StatusFooter({
               className={styles.statusFooterCurrentTask}
             >
               {currentTask.type === 'pr' ? 'PR' : '#'}{currentTask.number}
-              {currentTask.title && ` · ${currentTask.title}`}
+              {currentTask.title && ` \u00B7 ${currentTask.title}`}
             </a>
             <span className={styles.statusFooterSep}>|</span>
           </>
@@ -62,10 +60,6 @@ export default function StatusFooter({
               {' '}(in:{formatTokenCount(tokenUsage.inputTokens)} / out:{formatTokenCount(tokenUsage.outputTokens)})
             </span>
           )}
-        </span>
-        <span className={styles.statusFooterSep}>|</span>
-        <span className={styles.statusFooterItem}>
-          {sessionCount} session{sessionCount !== 1 ? 's' : ''}
         </span>
       </div>
     </div>
