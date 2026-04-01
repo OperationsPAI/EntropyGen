@@ -39,6 +39,16 @@ func NewAuthHandler(username, passwordHash string, secret []byte, store UserStor
 	}
 }
 
+// @Summary      Login
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      LoginRequest  true  "Credentials"
+// @Success      200   {object}  SuccessResponse{data=LoginResponseData}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Router       /auth/login [post]
+//
 // Login validates credentials against DB (or fallback env vars) and returns a 24h JWT.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req struct {
@@ -89,6 +99,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "token": signed})
 }
 
+// @Summary      Get current user
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=UserInfo}
+// @Failure      401  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	username, _ := c.Get("username")
 	role, _ := c.Get("role")
@@ -98,6 +115,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	})
 }
 
+// @Summary      Logout
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  SuccessResponse
+// @Security     BearerAuth
+// @Router       /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

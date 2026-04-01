@@ -18,6 +18,13 @@ func NewUserHandler(store UserStore) *UserHandler {
 	return &UserHandler{store: store}
 }
 
+// @Summary      List users
+// @Tags         users
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]object}
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /users [get]
 func (h *UserHandler) List(c *gin.Context) {
 	users, err := h.store.ListUsers(c.Request.Context())
 	if err != nil {
@@ -31,6 +38,16 @@ func (h *UserHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
 }
 
+// @Summary      Create user
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        body  body      CreateUserRequest  true  "User to create"
+// @Success      201   {object}  SuccessResponse{data=object}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /users [post]
 func (h *UserHandler) Create(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
@@ -62,6 +79,17 @@ func (h *UserHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": userToJSON(user)})
 }
 
+// @Summary      Update user
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        username  path      string              true  "Username"
+// @Param        body      body      UpdateUserRequest   true  "Fields to update"
+// @Success      200       {object}  SuccessResponse{data=object}
+// @Failure      400       {object}  ErrorResponse
+// @Failure      404       {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /users/{username} [put]
 func (h *UserHandler) Update(c *gin.Context) {
 	username := c.Param("username")
 	var req struct {
@@ -94,6 +122,15 @@ func (h *UserHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": userToJSON(user)})
 }
 
+// @Summary      Delete user
+// @Tags         users
+// @Produce      json
+// @Param        username  path      string  true  "Username"
+// @Success      200       {object}  SuccessResponse
+// @Failure      400       {object}  ErrorResponse
+// @Failure      404       {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /users/{username} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
 	username := c.Param("username")
 	// Prevent self-deletion

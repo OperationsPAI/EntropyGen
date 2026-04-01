@@ -24,3 +24,6 @@
 
 # Build-time copies (source of truth: agent-runtime/skills/)
 internal/operator/reconciler/skills/.claude/worktrees/
+
+# Generated API client (regenerated from docs/openapi.json)
+frontend/src/api/generated/

@@ -7,3 +7,6 @@ dist
 e2e/.auth/
 e2e/test-results/
 playwright-report/
+
+# Generated API client
+src/api/generated/

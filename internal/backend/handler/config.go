@@ -15,6 +15,12 @@ func NewConfigHandler(giteaBaseURL string) *ConfigHandler {
 	return &ConfigHandler{giteaBaseURL: giteaBaseURL}
 }
 
+// @Summary      Get platform config
+// @Tags         config
+// @Produce      json
+// @Success      200  {object}  ConfigResponse
+// @Router       /config [get]
+//
 // Get returns public configuration.
 func (h *ConfigHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{

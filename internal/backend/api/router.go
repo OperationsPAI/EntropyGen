@@ -52,6 +52,11 @@ func NewRouter(cfg Config) *gin.Engine {
 	observeH := handler.NewObserveHandler(cfg.AgentNamespace)
 
 	// ── Group 1: Fully public (no auth required) ─────────────────────────────
+	// @Summary      Health check
+	// @Tags         system
+	// @Produce      json
+	// @Success      200  {object}  object{status=string}
+	// @Router       /health [get]
 	r.GET("/api/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/api/config", configH.Get)
 	r.POST("/api/auth/login", authH.Login)

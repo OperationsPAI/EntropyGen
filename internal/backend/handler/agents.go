@@ -51,6 +51,12 @@ func (h *AgentHandler) SetClickHouse(ch *chclient.Client) {
 	h.ch = ch
 }
 
+// @Summary      List agents
+// @Tags         agents
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]agentapi.Agent}
+// @Failure      500  {object}  ErrorResponse
+// @Router       /agents [get]
 func (h *AgentHandler) List(c *gin.Context) {
 	agents, err := h.client.List(c.Request.Context())
 	if err != nil {
@@ -62,6 +68,16 @@ func (h *AgentHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agents})
 }
 
+// @Summary      Create agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        body  body      CreateAgentRequest  true  "Agent to create"
+// @Success      201   {object}  SuccessResponse{data=agentapi.Agent}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents [post]
 func (h *AgentHandler) Create(c *gin.Context) {
 	var body struct {
 		Name string          `json:"name" binding:"required"`
@@ -86,6 +102,13 @@ func (h *AgentHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": agent})
 }
 
+// @Summary      Get agent
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse{data=agentapi.Agent}
+// @Failure      404   {object}  ErrorResponse
+// @Router       /agents/{name} [get]
 func (h *AgentHandler) Get(c *gin.Context) {
 	agent, err := h.client.Get(c.Request.Context(), c.Param("name"))
 	if err != nil {
@@ -98,6 +121,17 @@ func (h *AgentHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agents[0]})
 }
 
+// @Summary      Update agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Param        body  body      object  true  "Agent spec"
+// @Success      200   {object}  SuccessResponse{data=agentapi.Agent}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name} [put]
 func (h *AgentHandler) Update(c *gin.Context) {
 	raw, _ := io.ReadAll(c.Request.Body)
 	spec, err := unmarshalAgentSpec(raw)
@@ -113,6 +147,14 @@ func (h *AgentHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agent})
 }
 
+// @Summary      Delete agent
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name} [delete]
 func (h *AgentHandler) Delete(c *gin.Context) {
 	if err := h.client.Delete(c.Request.Context(), c.Param("name")); err != nil {
 		c.JSON(http.StatusInternalServerError, apiError("DELETE_FAILED", err.Error(), ""))
@@ -121,6 +163,14 @@ func (h *AgentHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// @Summary      Pause agent
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse{data=agentapi.Agent}
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name}/pause [post]
 func (h *AgentHandler) Pause(c *gin.Context) {
 	agent, err := h.client.SetPaused(c.Request.Context(), c.Param("name"), true)
 	if err != nil {
@@ -130,6 +180,14 @@ func (h *AgentHandler) Pause(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agent})
 }
 
+// @Summary      Resume agent
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse{data=agentapi.Agent}
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name}/resume [post]
 func (h *AgentHandler) Resume(c *gin.Context) {
 	agent, err := h.client.SetPaused(c.Request.Context(), c.Param("name"), false)
 	if err != nil {
@@ -139,6 +197,13 @@ func (h *AgentHandler) Resume(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": agent})
 }
 
+// @Summary      Get agent logs
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse{data=string}
+// @Failure      500   {object}  ErrorResponse
+// @Router       /agents/{name}/logs [get]
 func (h *AgentHandler) Logs(c *gin.Context) {
 	logs, err := h.client.GetLogs(c.Request.Context(), c.Param("name"), 200) //nolint:mnd
 	if err != nil {
@@ -148,6 +213,15 @@ func (h *AgentHandler) Logs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": logs})
 }
 
+// @Summary      Reset agent memory
+// @Tags         agents
+// @Produce      json
+// @Param        name  path      string  true  "Agent name"
+// @Success      200   {object}  SuccessResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name}/reset-memory [post]
+//
 // ResetMemory clears the agent's workspace PVC and restarts the pod.
 // This is a high-risk operation that destroys all agent memory/state.
 func (h *AgentHandler) ResetMemory(c *gin.Context) {
@@ -160,6 +234,13 @@ func (h *AgentHandler) ResetMemory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// @Summary      Get runtime types
+// @Tags         agents
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]RuntimeTypeEntry}
+// @Security     BearerAuth
+// @Router       /agents/runtime-types [get]
+//
 // RuntimeTypes returns the available runtime adapter types and their default images.
 // The default runtime comes from AGENT_RUNTIME_IMAGE env var.
 // Extra runtimes can be added via AGENT_RUNTIME_TYPES (comma-separated "type=image" pairs).
@@ -191,6 +272,20 @@ func (h *AgentHandler) RuntimeTypes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": runtimes})
 }
 
+// @Summary      Assign issue to agent
+// @Tags         agents
+// @Accept       json
+// @Produce      json
+// @Param        name  path      string              true  "Agent name"
+// @Param        body  body      AssignIssueRequest  true  "Issue details"
+// @Success      200   {object}  SuccessResponse{data=AssignIssueResponseData}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse
+// @Failure      502   {object}  ErrorResponse
+// @Failure      503   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /agents/{name}/assign-issue [post]
+//
 // AssignIssue creates a Gitea issue and assigns it to the agent's Gitea user.
 // It then writes an issue.assigned_by_admin event to the events:gitea Redis stream.
 func (h *AgentHandler) AssignIssue(c *gin.Context) {

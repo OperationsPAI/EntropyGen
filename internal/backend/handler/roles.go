@@ -21,6 +21,13 @@ func NewRoleHandler(client *k8sclient.RoleClient) *RoleHandler {
 	return &RoleHandler{client: client}
 }
 
+// @Summary      List roles
+// @Tags         roles
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]k8sclient.Role}
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles [get]
 func (h *RoleHandler) List(c *gin.Context) {
 	roles, err := h.client.List(c.Request.Context())
 	if err != nil {
@@ -30,6 +37,17 @@ func (h *RoleHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": roles})
 }
 
+// @Summary      Create role
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        body  body      k8sclient.CreateRoleRequest  true  "Role to create"
+// @Success      201   {object}  SuccessResponse{data=k8sclient.Role}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      409   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles [post]
 func (h *RoleHandler) Create(c *gin.Context) {
 	ct := c.ContentType()
 	if strings.HasPrefix(ct, "multipart/form-data") {
@@ -133,6 +151,14 @@ func parseZipFiles(r io.ReaderAt, size int64) (map[string]string, error) {
 	return files, nil
 }
 
+// @Summary      Get role
+// @Tags         roles
+// @Produce      json
+// @Param        name  path      string  true  "Role name"
+// @Success      200   {object}  SuccessResponse{data=k8sclient.Role}
+// @Failure      404   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name} [get]
 func (h *RoleHandler) Get(c *gin.Context) {
 	role, err := h.client.Get(c.Request.Context(), c.Param("name"))
 	if err != nil {
@@ -143,6 +169,17 @@ func (h *RoleHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": role})
 }
 
+// @Summary      Update role description
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        name  path      string             true  "Role name"
+// @Param        body  body      UpdateRoleRequest  true  "Role update"
+// @Success      200   {object}  SuccessResponse{data=k8sclient.Role}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name} [patch]
 func (h *RoleHandler) Update(c *gin.Context) {
 	var body struct {
 		Description string `json:"description" binding:"required"`
@@ -159,6 +196,15 @@ func (h *RoleHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": role})
 }
 
+// @Summary      Delete role
+// @Tags         roles
+// @Produce      json
+// @Param        name  path      string  true  "Role name"
+// @Success      200   {object}  SuccessResponse
+// @Failure      409   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name} [delete]
 func (h *RoleHandler) Delete(c *gin.Context) {
 	if err := h.client.Delete(c.Request.Context(), c.Param("name")); err != nil {
 		if strings.Contains(err.Error(), "agents are using") {
@@ -171,6 +217,14 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// @Summary      List role files
+// @Tags         roles
+// @Produce      json
+// @Param        name  path      string  true  "Role name"
+// @Success      200   {object}  SuccessResponse{data=[]k8sclient.RoleFile}
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/files [get]
 func (h *RoleHandler) ListFiles(c *gin.Context) {
 	files, err := h.client.ListFiles(c.Request.Context(), c.Param("name"))
 	if err != nil {
@@ -185,6 +239,15 @@ func fileParam(c *gin.Context) string {
 	return strings.TrimPrefix(c.Param("filepath"), "/")
 }
 
+// @Summary      Get role file
+// @Tags         roles
+// @Produce      json
+// @Param        name      path      string  true  "Role name"
+// @Param        filepath  path      string  true  "File path"
+// @Success      200       {object}  SuccessResponse{data=k8sclient.RoleFile}
+// @Failure      404       {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/files/{filepath} [get]
 func (h *RoleHandler) GetFile(c *gin.Context) {
 	filename := fileParam(c)
 	file, err := h.client.GetFile(c.Request.Context(), c.Param("name"), filename)
@@ -196,6 +259,18 @@ func (h *RoleHandler) GetFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": file})
 }
 
+// @Summary      Create or update role file
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        name      path      string          true  "Role name"
+// @Param        filepath  path      string          true  "File path"
+// @Param        body      body      PutFileRequest  true  "File content"
+// @Success      200       {object}  SuccessResponse{data=k8sclient.RoleFile}
+// @Failure      400       {object}  ErrorResponse
+// @Failure      500       {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/files/{filepath} [put]
 func (h *RoleHandler) PutFile(c *gin.Context) {
 	var body struct {
 		Content string `json:"content"`
@@ -213,6 +288,15 @@ func (h *RoleHandler) PutFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": file})
 }
 
+// @Summary      Delete role file
+// @Tags         roles
+// @Produce      json
+// @Param        name      path      string  true  "Role name"
+// @Param        filepath  path      string  true  "File path"
+// @Success      200       {object}  SuccessResponse
+// @Failure      500       {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/files/{filepath} [delete]
 func (h *RoleHandler) DeleteFile(c *gin.Context) {
 	filename := fileParam(c)
 	if err := h.client.DeleteFile(c.Request.Context(), c.Param("name"), filename); err != nil {
@@ -222,6 +306,17 @@ func (h *RoleHandler) DeleteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// @Summary      Rename role file
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        name  path      string             true  "Role name"
+// @Param        body  body      RenameFileRequest  true  "Old and new names"
+// @Success      200   {object}  SuccessResponse{data=k8sclient.RoleFile}
+// @Failure      400   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/rename-file [post]
 func (h *RoleHandler) RenameFile(c *gin.Context) {
 	var body struct {
 		OldName string `json:"old_name" binding:"required"`
@@ -239,11 +334,26 @@ func (h *RoleHandler) RenameFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": file})
 }
 
+// @Summary      List role types
+// @Tags         roles
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]k8sclient.RoleTypeMeta}
+// @Security     BearerAuth
+// @Router       /roles/types [get]
 func (h *RoleHandler) ListTypes(c *gin.Context) {
 	types := h.client.ListRoleTypes()
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": types})
 }
 
+// @Summary      Validate role
+// @Tags         roles
+// @Produce      json
+// @Param        name  path      string  true  "Role name"
+// @Success      200   {object}  SuccessResponse{data=[]k8sclient.ValidationIssue}
+// @Failure      404   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/validate [get]
 func (h *RoleHandler) Validate(c *gin.Context) {
 	issues, err := h.client.ValidateRole(c.Request.Context(), c.Param("name"))
 	if err != nil {
@@ -257,6 +367,15 @@ func (h *RoleHandler) Validate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": issues})
 }
 
+// @Summary      Export role as zip
+// @Tags         roles
+// @Produce      application/zip
+// @Param        name  path      string  true  "Role name"
+// @Success      200   {file}    file
+// @Failure      404   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /roles/{name}/export [get]
 func (h *RoleHandler) Export(c *gin.Context) {
 	name := c.Param("name")
 	files, err := h.client.ListFiles(c.Request.Context(), name)

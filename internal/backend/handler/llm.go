@@ -27,9 +27,34 @@ func NewLLMHandler(litellmAddr, masterKey string) *LLMHandler {
 	}
 }
 
+// @Summary      List LLM models
+// @Tags         llm
+// @Produce      json
+// @Success      200  {object}  object  "LiteLLM model list (proxied)"
+// @Failure      502  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/models [get]
 func (h *LLMHandler) ListModels(c *gin.Context) { h.proxy(c, "GET", "/model/info", nil) }
-func (h *LLMHandler) Health(c *gin.Context)      { h.proxy(c, "GET", "/health", nil) }
 
+// @Summary      LLM service health
+// @Tags         llm
+// @Produce      json
+// @Success      200  {object}  object  "LiteLLM health (proxied)"
+// @Failure      502  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/health [get]
+func (h *LLMHandler) Health(c *gin.Context) { h.proxy(c, "GET", "/health", nil) }
+
+// @Summary      Chat completion (test)
+// @Tags         llm
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object  true  "OpenAI chat completion request"
+// @Success      200   {object}  object  "LiteLLM response (proxied)"
+// @Failure      502   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/chat [post]
+//
 // Chat proxies a chat completion request to LiteLLM for end-to-end testing.
 func (h *LLMHandler) Chat(c *gin.Context) {
 	body, _ := io.ReadAll(c.Request.Body)
@@ -46,6 +71,15 @@ type createModelRequest struct {
 	TPM      int    `json:"tpm"`
 }
 
+// @Summary      Create LLM model
+// @Tags         llm
+// @Accept       json
+// @Produce      json
+// @Param        body  body      createModelRequest  true  "Model config"
+// @Success      200   {object}  object  "LiteLLM response (proxied)"
+// @Failure      502   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/models [post]
 func (h *LLMHandler) CreateModel(c *gin.Context) {
 	body, _ := io.ReadAll(c.Request.Body)
 
@@ -82,6 +116,14 @@ func (h *LLMHandler) CreateModel(c *gin.Context) {
 	h.proxy(c, "POST", "/model/new", out)
 }
 
+// @Summary      Check single model health
+// @Tags         llm
+// @Produce      json
+// @Param        id  path      string  true  "Model ID"
+// @Success      200  {object}  HealthModelResponse
+// @Security     BearerAuth
+// @Router       /llm/health/{id} [post]
+//
 // HealthModel checks a single model by sending a minimal chat completion.
 func (h *LLMHandler) HealthModel(c *gin.Context) {
 	model := c.Param("id")
@@ -127,6 +169,16 @@ func (h *LLMHandler) doLiteLLM(ctx context.Context, method, path string, body []
 	return h.httpClient.Do(req)
 }
 
+// @Summary      Update LLM model
+// @Tags         llm
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string  true  "Model ID"
+// @Param        body  body      object  true  "Model update"
+// @Success      200   {object}  object  "LiteLLM response (proxied)"
+// @Failure      502   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/models/{id} [put]
 func (h *LLMHandler) UpdateModel(c *gin.Context) {
 	body, _ := io.ReadAll(c.Request.Body)
 	h.proxy(c, "POST", "/model/update", body)
@@ -137,6 +189,14 @@ type deleteModelRequest struct {
 	ID string `json:"id"`
 }
 
+// @Summary      Delete LLM model
+// @Tags         llm
+// @Produce      json
+// @Param        id  path      string  true  "Model ID"
+// @Success      200  {object}  object  "LiteLLM response (proxied)"
+// @Failure      502  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /llm/models/{id} [delete]
 func (h *LLMHandler) DeleteModel(c *gin.Context) {
 	id := c.Param("id")
 	payload, _ := json.Marshal(deleteModelRequest{ID: id})

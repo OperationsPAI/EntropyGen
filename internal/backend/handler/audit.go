@@ -22,6 +22,20 @@ func NewAuditHandler(ch *chclient.Client) *AuditHandler {
 	return &AuditHandler{ch: ch}
 }
 
+// @Summary      List audit traces
+// @Tags         audit
+// @Produce      json
+// @Param        agent_id      query     string  false  "Filter by agent ID"
+// @Param        request_type  query     string  false  "Filter by request type"
+// @Param        status        query     string  false  "Filter by status"
+// @Param        start_time    query     string  false  "Start time (YYYY-MM-DD)"
+// @Param        end_time      query     string  false  "End time (YYYY-MM-DD)"
+// @Param        limit         query     int     false  "Page size"      default(50)
+// @Param        page          query     int     false  "Page number"    default(1)
+// @Success      200  {object}  object
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /audit/traces [get]
 func (h *AuditHandler) ListTraces(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit > 200 {
@@ -61,10 +75,26 @@ func (h *AuditHandler) ListTraces(c *gin.Context) {
 	})
 }
 
+// @Summary      Get single trace
+// @Tags         audit
+// @Produce      json
+// @Param        trace_id  path      string  true  "Trace ID"
+// @Success      200       {object}  SuccessResponse
+// @Security     BearerAuth
+// @Router       /audit/traces/{trace_id} [get]
 func (h *AuditHandler) GetTrace(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": nil})
 }
 
+// @Summary      Token usage trend
+// @Tags         audit,monitor
+// @Produce      json
+// @Param        agent_id  query     string  false  "Filter by agent ID"
+// @Param        days      query     int     false  "Number of days"  default(30)
+// @Success      200  {object}  SuccessResponse{data=[]chclient.TokenUsageSummary}
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /audit/stats/token-usage [get]
 func (h *AuditHandler) TokenUsage(c *gin.Context) {
 	agentID := c.Query("agent_id")
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
@@ -79,6 +109,15 @@ func (h *AuditHandler) TokenUsage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
+// @Summary      Agent activity heatmap
+// @Tags         audit,monitor
+// @Produce      json
+// @Param        agent_id  query     string  false  "Filter by agent ID"
+// @Param        days      query     int     false  "Number of days"  default(7)
+// @Success      200  {object}  SuccessResponse{data=[]chclient.AgentActivitySummary}
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /audit/stats/agent-activity [get]
 func (h *AuditHandler) AgentActivity(c *gin.Context) {
 	agentID := c.Query("agent_id")
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "7"))
@@ -93,10 +132,24 @@ func (h *AuditHandler) AgentActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
+// @Summary      Operations stats
+// @Tags         audit
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]object}
+// @Security     BearerAuth
+// @Router       /audit/stats/operations [get]
 func (h *AuditHandler) Operations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": []interface{}{}})
 }
 
+// @Summary      Model distribution
+// @Tags         monitor
+// @Produce      json
+// @Param        days  query     int  false  "Number of days"  default(30)
+// @Success      200   {object}  SuccessResponse{data=[]chclient.ModelDistribution}
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /monitor/model-distribution [get]
 func (h *AuditHandler) ModelDistribution(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	results, err := h.ch.GetModelDistribution(c.Request.Context(), days)
@@ -110,6 +163,14 @@ func (h *AuditHandler) ModelDistribution(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
+// @Summary      Latency trend
+// @Tags         monitor
+// @Produce      json
+// @Param        days  query     int  false  "Number of days"  default(30)
+// @Success      200   {object}  SuccessResponse{data=[]chclient.LatencyPoint}
+// @Failure      500   {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /monitor/latency-trend [get]
 func (h *AuditHandler) LatencyTrend(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	results, err := h.ch.GetLatencyTrend(c.Request.Context(), days)
@@ -123,6 +184,13 @@ func (h *AuditHandler) LatencyTrend(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
+// @Summary      Agent ranking
+// @Tags         monitor
+// @Produce      json
+// @Success      200  {object}  SuccessResponse{data=[]chclient.AgentRanking}
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /monitor/agent-ranking [get]
 func (h *AuditHandler) AgentRanking(c *gin.Context) {
 	results, err := h.ch.GetAgentRanking(c.Request.Context())
 	if err != nil {
@@ -135,6 +203,17 @@ func (h *AuditHandler) AgentRanking(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 }
 
+// @Summary      Export audit traces as JSONL
+// @Tags         audit
+// @Produce      application/x-ndjson
+// @Param        agent_id  query     string  false  "Filter by agent ID"
+// @Param        limit     query     int     false  "Max records"  default(1000)
+// @Success      200  {string}  string  "JSONL stream"
+// @Failure      429  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     BearerAuth
+// @Router       /audit/export [get]
+//
 // Export streams audit traces as JSONL (training data format).
 func (h *AuditHandler) Export(c *gin.Context) {
 	if atomic.LoadInt32(&h.exportConcurrent) >= 2 {

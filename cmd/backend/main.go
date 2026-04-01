@@ -1,3 +1,15 @@
+// @title           EntropyGen Control Panel API
+// @version         1.0
+// @description     AI DevOps simulation platform control panel backend.
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description JWT token with Bearer prefix
+
+// @servers.url /api
+// @servers.description Default API base path
+
 package main
 
 import (

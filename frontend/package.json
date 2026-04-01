@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "generate": "openapi-ts",
+    "dev": "npm run generate && vite",
+    "build": "npm run generate && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint --max-warnings 0",
     "test:e2e": "playwright test",
@@ -15,6 +16,7 @@
   "dependencies": {
     "@douyinfe/semi-icons": "^2.88.0",
     "@douyinfe/semi-ui": "^2.90.0",
+    "@hey-api/client-axios": "^0.9.1",
     "@monaco-editor/react": "^4.7.0",
     "axios": "^1.13.6",
     "cronstrue": "^3.13.0",
@@ -27,6 +29,7 @@
   "devDependencies": {
     "@douyinfe/vite-plugin-semi": "^2.74.3-alpha.2",
     "@eslint/js": "^9.22.0",
+    "@hey-api/openapi-ts": "^0.94.5",
     "@playwright/test": "^1.58.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
