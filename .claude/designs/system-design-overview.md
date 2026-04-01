@@ -30,37 +30,21 @@ actor "管理员" as admin
 actor "开发者" as dev
 actor "最终用户" as enduser
 
-' === control-plane namespace ===
-package "control-plane" #E8EAF6 {
+' === aidevops namespace (all components) ===
+package "aidevops" #E8EAF6 {
   [Ingress: control.devops.local] as ing_ctrl
   [Control Panel Frontend] as frontend
   [Control Panel Backend] as backend
   [Agent Gateway] as gateway
   [Event Collector] as collector
   [Operator (devops-operator)] as operator
-}
-
-' === storage namespace ===
-package "storage" #FFF9C4 {
   [Redis] as redis
   [ClickHouse] as clickhouse
-}
-
-' === devops-infra namespace ===
-package "devops-infra" #F3E5F5 {
   [Ingress: gitea.devops.local] as ing_gitea
   [Gitea] as gitea
   [Gitea Runner] as runner
   [Registry] as registry
-}
-
-' === llm-gateway namespace ===
-package "llm-gateway" #FCE4EC {
   [LiteLLM Proxy] as litellm
-}
-
-' === agents namespace ===
-package "agents" #E0F2F1 {
   [Observer Agent] as obs
   [Developer Agent] as devagent
   [Reviewer Agent] as revagent
@@ -143,7 +127,7 @@ apps --> registry : 拉镜像
 
 | 组件 | ✅ 该做 | ❌ 不该做 |
 | --- | --- | --- |
-| Agent Gateway | 反向代理 Agent 所有请求（LLM/Gitea API/Git HTTP）；识别 Agent 身份（Token -> agent_id）；将请求元数据异步写入 Redis Stream Event Bus；转发请求到实际后端 | 不做业务逻辑判断；不直接写 ClickHouse（通过 Event Bus 异步）；不修改请求/响应内容；不做限流（限流在 LiteLLM 层） |
+| Agent Gateway | 反向代理 Agent 所有请求（LLM/Gitea API/Git HTTP）；识别 Agent 身份（Token -> agent_id）；将请求元数据异步写入 Redis Stream Event Bus；转发请求到实际后端 | 不做业务逻辑判断；不直接写 ClickHouse（通过 Event Bus 异步）；不修改请求/响应内容；per-Agent 令牌桶限流（60 RPM，突发 10）；LLM 层限流由 LiteLLM 负责 |
 | Event Collector | 接收 Gitea Webhook 回调；Watch K8S Events（Pod 状态变化、CI Job 完成等）；格式化事件写入 Redis Stream Event Bus | 不做事件响应/触发逻辑；不直接通知 Agent；不直接写 ClickHouse（统一由 ClickHouse Writer 写入）；不做 Webhook 重试（依赖 Gitea 自身重试） |
 | Operator | Watch agent CR；Reconcile 为底层 K8S 资源（Deployment、ConfigMap、Secret、PVC、RBAC）；调用 Gitea API 创建用户/Token | 不处理 Webhook；不做场景调度；不管理 LLM 配置（V5 已移交 Backend -> LiteLLM）；**不直接操作 ClickHouse**（心跳检测由 Backend 负责） |
 | Control Panel Backend | CRUD agent CRD（通过 K8S API）；查询 ClickHouse 审计数据；JWT 认证；WebSocket 推送实时事件（订阅 Redis Stream）；代理 LLM 配置管理（转发到 LiteLLM REST API）；内嵌 ClickHouse Writer（消费 Redis Stream 批量写入 CH）；**定时心跳检测**（查询 ClickHouse 并通过 K8S API 更新 Agent CR status） | 不直接管理 Pod/Deployment；不做 Reconcile 逻辑；不接收 Webhook |
@@ -326,7 +310,7 @@ spec:
 ### kubectl 效果
 
 ```bash
-$ kubectl get agent -n agents
+$ kubectl get agent -n aidevops
 NAME          ROLE        PHASE    MODEL    LAST ACTION                      TOKENS TODAY   AGE
 observer-1    observer    Running  gpt-4o   Created Issue #15: Refactor DB   12340          2d
 developer-1   developer   Running  gpt-4o   Pushed to feat/login             45230          2d
@@ -424,7 +408,7 @@ Agent Pod
 │   ├── 挂载 PVC 到 /agent/memory/ (记忆持久化)
 │   ├── 环境变量:
 │   │   ├── AGENT_ID, AGENT_ROLE
-│   │   ├── GATEWAY_URL=http://agent-gateway.control-plane.svc
+│   │   ├── GATEWAY_URL=http://agent-gateway.aidevops.svc
 │   │   ├── GITEA_TOKEN_PATH=/agent/secrets/token
 │   │   └── LLM_MODEL (来自 spec.llm.model)
 │   ├── Liveness: GET /healthz (每 30s, 3 次失败重启)
@@ -776,13 +760,11 @@ HAVING last_heartbeat < now() - INTERVAL 15 MINUTE;
 
 ## 十二、K8S 资源分布
 
+> **简化说明**：早期设计使用 5 个独立 namespace，实际部署简化为单一 `aidevops` namespace。
+
 | Namespace | 部署的组件 | 说明 |
 | --- | --- | --- |
-| control-plane | Control Panel Frontend, Backend, Agent Gateway, Event Collector, Operator | 管控面所有组件 |
-| storage | Redis, ClickHouse | 数据存储层 |
-| devops-infra | Gitea, Gitea Actions Runner (`act_runner`, limits: 8C/16G, capacity=4), Registry | DevOps 基础设施 |
-| llm-gateway | LiteLLM Proxy | LLM 统一入口 |
-| agents | Observer, Developer, Reviewer, SRE Agent Pods | AI Agent 运行空间 |
+| aidevops | Control Panel (Frontend + Backend), Agent Gateway, Event Collector, Operator, Redis, ClickHouse, Gitea, Gitea Actions Runner, Registry, LiteLLM Proxy, All Agent Pods | 平台所有核心组件 |
 | app-staging | Agent 部署的应用 | 验证 Agent 部署能力的目标环境 |
 
 ## 十三、网络策略
