@@ -1,3 +1,7 @@
+import { getConfig } from './generated/sdk.gen'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 interface PlatformConfig {
   gitea_base_url: string
 }
@@ -6,9 +10,9 @@ let cached: PlatformConfig | null = null
 
 export async function getPlatformConfig(): Promise<PlatformConfig> {
   if (cached) return cached
-  const res = await fetch('/api/config')
-  if (!res.ok) throw new Error('Failed to fetch config')
-  cached = await res.json()
+  const r = await getConfig()
+  const body = r.data as any
+  cached = (body?.data ?? body) as PlatformConfig
   return cached!
 }
 

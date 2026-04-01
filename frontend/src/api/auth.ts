@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import { postAuthLogin, postAuthLogout, getAuthMe } from './generated/sdk.gen'
 
 export interface LoginDto {
   username: string
@@ -17,11 +17,17 @@ export interface UserInfo {
 
 export const authApi = {
   login: (dto: LoginDto) =>
-    apiClient.post<LoginResponse>('/auth/login', dto).then((r) => r.data),
+    postAuthLogin({ body: dto }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as LoginResponse
+    }),
 
   logout: () =>
-    apiClient.post('/auth/logout'),
+    postAuthLogout(),
 
   getMe: () =>
-    apiClient.get<UserInfo>('/auth/me').then((r) => r.data),
+    getAuthMe().then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as UserInfo
+    }),
 }

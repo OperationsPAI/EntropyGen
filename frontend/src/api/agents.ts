@@ -1,4 +1,16 @@
-import { apiClient } from './client'
+import {
+  getAgents,
+  getAgentsRuntimeTypes,
+  getAgentsByName,
+  postAgents,
+  putAgentsByName,
+  deleteAgentsByName,
+  postAgentsByNamePause,
+  postAgentsByNameResume,
+  postAgentsByNameResetMemory,
+  getAgentsByNameLogs,
+  postAgentsByNameAssignIssue,
+} from './generated/sdk.gen'
 import type { Agent, AgentSpec, AgentStatus, CreateAgentDto, AssignTaskDto } from '../types/agent'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -83,10 +95,9 @@ export interface RuntimeType {
 
 export const agentsApi = {
   getRuntimeTypes: () =>
-    apiClient.get('/agents/runtime-images').then((r) => {
-      const body = r.data
+    getAgentsRuntimeTypes().then((r) => {
+      const body = r.data as any
       const items = (Array.isArray(body?.data) ? body.data : []) as Array<{ image: string; default: boolean }>
-      // Map legacy runtime-images response to RuntimeType format
       return items.map((item) => ({
         type: item.image,
         image: item.image,
@@ -95,50 +106,53 @@ export const agentsApi = {
     }),
 
   getAgents: () =>
-    apiClient.get('/agents').then((r) => {
-      const body = r.data
+    getAgents().then((r) => {
+      const body = r.data as any
       const list = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
       return list.map(mapAgent) as Agent[]
     }),
 
   getAgent: (name: string) =>
-    apiClient.get(`/agents/${name}`).then((r) => {
-      const body = r.data
+    getAgentsByName({ path: { name } }).then((r) => {
+      const body = r.data as any
       const raw = body?.data ?? body
       return mapAgent(raw) as Agent
     }),
 
   createAgent: (dto: CreateAgentDto) =>
-    apiClient.post('/agents', dto).then((r) => {
-      const body = r.data
+    postAgents({ body: dto as any }).then((r) => {
+      const body = r.data as any
       return mapAgent(body?.data ?? body) as Agent
     }),
 
   updateAgent: (name: string, spec: Partial<AgentSpec>) =>
-    apiClient.put(`/agents/${name}`, spec).then((r) => {
-      const body = r.data
+    putAgentsByName({ path: { name }, body: spec as any }).then((r) => {
+      const body = r.data as any
       return mapAgent(body?.data ?? body) as Agent
     }),
 
   deleteAgent: (name: string) =>
-    apiClient.delete(`/agents/${name}`),
+    deleteAgentsByName({ path: { name } }),
 
   pauseAgent: (name: string) =>
-    apiClient.post(`/agents/${name}/pause`),
+    postAgentsByNamePause({ path: { name } }),
 
   resumeAgent: (name: string) =>
-    apiClient.post(`/agents/${name}/resume`),
+    postAgentsByNameResume({ path: { name } }),
 
   resetMemory: (name: string) =>
-    apiClient.post(`/agents/${name}/reset-memory`),
+    postAgentsByNameResetMemory({ path: { name } }),
 
   getAgentLogs: (name: string) =>
-    apiClient.get(`/agents/${name}/logs`).then((r) => {
-      const body = r.data
+    getAgentsByNameLogs({ path: { name } }).then((r) => {
+      const body = r.data as any
       // Backend returns { success, data: "log string" }
       return (typeof body?.data === 'string' ? body.data : typeof body === 'string' ? body : '') as string
     }),
 
   assignTask: (name: string, dto: AssignTaskDto) =>
-    apiClient.post<{ issue_number: number; url: string }>(`/agents/${name}/assign-task`, dto).then((r) => r.data),
+    postAgentsByNameAssignIssue({ path: { name }, body: dto as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as { issue_number: number; url: string }
+    }),
 }

@@ -1,4 +1,12 @@
-import { apiClient } from './client'
+import {
+  getAuditStatsTokenUsage,
+  getAuditStatsAgentActivity,
+  getMonitorModelDistribution,
+  getMonitorLatencyTrend,
+  getMonitorAgentRanking,
+} from './generated/sdk.gen'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface TokenUsageSummary {
   agent_id: string
@@ -33,27 +41,32 @@ export interface AgentRankingItem {
 
 export const monitorApi = {
   getTokenTrend: (days = 30) =>
-    apiClient.get('/monitor/token-trend', { params: { days } }).then((r) =>
-      (r.data?.data ?? []) as TokenUsageSummary[],
-    ),
+    getAuditStatsTokenUsage({ query: { days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as TokenUsageSummary[]
+    }),
 
   getActivityHeatmap: (days = 7) =>
-    apiClient.get('/monitor/activity-heatmap', { params: { days } }).then((r) =>
-      (r.data?.data ?? []) as AgentActivityPoint[],
-    ),
+    getAuditStatsAgentActivity({ query: { days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as AgentActivityPoint[]
+    }),
 
   getModelDistribution: (days = 30) =>
-    apiClient.get('/monitor/model-distribution', { params: { days } }).then((r) =>
-      (r.data?.data ?? []) as ModelDistributionItem[],
-    ),
+    getMonitorModelDistribution({ query: { days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as ModelDistributionItem[]
+    }),
 
   getLatencyTrend: (days = 30) =>
-    apiClient.get('/monitor/latency-trend', { params: { days } }).then((r) =>
-      (r.data?.data ?? []) as LatencyPoint[],
-    ),
+    getMonitorLatencyTrend({ query: { days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as LatencyPoint[]
+    }),
 
   getAgentRanking: () =>
-    apiClient.get('/monitor/agent-ranking').then((r) =>
-      (r.data?.data ?? []) as AgentRankingItem[],
-    ),
+    getMonitorAgentRanking().then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as AgentRankingItem[]
+    }),
 }

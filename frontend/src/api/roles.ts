@@ -1,42 +1,88 @@
+import {
+  getRoles,
+  getRolesByName,
+  postRoles,
+  patchRolesByName,
+  deleteRolesByName,
+  getRolesByNameFiles,
+  getRolesByNameFilesByFilepath,
+  putRolesByNameFilesByFilepath,
+  deleteRolesByNameFilesByFilepath,
+  postRolesByNameRenameFile,
+  getRolesTypes,
+  getRolesByNameValidate,
+} from './generated/sdk.gen'
 import { apiClient } from './client'
 import type { Role, RoleFile, CreateRoleDto, RoleType, ValidationIssue } from '../types/agent'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export const rolesApi = {
   getRoles: () =>
-    apiClient.get<{ success: boolean; data: Role[] }>('/roles').then((r) => r.data.data ?? []),
+    getRoles().then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as Role[]
+    }),
 
   getRole: (name: string) =>
-    apiClient.get<{ success: boolean; data: Role }>(`/roles/${name}`).then((r) => r.data.data),
+    getRolesByName({ path: { name } }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as Role
+    }),
 
   createRole: (dto: CreateRoleDto) =>
-    apiClient.post<{ success: boolean; data: Role }>('/roles', dto).then((r) => r.data.data),
+    postRoles({ body: dto as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as Role
+    }),
 
   updateRole: (name: string, data: { description: string }) =>
-    apiClient.patch<{ success: boolean; data: Role }>(`/roles/${name}`, data).then((r) => r.data.data),
+    patchRolesByName({ path: { name }, body: data as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as Role
+    }),
 
   deleteRole: (name: string) =>
-    apiClient.delete(`/roles/${name}`),
+    deleteRolesByName({ path: { name } }),
 
   getRoleFiles: (name: string) =>
-    apiClient.get<{ success: boolean; data: RoleFile[] }>(`/roles/${name}/files`).then((r) => r.data.data ?? []),
+    getRolesByNameFiles({ path: { name } }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as RoleFile[]
+    }),
 
   getRoleFile: (name: string, filepath: string) =>
-    apiClient.get<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filepath}`).then((r) => r.data.data),
+    getRolesByNameFilesByFilepath({ path: { name, filepath } }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as RoleFile
+    }),
 
   updateRoleFile: (name: string, filepath: string, content: string) =>
-    apiClient.put<{ success: boolean; data: RoleFile }>(`/roles/${name}/files/${filepath}`, { content }).then((r) => r.data.data),
+    putRolesByNameFilesByFilepath({ path: { name, filepath }, body: { content } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as RoleFile
+    }),
 
   deleteRoleFile: (name: string, filepath: string) =>
-    apiClient.delete(`/roles/${name}/files/${filepath}`),
+    deleteRolesByNameFilesByFilepath({ path: { name, filepath } }),
 
   renameRoleFile: (name: string, oldName: string, newName: string) =>
-    apiClient.post<{ success: boolean; data: RoleFile }>(`/roles/${name}/rename-file`, { old_name: oldName, new_name: newName }).then((r) => r.data.data),
+    postRolesByNameRenameFile({ path: { name }, body: { old_name: oldName, new_name: newName } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as RoleFile
+    }),
 
   getRoleTypes: () =>
-    apiClient.get<{ success: boolean; data: RoleType[] }>('/roles/types').then((r) => r.data.data ?? []),
+    getRolesTypes().then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as RoleType[]
+    }),
 
   validateRole: (name: string) =>
-    apiClient.get<{ success: boolean; data: ValidationIssue[] }>(`/roles/${name}/validate`).then((r) => r.data.data ?? []),
+    getRolesByNameValidate({ path: { name } }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? []) as ValidationIssue[]
+    }),
 
   exportRole: (name: string) => {
     window.open(`/api/roles/${name}/export`, '_blank')

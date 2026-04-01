@@ -1,10 +1,17 @@
-import { apiClient } from './client'
+import {
+  getAuditTraces,
+  getAuditTracesByTraceId,
+  getAuditStatsTokenUsage,
+  getAuditStatsAgentActivity,
+} from './generated/sdk.gen'
 import type { AuditTrace, TraceFilter, TraceListResponse, TokenUsageSummary, RequestType } from '../types/trace'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const auditApi = {
   getTraces: (filter: TraceFilter = {}) =>
-    apiClient.get('/audit/traces', { params: filter }).then((r) => {
-      const body = r.data
+    getAuditTraces({ query: filter as any }).then((r) => {
+      const body = r.data as any
       return {
         items: (body.data ?? []).map(mapTrace),
         total: body.meta?.count ?? 0,
@@ -14,16 +21,23 @@ export const auditApi = {
     }),
 
   getTrace: (traceId: string) =>
-    apiClient.get(`/audit/traces/${traceId}`).then((r) => {
-      const d = r.data?.data
+    getAuditTracesByTraceId({ path: { trace_id: traceId } }).then((r) => {
+      const body = r.data as any
+      const d = body?.data
       return d ? mapTrace(d) : null
     }),
 
   getTokenUsage: (agentId?: string, days = 30) =>
-    apiClient.get<TokenUsageSummary[]>('/audit/token-usage', { params: { agent_id: agentId, days } }).then((r) => r.data),
+    getAuditStatsTokenUsage({ query: { agent_id: agentId, days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as TokenUsageSummary[]
+    }),
 
   getAgentActivity: (agentId: string, days = 7) =>
-    apiClient.get<{ hour: number; count: number }[]>(`/audit/activity/${agentId}`, { params: { days } }).then((r) => r.data),
+    getAuditStatsAgentActivity({ query: { agent_id: agentId, days } as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as { hour: number; count: number }[]
+    }),
 
   exportTraces: (filter: TraceFilter) => {
     const token = localStorage.getItem('jwt_token')

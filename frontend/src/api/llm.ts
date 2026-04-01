@@ -1,4 +1,12 @@
-import { apiClient } from './client'
+import {
+  getLlmModels,
+  postLlmModels,
+  putLlmModelsById,
+  deleteLlmModelsById,
+  postLlmHealthById,
+  getLlmHealth,
+  postLlmChat,
+} from './generated/sdk.gen'
 
 export interface LLMModel {
   id: string
@@ -43,15 +51,15 @@ function mapLiteLLMModel(raw: any): LLMModel {
 
 export const llmApi = {
   getModels: () =>
-    apiClient.get('/llm/models').then((r) => {
-      const body = r.data
+    getLlmModels().then((r) => {
+      const body = r.data as any
       // LiteLLM returns { data: [{model_name, litellm_params, model_info}, ...] }
       const list = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : []
       return list.map(mapLiteLLMModel) as LLMModel[]
     }),
 
   createModel: (dto: CreateModelDto) =>
-    apiClient.post<any>('/llm/models', dto).then(() => {
+    postLlmModels({ body: dto as any }).then(() => {
       // LiteLLM returns a success message, not the model object.
       // Return a synthetic LLMModel so the caller can update state.
       return {
@@ -65,27 +73,38 @@ export const llmApi = {
     }),
 
   updateModel: (id: string, dto: Partial<CreateModelDto>) =>
-    apiClient.patch<LLMModel>(`/llm/models/${id}`, dto).then((r) => r.data),
+    putLlmModelsById({ path: { id }, body: dto as any }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as LLMModel
+    }),
 
   deleteModel: (id: string) =>
-    apiClient.delete(`/llm/models/${id}`),
+    deleteLlmModelsById({ path: { id } }),
 
   checkHealth: (id: string) =>
-    apiClient.post<{ status: 'healthy' | 'unhealthy'; latency_ms?: number }>(`/llm/health/${id}`).then((r) => r.data),
+    postLlmHealthById({ path: { id } }).then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as { status: 'healthy' | 'unhealthy'; latency_ms?: number }
+    }),
 
   /** Check LiteLLM service-level health (not per-model). */
   checkServiceHealth: () =>
-    apiClient.get<Record<string, unknown>>('/llm/health').then((r) => r.data),
+    getLlmHealth().then((r) => {
+      const body = r.data as any
+      return (body?.data ?? body) as Record<string, unknown>
+    }),
 
   /** Send a test chat completion to verify end-to-end connectivity. */
   chatTest: (model: string, message: string): Promise<ChatTestResult> => {
     const start = Date.now()
-    return apiClient.post<any>('/llm/chat', {
-      model,
-      messages: [{ role: 'user', content: message }],
-      max_tokens: 64,
+    return postLlmChat({
+      body: {
+        model,
+        messages: [{ role: 'user', content: message }],
+        max_tokens: 64,
+      } as any,
     }).then((r) => {
-      const data = r.data
+      const data = r.data as any
       return {
         reply: data?.choices?.[0]?.message?.content ?? JSON.stringify(data).slice(0, 200),
         model: data?.model ?? model,

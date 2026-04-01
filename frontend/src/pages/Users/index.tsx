@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { apiClient } from '../../api/client'
+import { getUsers as fetchUsersApi, postUsers, deleteUsersByUsername, putUsersByUsername } from '../../api/generated/sdk.gen'
 import PageHeader from '../../components/ui/PageHeader'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
@@ -25,8 +25,8 @@ interface UserFormData {
 }
 
 async function fetchUsers(): Promise<UserRecord[]> {
-  const res = await apiClient.get('/users')
-  const body = res.data
+  const r = await fetchUsersApi()
+  const body = r.data as any
   return Array.isArray(body?.data) ? body.data : []
 }
 
@@ -73,13 +73,17 @@ export default function Users() {
     }
     setSubmitting(true)
     try {
-      await apiClient.post('/users', { username: form.username, password: form.password, role: form.role })
+      const r = await postUsers({ body: { username: form.username, password: form.password, role: form.role } as any })
+      if (r.error) {
+        const msg = (r.error as any)?.error ?? 'Failed to create user'
+        toast.error(msg)
+        return
+      }
       toast.success('User created')
       setCreateOpen(false)
       loadUsers()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to create user'
-      toast.error(msg)
+      toast.error('Failed to create user')
     } finally {
       setSubmitting(false)
     }
@@ -91,13 +95,17 @@ export default function Users() {
     const payload: { role?: string; password?: string } = { role: form.role }
     if (form.password) payload.password = form.password
     try {
-      await apiClient.put(`/users/${editTarget.username}`, payload)
+      const r = await putUsersByUsername({ path: { username: editTarget.username }, body: payload as any })
+      if (r.error) {
+        const msg = (r.error as any)?.error ?? 'Failed to update user'
+        toast.error(msg)
+        return
+      }
       toast.success('User updated')
       setEditTarget(null)
       loadUsers()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to update user'
-      toast.error(msg)
+      toast.error('Failed to update user')
     } finally {
       setSubmitting(false)
     }
@@ -107,13 +115,17 @@ export default function Users() {
     if (!deleteTarget) return
     setSubmitting(true)
     try {
-      await apiClient.delete(`/users/${deleteTarget.username}`)
+      const r = await deleteUsersByUsername({ path: { username: deleteTarget.username } })
+      if (r.error) {
+        const msg = (r.error as any)?.error ?? 'Failed to delete user'
+        toast.error(msg)
+        return
+      }
       toast.success('User deleted')
       setDeleteTarget(null)
       loadUsers()
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to delete user'
-      toast.error(msg)
+      toast.error('Failed to delete user')
     } finally {
       setSubmitting(false)
     }
