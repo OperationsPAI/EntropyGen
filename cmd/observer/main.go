@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
@@ -18,12 +17,9 @@ import (
 
 func main() {
 	port := envOr("OBSERVER_PORT", "8081")
-	openClawHome := expandHome(envOr("OPENCLAW_HOME", "~/.openclaw"))
-	completionsDir := envOr("COMPLETIONS_DIR", filepath.Join(openClawHome, "agents", "main", "sessions"))
-	workspaceDir := envOr("WORKSPACE_DIR", filepath.Join(openClawHome, "workspace"))
+	workspaceDir := envOr("WORKSPACE_DIR", "/workspace")
 
-	// Ensure directories exist
-	ensureDir(completionsDir)
+	// Ensure directory exists
 	ensureDir(workspaceDir)
 
 	if os.Getenv("GIN_MODE") == "" {
@@ -31,16 +27,14 @@ func main() {
 	}
 
 	cfg := observer.Config{
-		Port:           port,
-		OpenClawHome:   openClawHome,
-		CompletionsDir: completionsDir,
-		WorkspaceDir:   workspaceDir,
+		Port:         port,
+		WorkspaceDir: workspaceDir,
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	watcher := observer.NewWatcher(completionsDir, workspaceDir)
+	watcher := observer.NewWatcher(workspaceDir)
 	wsHub := observer.NewWSHub(watcher)
 
 	go func() {
@@ -48,7 +42,7 @@ func main() {
 			slog.Error("watcher failed", "err", err)
 		}
 	}()
-	go wsHub.Run(ctx, completionsDir)
+	go wsHub.Run(ctx)
 
 	// Start poller if Redis is configured
 	redisAddr := os.Getenv("REDIS_ADDR")
@@ -69,7 +63,7 @@ func main() {
 	}
 
 	srv := observer.NewServer(cfg, wsHub)
-	slog.Info("observer starting", "addr", ":"+port, "home", openClawHome)
+	slog.Info("observer starting", "addr", ":"+port, "workspace", workspaceDir)
 	if err := srv.Run(); err != nil {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
@@ -81,17 +75,6 @@ func envOr(k, def string) string {
 		return v
 	}
 	return def
-}
-
-func expandHome(path string) string {
-	if len(path) > 1 && path[:2] == "~/" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return filepath.Join(home, path[2:])
-	}
-	return path
 }
 
 func ensureDir(dir string) {

@@ -1,8 +1,6 @@
 package observer
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -11,10 +9,8 @@ import (
 
 // Config holds the observer server configuration.
 type Config struct {
-	Port           string
-	OpenClawHome   string
-	CompletionsDir string
-	WorkspaceDir   string
+	Port         string
+	WorkspaceDir string
 }
 
 // Server is the HTTP server for the agent observer sidecar.
@@ -50,9 +46,6 @@ func (s *Server) setupRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 
 	r.GET("/healthz", s.handleHealthz)
-	r.GET("/sessions", s.handleListSessions)
-	r.GET("/sessions/current", s.handleCurrentSession)
-	r.GET("/sessions/:id", s.handleGetSession)
 	r.GET("/workspace/tree", s.handleWorkspaceTree)
 	r.GET("/workspace/file", s.handleWorkspaceFile)
 	r.GET("/workspace/diff", s.handleWorkspaceDiff)
@@ -64,34 +57,6 @@ func (s *Server) setupRouter() *gin.Engine {
 
 func (s *Server) handleHealthz(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
-}
-
-func (s *Server) handleListSessions(c *gin.Context) {
-	sessions, err := ListSessions(s.cfg.CompletionsDir)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, apiError("LIST_FAILED", err.Error()))
-		return
-	}
-	c.JSON(http.StatusOK, sessions)
-}
-
-func (s *Server) handleCurrentSession(c *gin.Context) {
-	lines, _, err := ReadCurrentSession(s.cfg.CompletionsDir)
-	if err != nil {
-		c.JSON(http.StatusNotFound, apiError("NO_CURRENT_SESSION", err.Error()))
-		return
-	}
-	writeNDJSON(c, lines)
-}
-
-func (s *Server) handleGetSession(c *gin.Context) {
-	sessionID := c.Param("id")
-	lines, err := ReadSessionContent(s.cfg.CompletionsDir, sessionID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, apiError("SESSION_NOT_FOUND", fmt.Sprintf("session %q not found", sessionID)))
-		return
-	}
-	writeNDJSON(c, lines)
 }
 
 func (s *Server) handleWorkspaceTree(c *gin.Context) {
@@ -132,17 +97,8 @@ func (s *Server) handleWSLive(c *gin.Context) {
 }
 
 func (s *Server) handleState(c *gin.Context) {
-	state := ReadState(s.cfg.OpenClawHome)
+	state := ReadState(s.cfg.WorkspaceDir)
 	c.JSON(http.StatusOK, state)
-}
-
-// writeNDJSON writes a slice of raw JSON messages as newline-delimited JSON.
-func writeNDJSON(c *gin.Context, lines []json.RawMessage) {
-	c.Header("Content-Type", "application/x-ndjson")
-	c.Status(http.StatusOK)
-	for _, line := range lines {
-		fmt.Fprintln(c.Writer, string(line))
-	}
 }
 
 // apiError returns the standard error response format.
