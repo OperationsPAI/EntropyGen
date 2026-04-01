@@ -6,8 +6,10 @@ export interface LLMConfig {
   maxTokens: number
 }
 
-export interface CronConfig {
-  schedule: string
+export interface RuntimeConfig {
+  type: string
+  image?: string
+  env?: Array<{ name: string; value: string }>
 }
 
 export interface ResourceConfig {
@@ -45,10 +47,9 @@ export interface TokenUsage {
 export interface AgentSpec {
   role: string
   llm: LLMConfig
-  cron: CronConfig
+  runtime?: RuntimeConfig
   resources: ResourceConfig
   gitea: GiteaConfig
-  runtimeImage?: string
 }
 
 export interface CurrentTask {
