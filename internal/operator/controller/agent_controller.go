@@ -129,16 +129,9 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	r.setCondition(agent, "Ready", "True", "Reconciled", "All resources reconciled successfully")
 	_ = r.Status().Update(ctx, agent)
 
-	// Sync cron scheduler
+	// Sync cron scheduler (legacy — Cron field removed; always clean up)
 	if r.CronScheduler != nil {
-		if agent.Spec.Paused {
-			r.CronScheduler.Remove(agent.Name)
-		} else if agent.Spec.Cron != nil && agent.Spec.Cron.Schedule != "" {
-			prompt := res.CronPrompt(agent)
-			r.CronScheduler.Sync(agent.Name, agent.Spec.Cron.Schedule, prompt)
-		} else {
-			r.CronScheduler.Remove(agent.Name)
-		}
+		r.CronScheduler.Remove(agent.Name)
 	}
 
 	log.Info("reconcile complete", "phase", agent.Status.Phase)
