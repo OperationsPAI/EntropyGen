@@ -25,7 +25,7 @@ docker-build:
 	docker build -t $(REGISTRY)/gateway:$(VERSION)           -f build/gateway/Dockerfile .
 	docker build -t $(REGISTRY)/backend:$(VERSION)           -f build/backend/Dockerfile .
 	docker build -t $(REGISTRY)/event-collector:$(VERSION)   -f build/event-collector/Dockerfile .
-	docker build -t $(REGISTRY)/agent-runtime:$(VERSION)     -f agent-runtime/Dockerfile .
+	docker build -t $(REGISTRY)/agent-runtime:$(VERSION)     -f agent-runtimes/openclaw/Dockerfile .
 
 ## Generate CRD deepcopy
 generate:

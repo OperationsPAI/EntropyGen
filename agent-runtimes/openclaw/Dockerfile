@@ -22,6 +22,7 @@ FROM debian:bookworm-slim
 
 USER root
 
+# Install platform tools
 RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -29,29 +30,34 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debi
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install kubectl
 RUN curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
     -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl
 
+# Install openclaw
 RUN curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-prompt --no-onboard
 
+# Copy gitea-cli binary
 COPY --from=gitea-cli-builder /app/gitea /usr/local/bin/gitea
+
+# Copy observer binary
 COPY --from=observer-builder /app/agent-observer /usr/local/bin/agent-observer
 
-# Common setup script
-COPY agent-runtimes/common/setup-git.sh /common/setup-git.sh
-RUN chmod +x /common/setup-git.sh
-
-# Entrypoint
+# Copy entrypoint
 COPY agent-runtimes/openclaw/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Create non-root user for security
 RUN useradd -m -u 1000 -s /bin/bash node \
     && mkdir -p /home/node/.openclaw \
     && chown -R node:node /home/node/.openclaw
 USER node
 
-COPY --chown=node:node agent-runtime/skills/ /home/node/.openclaw/skills/
-COPY --chown=node:node agent-runtime/builtin-role/workspace-templates/ /agent/workspace-templates/
+# Copy skills (owned by non-root user)
+COPY --chown=node:node agent-runtimes/openclaw/skills/ /home/node/.openclaw/skills/
+
+# Copy workspace templates for overriding openclaw defaults
+COPY --chown=node:node agent-runtimes/openclaw/builtin-role/workspace-templates/ /agent/workspace-templates/
 
 ENTRYPOINT ["/entrypoint.sh"]
