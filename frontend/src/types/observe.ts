@@ -1,4 +1,4 @@
-// --- Workspace observation types (framework-agnostic) ---
+// --- Sidecar API types (workspace-only) ---
 
 export interface FileTreeNode {
   name: string
@@ -20,7 +20,7 @@ export interface DiffResultResponse {
   deletions: number
 }
 
-// --- WebSocket events from observer sidecar ---
+// --- WebSocket events from sidecar ---
 
 export interface FileChangeEvent {
   type: 'file_change'

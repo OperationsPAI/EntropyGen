@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { IconFolder, IconFolderOpen, IconFile, IconTreeTriangleRight, IconTreeTriangleDown } from '@douyinfe/semi-icons'
 import { observeApi } from '../../api/observe'
-import type { FileTreeNode, SessionInfo } from '../../types/observe'
+import type { FileTreeNode } from '../../types/observe'
 import styles from './ObserveDetail.module.css'
 
 interface FileExplorerProps {
@@ -10,9 +10,6 @@ interface FileExplorerProps {
   onFileSelected: (path: string) => void
   followMode: boolean
   onToggleFollow: () => void
-  sessions: SessionInfo[]
-  activeSessionId?: string
-  onSessionSelect: (id: string | null) => void
   treeRefreshKey: number
 }
 
@@ -22,13 +19,9 @@ export default function FileExplorer({
   onFileSelected,
   followMode,
   onToggleFollow,
-  sessions,
-  activeSessionId,
-  onSessionSelect,
   treeRefreshKey,
 }: FileExplorerProps) {
   const [tree, setTree] = useState<FileTreeNode[]>([])
-  const [sessionsCollapsed, setSessionsCollapsed] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -127,50 +120,13 @@ export default function FileExplorer({
                     f.status === 'added' ? styles.fileStatusAdded : ''
                   }`}
                 >
-                  {f.status === 'modified' ? '●' : f.status === 'added' ? '+' : ''}
+                  {f.status === 'modified' ? '\u25CF' : f.status === 'added' ? '+' : ''}
                 </span>
               )}
             </div>
           ))
         )}
       </div>
-
-      {/* Sessions divider */}
-      <div
-        className={styles.explorerSectionHeader}
-        onClick={() => setSessionsCollapsed((p) => !p)}
-      >
-        <span>{sessionsCollapsed ? <IconTreeTriangleRight size="small" /> : <IconTreeTriangleDown size="small" />} Sessions</span>
-        <span className={styles.explorerSectionCount}>{sessions.length}</span>
-      </div>
-
-      {/* Session list */}
-      {!sessionsCollapsed && (
-        <div className={styles.explorerSessions}>
-          {sessions.length === 0 ? (
-            <div className={styles.explorerEmpty}>No sessions</div>
-          ) : (
-            sessions.map((session) => {
-              const id = session.id || session.filename.replace(/\.jsonl$/, '')
-              const isActive = activeSessionId === id
-              return (
-                <div
-                  key={id}
-                  className={`${styles.explorerSessionItem} ${isActive ? styles.explorerSessionItemActive : ''}`}
-                  onClick={() => onSessionSelect(session.is_current ? null : id)}
-                >
-                  <span className={styles.explorerSessionId}>{id.slice(0, 8)}</span>
-                  <span className={`${styles.explorerSessionStatus} ${
-                    session.is_current ? styles.sessionStatusActive : styles.sessionStatusDone
-                  }`}>
-                    {session.is_current ? 'run' : 'done'}
-                  </span>
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
     </div>
   )
 }
