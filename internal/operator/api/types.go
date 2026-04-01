@@ -24,21 +24,31 @@ type Agent struct {
 }
 
 type AgentSpec struct {
-	Role         string           `json:"role"`
-	DisplayName  string           `json:"displayName,omitempty"`
-	Cron         *AgentCron       `json:"cron,omitempty"`
-	LLM          *AgentLLM        `json:"llm,omitempty"`
-	Gitea        *AgentGitea      `json:"gitea,omitempty"`
-	Kubernetes   *AgentKubernetes `json:"kubernetes,omitempty"`
-	Resources    *AgentResources  `json:"resources,omitempty"`
-	Memory       *AgentMemory     `json:"memory,omitempty"`
-	RuntimeImage string           `json:"runtimeImage,omitempty"`
-	Paused       bool             `json:"paused,omitempty"`
+	Role        string           `json:"role"`
+	DisplayName string           `json:"displayName,omitempty"`
+	Runtime     *AgentRuntime    `json:"runtime,omitempty"`
+	LLM         *AgentLLM        `json:"llm,omitempty"`
+	Gitea       *AgentGitea      `json:"gitea,omitempty"`
+	Kubernetes  *AgentKubernetes `json:"kubernetes,omitempty"`
+	Resources   *AgentResources  `json:"resources,omitempty"`
+	Memory      *AgentMemory     `json:"memory,omitempty"`
+	Paused      bool             `json:"paused,omitempty"`
 }
 
-type AgentCron struct {
-	Schedule string `json:"schedule,omitempty"`
-	// Prompt field removed — cron prompt is now defined entirely by the Role's PROMPT.md
+// AgentRuntime specifies the runtime type and image for the agent container.
+type AgentRuntime struct {
+	// Type selects a predefined runtime (e.g. "openclaw", "claude-code", "aider").
+	Type string `json:"type,omitempty"`
+	// Image overrides the container image for the runtime.
+	Image string `json:"image,omitempty"`
+	// Env is a list of additional environment variables to inject into the runtime container.
+	Env []AgentEnvVar `json:"env,omitempty"`
+}
+
+// AgentEnvVar is a simple name/value pair for environment variables.
+type AgentEnvVar struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type AgentLLM struct {

@@ -1,7 +1,6 @@
 package reconciler
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,99 +8,60 @@ import (
 	agentapi "github.com/entropyGen/entropyGen/internal/operator/api"
 )
 
-func TestBuildConfigMapData_OpencalwModel(t *testing.T) {
+func TestBuildPromptConfigMapData_RoleDataUsed(t *testing.T) {
 	agent := &agentapi.Agent{}
+	agent.Name = "dev-1"
 	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
-
-	data := buildConfigMapData(agent, nil, "http://agent-gateway.test.svc:80", "https://llm.example.com/v1", "sk-test-key")
-
-	// Verify openclaw.json model field
-	var cfg map[string]interface{}
-	if err := json.Unmarshal([]byte(data["openclaw.json"]), &cfg); err != nil {
-		t.Fatalf("openclaw.json invalid JSON: %v", err)
-	}
-	agents := cfg["agents"].(map[string]interface{})
-	defaults := agents["defaults"].(map[string]interface{})
-	model := defaults["model"].(map[string]interface{})
-	if model["primary"] != "openai/gpt-4o" {
-		t.Errorf("default model: got %v, want openai/gpt-4o", model["primary"])
-	}
-}
-
-func TestBuildConfigMapData_CustomModel(t *testing.T) {
-	agent := &agentapi.Agent{}
-	agent.Spec.Role = "observer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "litellm/MiniMax-M2.5"}
-
-	data := buildConfigMapData(agent, nil, "http://agent-gateway.test.svc:80", "https://llm.example.com/v1", "sk-test-key")
-
-	var cfg map[string]interface{}
-	json.Unmarshal([]byte(data["openclaw.json"]), &cfg)
-	agents := cfg["agents"].(map[string]interface{})
-	defaults := agents["defaults"].(map[string]interface{})
-	model := defaults["model"].(map[string]interface{})
-	if model["primary"] != "litellm/MiniMax-M2.5" {
-		t.Errorf("custom model: got %v, want litellm/MiniMax-M2.5", model["primary"])
-	}
-
-	// Verify provider config uses the correct provider name and model ID
-	models := cfg["models"].(map[string]interface{})
-	providers := models["providers"].(map[string]interface{})
-	litellm := providers["litellm"].(map[string]interface{})
-	if litellm["baseUrl"] != "https://llm.example.com/v1" {
-		t.Errorf("baseUrl: got %v, want https://llm.example.com/v1", litellm["baseUrl"])
-	}
-	modelList := litellm["models"].([]interface{})
-	firstModel := modelList[0].(map[string]interface{})
-	if firstModel["id"] != "MiniMax-M2.5" {
-		t.Errorf("model id: got %v, want MiniMax-M2.5", firstModel["id"])
-	}
-}
-
-func TestBuildConfigMapData_RoleDataUsed(t *testing.T) {
-	agent := &agentapi.Agent{}
-	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
 
 	rd := &roleData{
 		Soul:     "role soul content",
-		Prompt:   "role prompt content",
-		AgentsMD: "# Custom Agents\nCustom role agents.",
+		Prompt:   "role prompt for {{AGENT_ID}}",
+		AgentsMD: "# Custom Agents",
 	}
 
-	data := buildConfigMapData(agent, rd, "http://gw:80", "https://llm.example.com/v1", "sk-key")
+	data := buildPromptConfigMapData(agent, rd)
 
-	// Role data is the single source of truth
 	if data["SOUL.md"] != "role soul content" {
-		t.Errorf("SOUL.md: got %q, want %q", data["SOUL.md"], "role soul content")
+		t.Errorf("SOUL.md: got %q", data["SOUL.md"])
 	}
-	if data["AGENTS.md"] != "# Custom Agents\nCustom role agents." {
-		t.Errorf("AGENTS.md: got %q, want custom agents", data["AGENTS.md"])
+	if data["AGENTS.md"] != "# Custom Agents" {
+		t.Errorf("AGENTS.md: got %q", data["AGENTS.md"])
 	}
-	// PROMPT.md is included for observability
-	if data["PROMPT.md"] != "role prompt content" {
-		t.Errorf("PROMPT.md: got %q, want %q", data["PROMPT.md"], "role prompt content")
+	if data["PROMPT.md"] != "role prompt for agent-dev-1" {
+		t.Errorf("PROMPT.md: got %q", data["PROMPT.md"])
+	}
+	if _, exists := data["openclaw.json"]; exists {
+		t.Error("openclaw.json should not exist")
 	}
 }
 
-func TestBuildConfigMapData_NilRoleData(t *testing.T) {
+func TestBuildPromptConfigMapData_NilRoleData(t *testing.T) {
 	agent := &agentapi.Agent{}
 	agent.Spec.Role = "developer"
-	agent.Spec.LLM = &agentapi.AgentLLM{Model: "openai/gpt-4o"}
 
-	data := buildConfigMapData(agent, nil, "http://gw:80", "https://llm.example.com/v1", "sk-key")
+	data := buildPromptConfigMapData(agent, nil)
+	if len(data) != 0 {
+		t.Errorf("expected empty map, got %d entries", len(data))
+	}
+}
 
-	// Without roleData, content is empty (no fallback to spec or template)
-	if data["SOUL.md"] != "" {
-		t.Errorf("SOUL.md should be empty without roleData, got %q", data["SOUL.md"])
-	}
-	if data["AGENTS.md"] != "" {
-		t.Errorf("AGENTS.md should be empty without roleData, got %q", data["AGENTS.md"])
-	}
-	if _, exists := data["PROMPT.md"]; exists {
-		t.Errorf("PROMPT.md should not exist without roleData")
-	}
+func TestAgentRuntimeImage_Selection(t *testing.T) {
+	t.Run("nil runtime defaults to env var", func(t *testing.T) {
+		t.Setenv("AGENT_RUNTIME_IMAGE", "registry.local/custom:v1")
+		agent := &agentapi.Agent{}
+		got := agentRuntimeImage(agent)
+		if got != "registry.local/custom:v1" {
+			t.Errorf("got %q, want registry.local/custom:v1", got)
+		}
+	})
+	t.Run("explicit image overrides type", func(t *testing.T) {
+		agent := &agentapi.Agent{}
+		agent.Spec.Runtime = &agentapi.AgentRuntime{Type: "openclaw", Image: "my-custom:v2"}
+		got := agentRuntimeImage(agent)
+		if got != "my-custom:v2" {
+			t.Errorf("got %q, want my-custom:v2", got)
+		}
+	})
 }
 
 func TestBuildSkillsData_FromRole(t *testing.T) {

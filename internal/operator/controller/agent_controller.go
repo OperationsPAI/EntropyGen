@@ -131,14 +131,9 @@ func (r *AgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Sync cron scheduler
 	if r.CronScheduler != nil {
-		if agent.Spec.Paused {
-			r.CronScheduler.Remove(agent.Name)
-		} else if agent.Spec.Cron != nil && agent.Spec.Cron.Schedule != "" {
-			prompt := res.CronPrompt(agent)
-			r.CronScheduler.Sync(agent.Name, agent.Spec.Cron.Schedule, prompt)
-		} else {
-			r.CronScheduler.Remove(agent.Name)
-		}
+		// Cron scheduling removed — runtime containers manage their own lifecycle.
+		// Remove any previously scheduled cron jobs for this agent.
+		r.CronScheduler.Remove(agent.Name)
 	}
 
 	log.Info("reconcile complete", "phase", agent.Status.Phase)
