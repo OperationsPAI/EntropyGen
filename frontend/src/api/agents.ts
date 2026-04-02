@@ -15,6 +15,15 @@ import type { Agent, AgentSpec, AgentStatus, CreateAgentDto, AssignTaskDto } fro
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/** Unwrap a generated SDK response, throwing on error. */
+function unwrap<T>(r: { data?: T; error?: any }): T {
+  if (r.error) {
+    const msg = typeof r.error === 'string' ? r.error : r.error?.message ?? 'Request failed'
+    throw new Error(msg)
+  }
+  return r.data as T
+}
+
 /** Map a raw K8s CRD Agent object to the frontend Agent type. */
 function mapAgent(raw: any): Agent {
   if (!raw) return raw
@@ -96,7 +105,7 @@ export interface RuntimeType {
 export const agentsApi = {
   getRuntimeTypes: () =>
     getAgentsRuntimeTypes().then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       const items = (Array.isArray(body?.data) ? body.data : []) as Array<{ image: string; default: boolean }>
       return items.map((item) => ({
         type: item.image,
@@ -107,27 +116,27 @@ export const agentsApi = {
 
   getAgents: () =>
     getAgents().then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       const list = Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
       return list.map(mapAgent) as Agent[]
     }),
 
   getAgent: (name: string) =>
     getAgentsByName({ path: { name } }).then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       const raw = body?.data ?? body
       return mapAgent(raw) as Agent
     }),
 
   createAgent: (dto: CreateAgentDto) =>
     postAgents({ body: dto as any }).then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       return mapAgent(body?.data ?? body) as Agent
     }),
 
   updateAgent: (name: string, spec: Partial<AgentSpec>) =>
     putAgentsByName({ path: { name }, body: spec as any }).then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       return mapAgent(body?.data ?? body) as Agent
     }),
 
@@ -145,14 +154,14 @@ export const agentsApi = {
 
   getAgentLogs: (name: string) =>
     getAgentsByNameLogs({ path: { name } }).then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       // Backend returns { success, data: "log string" }
       return (typeof body?.data === 'string' ? body.data : typeof body === 'string' ? body : '') as string
     }),
 
   assignTask: (name: string, dto: AssignTaskDto) =>
     postAgentsByNameAssignIssue({ path: { name }, body: dto as any }).then((r) => {
-      const body = r.data as any
+      const body = unwrap(r) as any
       return (body?.data ?? body) as { issue_number: number; url: string }
     }),
 }
