@@ -26,8 +26,8 @@ build:
     context: .
   - image: 10.10.10.240/library/control-panel-frontend
     docker:
-      dockerfile: Dockerfile
-    context: frontend
+      dockerfile: frontend/Dockerfile
+    context: .
   - image: 10.10.10.240/library/agent-runtime
     docker:
       dockerfile: agent-runtimes/openclaw/Dockerfile
@@ -77,8 +77,8 @@ profiles:
       context: .
     - image: aidevops/control-panel-frontend
       docker:
-        dockerfile: Dockerfile
-      context: frontend
+        dockerfile: frontend/Dockerfile
+      context: .
     - image: aidevops/agent-runtime
       docker:
         dockerfile: agent-runtimes/openclaw/Dockerfile

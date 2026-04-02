@@ -17,6 +17,6 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debi
     && apt-get install -y --no-install-recommends ca-certificates tzdata \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/backend /backend
-RUN adduser --disabled-password --gecos "" --no-create-home appuser
+RUN useradd --no-create-home --shell /bin/false appuser
 USER appuser
 ENTRYPOINT ["/backend"]

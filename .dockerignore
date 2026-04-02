@@ -22,10 +22,12 @@ bin
 *.swp
 .DS_Store
 
-# Docs / design
+# Docs / design (keep docs/openapi.* for frontend codegen)
 *.md
 .claude
-docs
+docs/**
+!docs/openapi.json
+!docs/openapi.yaml
 
 # Test artifacts
 **/*_test.go
